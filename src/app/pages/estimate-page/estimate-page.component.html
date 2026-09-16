@@ -1,7 +1,9 @@
 <div class="max-w-container">
+  <p-toast class="no-print"></p-toast>
+  <p-confirmDialog class="no-print"></p-confirmDialog>
   <!-- Page Header (Hidden on Print) -->
 
-  <div class="estimate-layout" >
+  <div class="estimate-layout">
     <div class="nav-overlay" [class.visible]="mobileNavOpen" (click)="mobileNavOpen = false"></div>
     <button class="nav-mobile-toggle" (click)="mobileNavOpen = !mobileNavOpen">
       <i [ngClass]="mobileNavOpen ? 'fas fa-times' : 'fas fa-bars'"></i>
@@ -60,9 +62,9 @@
       </ul>
     </nav>
     <div class="container-content">
-      <div class="flex !mb-2 !flex-row justify-between flex-wrap" >
+      <div class="flex !mb-2 !flex-row justify-between flex-wrap">
         <h1 class="k-header">Price Estimation Builder</h1>
-        <p-button [routerLink]="['/detail','6']" [rounded]="true" variant="outlined" severity="danger">
+        <p-button [routerLink]="backLink" [rounded]="true" variant="outlined" severity="danger">
           <i class="fa-solid fa-xmark"></i>
         </p-button>
       </div>
@@ -74,77 +76,47 @@
         <div class="grid grid-cols-2">
           <div class="input-group">
             <span class="input-label">Customer Name / Company</span>
-            <div style="font-size: 14px; font-weight: 700; color: var(--k-black);">John Doe Residence</div>
+            <div style="font-size: 14px; font-weight: 700; color: var(--k-black);">{{ customer?.displayName ?? '—' }}
+            </div>
           </div>
           <div class="input-group">
             <span class="input-label">Contact Reference</span>
-            <div style="font-size: 14px;">+66 81 234 5678 | john.doe&#64;mail.com</div>
+            <div style="font-size: 14px;">{{ contactReference }}</div>
           </div>
           <div class="input-group full-width">
             <span class="input-label">Installation Address</span>
-            <div style="font-size: 14px;">123/45 Sukhumvit Road, Nong Prue, Bang Lamung, Pattaya</div>
+            <div style="font-size: 14px;">{{ customer?.projectLocationName ?? '—' }}</div>
           </div>
         </div>
       </div>
 
-      <!-- 2. Electric Bill -->
-      <div class="card" id="sec-2">
-        <div class="card-header">
-          <h2 class="font-bold">Electric Bill Details</h2>
-        </div>
-        <div class="grid grid-cols-3">
-          <div class="input-group">
-            <label class="input-label">Electric Bill Name</label>
-            <input type="text" placeholder="Name on bill">
-          </div>
-          <div class="input-group">
-            <label class="input-label">Electric Bill Amount (฿)</label>
-            <input type="text" placeholder="e.g. 5,500">
-          </div>
-          <div class="input-group">
-            <label class="input-label">CA / Ref No. 1</label>
-            <input type="text" placeholder="Account Ref">
-          </div>
-          <div class="input-group">
-            <label class="input-label">Installation No.</label>
-            <input type="text" placeholder="Installation ID">
-          </div>
-          <div class="input-group">
-            <label class="input-label">Electricity Usage Type</label>
-            <p-select [options]="electricityOptions" appendTo="body" [(ngModel)]="selectedElectricityUsageType"
-              optionLabel="label" optionValue="value" [filter]="true" filterBy="label,value" [showClear]="true"
-              placeholder="Select Electricity Usage Type" class="w-full">
-            </p-select>
-          </div>
-          <div class="input-group">
-            <label class="input-label">KWH Consumption / Month</label>
-            <input type="text" placeholder="e.g. 1200">
-          </div>
-
-          <div class="input-group full-width no-print mt-4">
-            <label class="input-label">Attach File</label>
-            <div class="upload-area">
-              + Drag & Drop Electric Bill PDF/Image here
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 3.1 Panels -->
+      <!-- 1 Panels -->
       <div class="card panels-card" id="sec-3">
         <div class="card-header">
           <h2 class="font-bold">1. Panels</h2>
         </div>
         <div class="table-scroll-wrap">
-          <table class="config-table">
+          <table class="config-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-brand">
+              <col class="col-desc">
+              <col class="col-kw">
+              <col class="col-price">
+              <col class="col-price">
+              <col class="col-profit">
+              <col class="col-qty">
+              <col class="col-total">
+              <col class="col-totalkw">
+              <col class="col-noprint">
+            </colgroup>
             <thead>
               <tr>
                 <th>Brand</th>
-                <th></th>
+                <th>Description</th>
                 <th>kW</th>
                 <th>Cost Price</th>
-                <th>Price Markup</th>
-                <th>Profit</th>
+                <th>Sale Price</th>
+                <th pTooltip="Profit = Price Markup (Sale Price) − Cost Price" tooltipPosition="top">Profit</th>
                 <th class="col-qty">Quantity</th>
                 <th>Total</th>
                 <th>Total kW</th>
@@ -154,64 +126,139 @@
             <tbody>
               <tr>
                 <td>
-                  <p-select [options]="solarPanelOptions" appendTo="body" [(ngModel)]="selectedSolarPanel"
-                    optionLabel="label" optionValue="value" [filter]="true" filterBy="label" [showClear]="true"
-                    placeholder="Select Brand" class="w-full">
+                  <p-select [options]="panelBrandOptions" appendTo="body" [(ngModel)]="selectedPanelBrand"
+                    (onChange)="onPanelBrandChange()" optionLabel="label" optionValue="value" [filter]="true"
+                    filterBy="label" [showClear]="true" placeholder="Select Brand" class="w-full">
                   </p-select>
                 </td>
                 <td>
-                  <p-select [options]="panelTypeOptions" appendTo="body" [(ngModel)]="selectedPanelType"
-                    optionLabel="label" optionValue="value" [showClear]="true" placeholder="Select Type" class="w-full">
-                  </p-select>
-                </td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
-                <td class="col-qty"><input type="number" placeholder="Qty"></td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
-                <td class="no-print">
-                  <button class="icon-btn" title="Remove">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                      </path>
-                    </svg>
-                  </button>
-                </td>
-              </tr>
-              <tr class="no-print">
-                <td colspan="10" class="add-row-cell">
-                  <button class="k-btn k-btn-text">+ Add different panel</button>
-                </td>
-              </tr>
-              <tr class="accessories-row">
-                <td>
-                  <p-select [options]="panelAccessoriesOptions" appendTo="body" [(ngModel)]="selectedPanelAccessory"
-                    optionLabel="label" optionValue="value" [showClear]="true" placeholder="Add panel accessories"
+                  <p-select [options]="panelDescriptionOptions" appendTo="body" [(ngModel)]="selectedPanelId"
+                    optionLabel="label" optionValue="value" [showClear]="true" placeholder="Select Description"
                     class="w-full">
                   </p-select>
                 </td>
-                <td><span class="desc-lbl">Description</span></td>
-                <td class="cell-dash">—</td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
-                <td></td>
-                <td class="col-qty"><input type="text" placeholder="Qty"></td>
-                <td class="cell-auto">—</td>
-                <td class="cell-dash">—</td>
-                <td class="no-print"></td>
+                <td class="cell-auto">{{ selectedPanel ? (panelKw | number:'1.0-2') : '—' }}</td>
+                <td class="cell-auto">{{ selectedPanel ? (panelCostPrice | number:'1.2-2') : '—' }}</td>
+                <td class="cell-auto">{{ selectedPanel ? (panelPriceMarkup | number:'1.2-2') : '—' }}</td>
+                <td class="cell-auto">{{ selectedPanel ? (panelProfit | number:'1.2-2') : '—' }}</td>
+                <td class="col-qty"><input type="number" placeholder="Qty" [(ngModel)]="panelQuantity"
+                    [readonly]="!selectedPanel" (click)="onPanelQtyClick()"></td>
+                <td class="cell-auto">{{ selectedPanel ? (panelTotal | number:'1.2-2') : '—' }}</td>
+                <td class="cell-auto">{{ selectedPanel ? (panelTotalKw | number:'1.0-2') : '—' }}</td>
+                <td class="no-print">
+                  <button class="icon-btn" title="Remove">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p-accordion class="no-print k-estimate-accordion">
+          <p-accordion-panel value="0">
+            <p-accordion-header>Accessories</p-accordion-header>
+            <p-accordion-content>
+              <div class="table-scroll-wrap">
+                <table class="config-table accessories-table config-table--fixed-cols">
+                  <colgroup>
+                    <col class="col-brand">
+                    <col class="col-desc">
+                    <col class="col-price">
+                    <col class="col-price">
+                    <col class="col-profit">
+                    <col class="col-qty">
+                    <col class="col-total">
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>Brand</th>
+                      <th>Description</th>
+                      <th>Cost Price</th>
+                      <th>Sale Price</th>
+                      <th>Profit</th>
+                      <th class="col-qty">Quantity</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let acc of panelAccessories; let i = index">
+                      <td>{{ acc.brand }}</td>
+                      <td>{{ acc.description }}</td>
+                      <td class="cell-auto">{{ acc.costPrice | number:'1.2-2' }}</td>
+                      <td class="cell-auto">{{ acc.salePrice | number:'1.2-2' }}</td>
+                      <td class="cell-auto">{{ (acc.salePrice - acc.costPrice) | number:'1.2-2' }}</td>
+                      <td class="col-qty"><input type="number" placeholder="Qty" [(ngModel)]="panelAccessoryQty[i]">
+                      </td>
+                      <td class="cell-auto">{{ (acc.salePrice * (panelAccessoryQty[i] ?? 0)) | number:'1.2-2' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </p-accordion-content>
+          </p-accordion-panel>
+        </p-accordion>
+        <div class="table-scroll-wrap mt-2" *ngIf="selectedPanelAccessories.length > 0">
+          <table class="config-table accessories-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-brand">
+              <col class="col-desc">
+              <col class="col-price">
+              <col class="col-price">
+              <col class="col-profit">
+              <col class="col-qty">
+              <col class="col-total">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Brand</th>
+                <th>Description</th>
+                <th>Cost Price</th>
+                <th>Sale Price</th>
+                <th>Profit</th>
+                <th class="col-qty">Quantity</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of selectedPanelAccessories">
+                <td>{{ item.acc.brand }}</td>
+                <td>{{ item.acc.description }}</td>
+                <td class="cell-auto">{{ item.acc.costPrice | number:'1.2-2' }}</td>
+                <td class="cell-auto">{{ item.acc.salePrice | number:'1.2-2' }}</td>
+                <td class="cell-auto">{{ item.profit | number:'1.2-2' }}</td>
+                <td class="col-qty">{{ item.qty }}</td>
+                <td class="cell-auto">{{ item.total | number:'1.2-2' }}</td>
               </tr>
             </tbody>
             <tfoot>
               <tr class="config-total-row">
-                <td colspan="4"></td>
-                <td colspan="2" class="section-total-name">Section 1.1: Panels</td>
+                <td colspan="5"></td>
                 <td>Total</td>
-                <td class="total-val">—</td>
-                <td class="total-val">—</td>
+                <td class="total-val">{{ panelAccessoriesTotal | number:'1.2-2' }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="table-scroll-wrap mt-2">
+          <table class="config-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-brand">
+              <col class="col-desc">
+              <col class="col-kw">
+              <col class="col-price">
+              <col class="col-price">
+              <col class="col-profit">
+              <col class="col-qty">
+              <col class="col-total">
+              <col class="col-totalkw">
+              <col class="col-noprint">
+            </colgroup>
+            <tfoot>
+              <tr class="config-total-row">
+                <td colspan="6"></td>
+                <td>Total</td>
+                <td class="total-val">{{ panelSectionTotal | number:'1.2-2' }}</td>
+                <td class="total-val">{{ panelSectionTotalKw | number:'1.0-2' }}</td>
                 <td class="no-print"></td>
               </tr>
             </tfoot>
@@ -219,21 +266,33 @@
         </div>
       </div>
 
-      <!-- 3.2 Inverters -->
+      <!-- 2 Inverters -->
       <div class="card inverters-card" id="sec-4">
         <div class="card-header">
           <h2 class="font-bold">2. Inverters</h2>
         </div>
         <div class="table-scroll-wrap">
-          <table class="config-table">
+          <table class="config-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-brand col-brand--inverter">
+              <col class="col-phase">
+              <col class="col-desc">
+              <col class="col-price">
+              <col class="col-price">
+              <col class="col-profit">
+              <col class="col-qty">
+              <col class="col-total">
+              <col class="col-totalkw">
+              <col class="col-noprint">
+            </colgroup>
             <thead>
               <tr>
                 <th>Brand</th>
                 <th>Phase</th>
-                <th>kW</th>
+                <th>Description</th>
                 <th>Cost Price</th>
-                <th>Price Markup</th>
-                <th>Profit</th>
+                <th>Sale Price</th>
+                <th pTooltip="Profit = Price Markup (Sale Price) − Cost Price" tooltipPosition="top">Profit</th>
                 <th class="col-qty">Quantity</th>
                 <th>Total</th>
                 <th>Total kW</th>
@@ -243,68 +302,144 @@
             <tbody>
               <tr>
                 <td>
-                  <p-select [options]="inverterOptions" appendTo="body" [(ngModel)]="selectedInverter"
-                    optionLabel="label" optionValue="value" [filter]="true" filterBy="label" [showClear]="true"
-                    placeholder="Select Brand" class="w-full">
+                  <p-select [options]="inverterBrandOptions" appendTo="body" [(ngModel)]="selectedInverterBrand"
+                    (onChange)="onInverterBrandChange()" optionLabel="label" optionValue="value" [filter]="true"
+                    filterBy="label" [showClear]="true" placeholder="Select Brand" class="w-full">
                   </p-select>
                 </td>
                 <td>
-                  <p-select [options]="phaseOptions" appendTo="body" [(ngModel)]="selectedPhase" optionLabel="label"
-                    optionValue="value" [showClear]="true" placeholder="Phase" class="w-full">
+                  <p-select [options]="inverterPhaseOptions" appendTo="body" [(ngModel)]="selectedInverterPhase"
+                    (onChange)="onInverterPhaseChange()" optionLabel="label" optionValue="value" [showClear]="true"
+                    placeholder="Phase" class="w-full">
                   </p-select>
                 </td>
                 <td>
-                  <p-select [options]="inverterKwOptions" appendTo="body" [(ngModel)]="selectedInverterKw"
-                    optionLabel="label" optionValue="value" [showClear]="true" placeholder="kW" class="w-full">
+                  <p-select [options]="inverterModelOptions" appendTo="body" [(ngModel)]="selectedInverterId"
+                    optionLabel="label" optionValue="value" [showClear]="true" placeholder="Select Model"
+                    class="w-full">
                   </p-select>
                 </td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
-                <td class="col-qty"><input type="number" placeholder="Qty"></td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
+                <td class="cell-auto">{{ selectedInverter ? (inverterCostPrice | number:'1.2-2') : '—' }}</td>
+                <td class="cell-auto">{{ selectedInverter ? (inverterPriceMarkup | number:'1.2-2') : '—' }}</td>
+                <td class="cell-auto">{{ selectedInverter ? (inverterProfit | number:'1.2-2') : '—' }}</td>
+                <td class="col-qty"><input type="number" placeholder="Qty" [(ngModel)]="inverterQuantity"
+                    [readonly]="!selectedInverter" (click)="onInverterQtyClick()"></td>
+                <td class="cell-auto">{{ selectedInverter ? (inverterTotal | number:'1.2-2') : '—' }}</td>
+                <td class="cell-auto">{{ selectedInverter ? (inverterTotalKw | number:'1.0-2') : '—' }}</td>
                 <td class="no-print">
                   <button class="icon-btn" title="Remove">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                      </path>
-                    </svg>
+                    <i class="fa-solid fa-trash"></i>
                   </button>
                 </td>
               </tr>
-              <tr class="no-print">
-                <td colspan="10" class="add-row-cell">
-                  <button class="k-btn k-btn-text">+ Add different Inverter</button>
-                </td>
+            </tbody>
+          </table>
+        </div>
+        <p-accordion class="no-print k-estimate-accordion">
+          <p-accordion-panel value="0">
+            <p-accordion-header>Accessories</p-accordion-header>
+            <p-accordion-content>
+              <div class="table-scroll-wrap">
+                <table class="config-table accessories-table config-table--fixed-cols">
+                  <colgroup>
+                    <col class="col-brand">
+                    <col class="col-desc">
+                    <col class="col-price">
+                    <col class="col-price">
+                    <col class="col-profit">
+                    <col class="col-qty">
+                    <col class="col-total">
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>Brand</th>
+                      <th>Description</th>
+                      <th>Cost Price</th>
+                      <th>Sale Price</th>
+                      <th>Profit</th>
+                      <th class="col-qty">Quantity</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let acc of inverterAccessories; let i = index">
+                      <td>{{ acc.brand }}</td>
+                      <td>{{ acc.description }}</td>
+                      <td class="cell-auto">{{ acc.costPrice | number:'1.2-2' }}</td>
+                      <td class="cell-auto">{{ acc.salePrice | number:'1.2-2' }}</td>
+                      <td class="cell-auto">{{ (acc.salePrice - acc.costPrice) | number:'1.2-2' }}</td>
+                      <td class="col-qty"><input type="number" placeholder="Qty" [(ngModel)]="inverterAccessoryQty[i]">
+                      </td>
+                      <td class="cell-auto">{{ (acc.salePrice * (inverterAccessoryQty[i] ?? 0)) | number:'1.2-2' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </p-accordion-content>
+          </p-accordion-panel>
+        </p-accordion>
+        <div class="table-scroll-wrap mt-2" *ngIf="selectedInverterAccessories.length > 0">
+          <table class="config-table accessories-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-brand">
+              <col class="col-desc">
+              <col class="col-price">
+              <col class="col-price">
+              <col class="col-profit">
+              <col class="col-qty">
+              <col class="col-total">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Brand</th>
+                <th>Description</th>
+                <th>Cost Price</th>
+                <th>Sale Price</th>
+                <th>Profit</th>
+                <th class="col-qty">Quantity</th>
+                <th>Total</th>
               </tr>
-              <tr class="accessories-row">
-                <td>
-                  <p-select [options]="inverterAccessoriesOptions" appendTo="body"
-                    [(ngModel)]="selectedInverterAccessory" optionLabel="label" optionValue="value" [showClear]="true"
-                    placeholder="Add inverter accessories" class="w-full">
-                  </p-select>
-                </td>
-                <td><span class="desc-lbl">Description</span></td>
-                <td class="cell-dash">—</td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
-                <td></td>
-                <td class="col-qty"><input type="text" placeholder="Qty"></td>
-                <td class="cell-auto">—</td>
-                <td class="cell-dash">—</td>
-                <td class="no-print"></td>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of selectedInverterAccessories">
+                <td>{{ item.acc.brand }}</td>
+                <td>{{ item.acc.description }}</td>
+                <td class="cell-auto">{{ item.acc.costPrice | number:'1.2-2' }}</td>
+                <td class="cell-auto">{{ item.acc.salePrice | number:'1.2-2' }}</td>
+                <td class="cell-auto">{{ item.profit | number:'1.2-2' }}</td>
+                <td class="col-qty">{{ item.qty }}</td>
+                <td class="cell-auto">{{ item.total | number:'1.2-2' }}</td>
               </tr>
             </tbody>
             <tfoot>
               <tr class="config-total-row">
-                <td colspan="4"></td>
-                <td colspan="2" class="section-total-name">Section 1.2: Inverters</td>
+                <td colspan="5"></td>
                 <td>Total</td>
-                <td class="total-val">—</td>
-                <td class="total-val">—</td>
+                <td class="total-val">{{ inverterAccessoriesTotal | number:'1.2-2' }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="table-scroll-wrap mt-2">
+          <table class="config-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-brand">
+              <col class="col-desc">
+              <col class="col-kw">
+              <col class="col-price">
+              <col class="col-price">
+              <col class="col-profit">
+              <col class="col-qty">
+              <col class="col-total">
+              <col class="col-totalkw">
+              <col class="col-noprint">
+            </colgroup>
+            <tfoot>
+              <tr class="config-total-row">
+                <td colspan="6"></td>
+                <td>Total</td>
+                <td class="total-val">{{ inverterSectionTotal | number:'1.2-2' }}</td>
+                <td class="total-val">{{ inverterSectionTotalKw | number:'1.0-2' }}</td>
                 <td class="no-print"></td>
               </tr>
             </tfoot>
@@ -312,21 +447,33 @@
         </div>
       </div>
 
-      <!-- 3.3 Batteries -->
+      <!-- 3 Batteries -->
       <div class="card batteries-card" id="sec-5">
         <div class="card-header">
           <h2 class="font-bold">3. Batteries</h2>
         </div>
         <div class="table-scroll-wrap">
-          <table class="config-table">
+          <table class="config-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-brand">
+              <col class="col-desc">
+              <col class="col-kw">
+              <col class="col-price">
+              <col class="col-price">
+              <col class="col-profit">
+              <col class="col-qty">
+              <col class="col-total">
+              <col class="col-totalkw">
+              <col class="col-noprint">
+            </colgroup>
             <thead>
               <tr>
                 <th>Brand</th>
                 <th>Description</th>
                 <th>kW</th>
                 <th>Cost Price</th>
-                <th>Price Markup</th>
-                <th>Profit</th>
+                <th>Sale Price</th>
+                <th pTooltip="Profit = Price Markup (Sale Price) − Cost Price" tooltipPosition="top">Profit</th>
                 <th class="col-qty">Quantity</th>
                 <th>Total</th>
                 <th>Total kW</th>
@@ -336,64 +483,139 @@
             <tbody>
               <tr>
                 <td>
-                  <p-select [options]="batteryOptions" appendTo="body" [(ngModel)]="selectedBattery" optionLabel="label"
-                    optionValue="value" [filter]="true" filterBy="label" [showClear]="true" placeholder="Select Brand"
+                  <p-select [options]="batteryBrandOptions" appendTo="body" [(ngModel)]="selectedBatteryBrand"
+                    (onChange)="onBatteryBrandChange()" optionLabel="label" optionValue="value" [filter]="true"
+                    filterBy="label" [showClear]="true" placeholder="Select Brand" class="w-full">
+                  </p-select>
+                </td>
+                <td>
+                  <p-select [options]="batteryDescriptionOptions" appendTo="body" [(ngModel)]="selectedBatteryId"
+                    optionLabel="label" optionValue="value" [showClear]="true" placeholder="Select Description"
                     class="w-full">
                   </p-select>
                 </td>
-                <td></td>
-                <td>
-                  <p-select [options]="batteryKwOptions" appendTo="body" [(ngModel)]="selectedBatteryKw"
-                    optionLabel="label" optionValue="value" [showClear]="true" placeholder="kWh" class="w-full">
-                  </p-select>
-                </td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
-                <td class="col-qty"><input type="number" placeholder="Qty"></td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
+                <td class="cell-auto">{{ selectedBattery ? (batteryKw | number:'1.0-2') : '—' }}</td>
+                <td class="cell-auto">{{ selectedBattery ? (batteryCostPrice | number:'1.2-2') : '—' }}</td>
+                <td class="cell-auto">{{ selectedBattery ? (batteryPriceMarkup | number:'1.2-2') : '—' }}</td>
+                <td class="cell-auto">{{ selectedBattery ? (batteryProfit | number:'1.2-2') : '—' }}</td>
+                <td class="col-qty"><input type="number" placeholder="Qty" [(ngModel)]="batteryQuantity"
+                    [readonly]="!selectedBattery" (click)="onBatteryQtyClick()"></td>
+                <td class="cell-auto">{{ selectedBattery ? (batteryTotal | number:'1.2-2') : '—' }}</td>
+                <td class="cell-auto">{{ selectedBattery ? (batteryTotalKw | number:'1.0-2') : '—' }}</td>
                 <td class="no-print">
                   <button class="icon-btn" title="Remove">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                      </path>
-                    </svg>
+                    <i class="fa-solid fa-trash"></i>
                   </button>
                 </td>
               </tr>
-              <tr class="no-print">
-                <td colspan="10" class="add-row-cell">
-                  <button class="k-btn k-btn-text">+ Add different Batteries</button>
-                </td>
+            </tbody>
+          </table>
+        </div>
+        <p-accordion class="no-print k-estimate-accordion">
+          <p-accordion-panel value="0">
+            <p-accordion-header>Accessories</p-accordion-header>
+            <p-accordion-content>
+              <div class="table-scroll-wrap">
+                <table class="config-table accessories-table config-table--fixed-cols">
+                  <colgroup>
+                    <col class="col-brand">
+                    <col class="col-desc">
+                    <col class="col-price">
+                    <col class="col-price">
+                    <col class="col-profit">
+                    <col class="col-qty">
+                    <col class="col-total">
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>Brand</th>
+                      <th>Description</th>
+                      <th>Cost Price</th>
+                      <th>Sale Price</th>
+                      <th>Profit</th>
+                      <th class="col-qty">Quantity</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let acc of batteryAccessories; let i = index">
+                      <td>{{ acc.brand }}</td>
+                      <td>{{ acc.description }}</td>
+                      <td class="cell-auto">{{ acc.costPrice | number:'1.2-2' }}</td>
+                      <td class="cell-auto">{{ acc.salePrice | number:'1.2-2' }}</td>
+                      <td class="cell-auto">{{ (acc.salePrice - acc.costPrice) | number:'1.2-2' }}</td>
+                      <td class="col-qty"><input type="number" placeholder="Qty" [(ngModel)]="batteryAccessoryQty[i]">
+                      </td>
+                      <td class="cell-auto">{{ (acc.salePrice * (batteryAccessoryQty[i] ?? 0)) | number:'1.2-2' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </p-accordion-content>
+          </p-accordion-panel>
+        </p-accordion>
+        <div class="table-scroll-wrap mt-2" *ngIf="selectedBatteryAccessories.length > 0">
+          <table class="config-table accessories-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-brand">
+              <col class="col-desc">
+              <col class="col-price">
+              <col class="col-price">
+              <col class="col-profit">
+              <col class="col-qty">
+              <col class="col-total">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Brand</th>
+                <th>Description</th>
+                <th>Cost Price</th>
+                <th>Sale Price</th>
+                <th>Profit</th>
+                <th class="col-qty">Quantity</th>
+                <th>Total</th>
               </tr>
-              <tr class="accessories-row">
-                <td>
-                  <p-select [options]="batteryAccessoriesOptions" appendTo="body" [(ngModel)]="selectedBatteryAccessory"
-                    optionLabel="label" optionValue="value" [showClear]="true" placeholder="Add battery accessories"
-                    class="w-full">
-                  </p-select>
-                </td>
-                <td><span class="desc-lbl">Description</span></td>
-                <td class="cell-dash">—</td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
-                <td></td>
-                <td class="col-qty"><input type="text" placeholder="Qty"></td>
-                <td class="cell-auto">—</td>
-                <td class="cell-dash">—</td>
-                <td class="no-print"></td>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of selectedBatteryAccessories">
+                <td>{{ item.acc.brand }}</td>
+                <td>{{ item.acc.description }}</td>
+                <td class="cell-auto">{{ item.acc.costPrice | number:'1.2-2' }}</td>
+                <td class="cell-auto">{{ item.acc.salePrice | number:'1.2-2' }}</td>
+                <td class="cell-auto">{{ item.profit | number:'1.2-2' }}</td>
+                <td class="col-qty">{{ item.qty }}</td>
+                <td class="cell-auto">{{ item.total | number:'1.2-2' }}</td>
               </tr>
             </tbody>
             <tfoot>
               <tr class="config-total-row">
-                <td colspan="4"></td>
-                <td colspan="2" class="section-total-name">Section 1.3: Batteries</td>
+                <td colspan="5"></td>
                 <td>Total</td>
-                <td class="total-val">—</td>
-                <td class="total-val">—</td>
+                <td class="total-val">{{ batteryAccessoriesTotal | number:'1.2-2' }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="table-scroll-wrap mt-2">
+          <table class="config-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-brand">
+              <col class="col-desc">
+              <col class="col-kw">
+              <col class="col-price">
+              <col class="col-price">
+              <col class="col-profit">
+              <col class="col-qty">
+              <col class="col-total">
+              <col class="col-totalkw">
+              <col class="col-noprint">
+            </colgroup>
+            <tfoot>
+              <tr class="config-total-row">
+                <td colspan="6"></td>
+                <td>Total</td>
+                <td class="total-val">{{ batterySectionTotal | number:'1.2-2' }}</td>
+                <td class="total-val">{{ batterySectionTotalKw | number:'1.0-2' }}</td>
                 <td class="no-print"></td>
               </tr>
             </tfoot>
@@ -401,213 +623,543 @@
         </div>
       </div>
 
-      <!-- 3.4 Solar Racking -->
+      <!-- 4 Solar Racking -->
       <div class="card racking-card" id="sec-6">
         <div class="card-header">
           <h2 class="font-bold">4. Solar Racking</h2>
         </div>
-        <div class="table-scroll-wrap">
+        <div class="input-group">
+          <label class="input-label">Roof Type</label>
+          <p-selectbutton class="k-category" [options]="roofTypeOptions" [(ngModel)]="selectedRoofTypeId"
+            optionLabel="label" optionValue="value">
+          </p-selectbutton>
+        </div>
+        <div class="table-scroll-wrap mt-2">
           <table class="config-table">
             <thead>
               <tr>
-                <th>Type</th>
-                <th>Total Cost</th>
-                <th>kW</th>
-                <th>Cost / W</th>
-                <th>Price Markup</th>
-                <th>Profit</th>
-                <th class="col-qty">Units</th>
+                <th>Part</th>
+                <th>Description</th>
+                <!-- <th>Total Cost</th> -->
+                <!-- <th>Cost / W</th> -->
+                <th>Sale Price</th>
+                <th class="col-qty">Quantity</th>
+                <!-- <th>Profit</th> -->
                 <th>Total</th>
-                <th class="no-print"></th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>
-                  <p-select [options]="rackingOptions" appendTo="body" [(ngModel)]="selectedRacking"
-                    optionLabel="label" optionValue="value" [filter]="true" filterBy="label" [showClear]="true"
-                    placeholder="Select Type" class="w-full">
-                  </p-select>
-                </td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto"><span class="desc-lbl">.= PV W</span></td>
-                <td class="cell-auto">—</td>
-                <td><input type="number" placeholder="Markup"></td>
-                <td class="cell-auto">—</td>
-                <td class="col-qty"><input type="number" placeholder="Units"></td>
-                <td class="cell-auto">—</td>
-                <td class="no-print">
-                  <button class="icon-btn" title="Remove">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                      </path>
-                    </svg>
-                  </button>
-                </td>
+              <tr *ngFor="let item of filteredRackingItems">
+                <td>{{ item.part }}</td>
+                <td>{{ item.description }}</td>
+                <!-- <td class="cell-auto">{{ (item.costPrice * (rackingQtyMap[item.id] ?? 0)) | number:'1.2-2' }}</td> -->
+                <!-- <td class="cell-auto">{{ systemWatts > 0 ? (item.costPrice / systemWatts | number:'1.2-4') : '—' }}</td> -->
+                <td class="cell-auto">{{ item.salePrice | number:'1.2-2' }}</td>
+                <td class="col-qty"><input type="number" placeholder="Qty" [(ngModel)]="rackingQtyMap[item.id]"></td>
+                <!-- <td class="cell-auto">{{ (item.salePrice - item.costPrice) | number:'1.2-2' }}</td> -->
+                <td class="cell-auto">{{ (item.salePrice * (rackingQtyMap[item.id] ?? 0)) | number:'1.2-2' }}</td>
               </tr>
-              <tr class="no-print">
-                <td colspan="9" class="add-row-cell">
-                  <button class="k-btn k-btn-text">+ Add racking type</button>
-                </td>
+              <tr *ngIf="selectedRoofTypeId && filteredRackingItems.length === 0">
+                <td colspan="5" class="cell-auto">No items for this roof type</td>
               </tr>
             </tbody>
             <tfoot>
               <tr class="config-total-row">
-                <td colspan="4"></td>
-                <td colspan="2" class="section-total-name">Section 1.4: Solar Racking</td>
+                <td colspan="3"></td>
                 <td>Total</td>
-                <td class="total-val">—</td>
-                <td class="no-print"></td>
+                <td class="total-val">{{ rackingSectionTotal | number:'1.2-2' }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- สรุป Total Cost แยกตาม roof type ที่เลือกไว้ -->
+        <div class="table-scroll-wrap mt-2">
+          <table class="config-table">
+            <thead>
+              <tr>
+                <th colspan="2">Description</th>
+                <th>Total Cost</th>
+                <th>Cost / W</th>
+                <th>Sale Price</th>
+                <!-- <th class="col-qty">Quantity</th> -->
+                <th>Profit</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let rt of roofTypeTotals">
+                <td colspan="2">{{ rt.roofTypeName }}</td>
+                <td class="cell-auto">{{ rt.totalCost | number:'1.2-2' }}</td>
+                <td class="cell-auto">{{ systemWatts > 0 ? (rt.totalCost / systemWatts | number:'1.2-4') : '—' }}</td>
+                <td class="cell-auto">{{ rt.salePrice | number:'1.2-2' }}</td>
+                <!-- <td class="col-qty cell-auto">{{ rt.quantity }}</td> -->
+                <td class="cell-auto">{{ rt.profit | number:'1.2-2' }}</td>
+                <td class="cell-auto">{{ rt.total | number:'1.2-2' }}</td>
+              </tr>
+              <tr *ngIf="roofTypeTotals.length === 0">
+                <td colspan="8" class="cell-auto">No roof type selected</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="config-total-row">
+                <td colspan="5"></td>
+                <td>Total</td>
+                <td class="total-val">{{ rackingSectionTotal | number:'1.2-2' }}</td>
               </tr>
             </tfoot>
           </table>
         </div>
       </div>
 
-      <!-- 3.5 Solar BOS -->
+      <!-- 5. Solar BOS -->
       <div class="card bos-card" id="sec-7">
         <div class="card-header">
           <h2 class="font-bold">5. Solar BOS</h2>
         </div>
-        <div class="table-scroll-wrap">
-          <table class="config-table">
+        <div class="input-group">
+          <label class="input-label">Category</label>
+          <p-selectbutton class="k-category" [options]="bosCategoryOptions" [(ngModel)]="selectedBosCategory"
+            optionLabel="label" optionValue="value">
+          </p-selectbutton>
+        </div>
+
+        <!-- 5.1 Cables -->
+        <div class="table-scroll-wrap mt-2" *ngIf="selectedBosCategory === 'cables'">
+          <table class="config-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-item">
+              <col class="col-bos-desc">
+              <col class="col-size col-size--solarbos">
+              <col class="col-bos-price">
+              <!-- <col class="col-costw"> -->
+              <col class="col-qty col-qty--solarbos">
+              <col class="col-total--solar-bos">
+            </colgroup>
             <thead>
               <tr>
-                <th>Type</th>
+                <th>Item</th>
                 <th>Description</th>
-                <th>Total Cost</th>
-                <th>Cost / W</th>
-                <th>Price Markup</th>
-                <th>Profit</th>
-                <th class="col-qty">Units</th>
+                <th>Size</th>
+                <th>Cost Price</th>
+                <!-- <th>Cost / W</th> -->
+                <th>Quantity</th>
                 <th>Total</th>
-                <th class="no-print"></th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>
-                  <p-select [options]="bosOptions" appendTo="body" [(ngModel)]="selectedBOS"
-                    optionLabel="label" optionValue="value" [filter]="true" filterBy="label" [showClear]="true"
-                    placeholder="Select Type" class="w-full">
-                  </p-select>
-                </td>
-                <td><input type="text" placeholder="Description"></td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—<br><span class="desc-lbl">.= Total / W</span></td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
-                <td class="col-qty"><input type="text" placeholder="Units"></td>
-                <td class="cell-auto">—</td>
-                <td class="no-print">
-                  <button class="icon-btn" title="Remove">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                      </path>
-                    </svg>
-                  </button>
-                </td>
-              </tr>
-              <tr class="no-print">
-                <td colspan="9" class="add-row-cell">
-                  <button class="k-btn k-btn-text">+ Add BOS item</button>
-                </td>
+              <tr *ngFor="let item of cables; let i = index">
+                <td>{{ item.item }}</td>
+                <td>{{ item.description }}</td>
+                <td>{{ item.size }}</td>
+                <td class="cell-auto">{{ item.costPrice | number:'1.2-2' }}</td>
+                <!-- <td class="cell-auto">{{ systemWatts > 0 ? (item.costPrice / systemWatts | number:'1.2-4') : '—' }}</td> -->
+                <td class="col-qty col-qty--solarbos"><input type="number" placeholder="Qty" [(ngModel)]="cableQty[i]"></td>
+                <td class="cell-auto">{{ (item.costPrice * (cableQty[i] ?? 0)) | number:'1.2-2' }}</td>
               </tr>
             </tbody>
             <tfoot>
               <tr class="config-total-row">
                 <td colspan="4"></td>
-                <td colspan="2" class="section-total-name">Section 1.5: Solar BOS</td>
                 <td>Total</td>
-                <td class="total-val">—</td>
-                <td class="no-print"></td>
+                <td class="total-val">{{ cablesTotal | number:'1.2-2' }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- 5.2 Switch Gears -->
+        <div class="table-scroll-wrap mt-2" *ngIf="selectedBosCategory === 'switch_gears'">
+          <table class="config-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-item">
+              <col class="col-bos-desc">
+              <col class="col-size">
+              <col class="col-bos-price">
+              <col class="col-costw">
+              <col class="col-qty">
+              <col class="col-total">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Description</th>
+                <th>Size</th>
+                <th>Cost Price</th>
+                <th>Cost / W</th>
+                <th class="col-qty">Quantity</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of switchGears; let i = index">
+                <td>{{ item.item }}</td>
+                <td>{{ item.description }}</td>
+                <td>{{ item.size }}</td>
+                <td class="cell-auto">{{ item.costPrice | number:'1.2-2' }}</td>
+                <td class="cell-auto">{{ systemWatts > 0 ? (item.costPrice / systemWatts | number:'1.2-4') : '—' }}</td>
+                <td class="col-qty"><input type="number" placeholder="Qty" [(ngModel)]="switchGearQty[i]"></td>
+                <td class="cell-auto">{{ (item.costPrice * (switchGearQty[i] ?? 0)) | number:'1.2-2' }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="config-total-row">
+                <td colspan="5"></td>
+                <td>Total</td>
+                <td class="total-val">{{ switchGearsTotal | number:'1.2-2' }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- 5.3 Solar Equipment -->
+        <div class="table-scroll-wrap mt-2" *ngIf="selectedBosCategory === 'solar_equipment'">
+          <table class="config-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-item">
+              <col class="col-bos-desc">
+              <col class="col-size">
+              <col class="col-bos-price">
+              <col class="col-costw">
+              <col class="col-qty">
+              <col class="col-total">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Description</th>
+                <th>Size</th>
+                <th>Cost Price</th>
+                <th>Cost / W</th>
+                <th class="col-qty">Quantity</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of solarEquipment; let i = index">
+                <td>{{ item.item }}</td>
+                <td>{{ item.description }}</td>
+                <td>{{ item.size }}</td>
+                <td class="cell-auto">{{ item.costPrice | number:'1.2-2' }}</td>
+                <td class="cell-auto">{{ systemWatts > 0 ? (item.costPrice / systemWatts | number:'1.2-4') : '—' }}</td>
+                <td class="col-qty"><input type="number" placeholder="Qty" [(ngModel)]="solarEquipmentQty[i]"></td>
+                <td class="cell-auto">{{ (item.costPrice * (solarEquipmentQty[i] ?? 0)) | number:'1.2-2' }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="config-total-row">
+                <td colspan="5"></td>
+                <td>Total</td>
+                <td class="total-val">{{ solarEquipmentTotal | number:'1.2-2' }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- 5.4 Conduit & Junction Boxes -->
+        <div class="table-scroll-wrap mt-2" *ngIf="selectedBosCategory === 'conduit_junction_boxes'">
+          <table class="config-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-item">
+              <col class="col-bos-desc">
+              <col class="col-size">
+              <col class="col-bos-price">
+              <col class="col-costw">
+              <col class="col-qty">
+              <col class="col-total">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Description</th>
+                <th>Size</th>
+                <th>Cost Price</th>
+                <th>Cost / W</th>
+                <th class="col-qty">Quantity</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of conduitJunctionBoxes; let i = index">
+                <td>{{ item.item }}</td>
+                <td>{{ item.description }}</td>
+                <td>{{ item.size }}</td>
+                <td class="cell-auto">{{ item.costPrice | number:'1.2-2' }}</td>
+                <td class="cell-auto">{{ systemWatts > 0 ? (item.costPrice / systemWatts | number:'1.2-4') : '—' }}</td>
+                <td class="col-qty"><input type="number" placeholder="Qty" [(ngModel)]="conduitJunctionBoxQty[i]"></td>
+                <td class="cell-auto">{{ (item.costPrice * (conduitJunctionBoxQty[i] ?? 0)) | number:'1.2-2' }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="config-total-row">
+                <td colspan="5"></td>
+                <td>Total</td>
+                <td class="total-val">{{ conduitJunctionBoxesTotal | number:'1.2-2' }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <p-accordion class="no-print k-estimate-accordion">
+          <p-accordion-panel value="0">
+            <p-accordion-header>Accessories</p-accordion-header>
+            <p-accordion-content>
+              <div class="table-scroll-wrap">
+                <table class="config-table accessories-table config-table--fixed-cols">
+                  <colgroup>
+                    <col class="col-item">
+                    <col class="col-bos-desc">
+                    <col class="col-size col-size--solarbos">
+                    <col class="col-bos-price">
+                    <col class="col-qty col-qty--solarbos">
+                    <col class="col-total--solar-bos">
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th>Description</th>
+                      <th>Size</th>
+                      <th>Cost Price</th>
+                      <th class="col-qty">Quantity</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let acc of bosAccessories; let i = index">
+                      <td>{{ acc.item }}</td>
+                      <td>{{ acc.description }}</td>
+                      <td>{{ acc.size }}</td>
+                      <td class="cell-auto">{{ acc.costPrice | number:'1.2-2' }}</td>
+                      <td class="col-qty"><input type="number" placeholder="Qty" [(ngModel)]="bosAccessoryQty[i]"></td>
+                      <td class="cell-auto">{{ (acc.costPrice * (bosAccessoryQty[i] ?? 0)) | number:'1.2-2' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </p-accordion-content>
+          </p-accordion-panel>
+        </p-accordion>
+        <div class="table-scroll-wrap mt-2" *ngIf="selectedBosAccessories.length > 0">
+          <table class="config-table accessories-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-item">
+              <col class="col-bos-desc">
+              <col class="col-size col-size--solarbos">
+              <col class="col-bos-price">
+              <col class="col-qty col-qty--solarbos">
+              <col class="col-total--solar-bos">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Description</th>
+                <th>Size</th>
+                <th>Cost Price</th>
+                <th class="col-qty">Quantity</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of selectedBosAccessories">
+                <td>{{ row.item.item }}</td>
+                <td>{{ row.item.description }}</td>
+                <td>{{ row.item.size }}</td>
+                <td class="cell-auto">{{ row.item.costPrice | number:'1.2-2' }}</td>
+                <td class="col-qty">{{ row.qty }}</td>
+                <td class="cell-auto">{{ row.total | number:'1.2-2' }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="config-total-row">
+                <td colspan="4"></td>
+                <td>Total</td>
+                <td class="total-val">{{ bosAccessoriesTotal | number:'1.2-2' }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- Section 5 grand total -->
+        <div class="table-scroll-wrap mt-4">
+          <table class="config-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-item">
+              <col class="col-bos-desc">
+              <col class="col-size">
+              <col class="col-bos-price">
+              <col class="col-costw">
+              <col class="col-qty col-qty--solarbos">
+              <col class="col-total--solar-bos">
+            </colgroup>
+            <tfoot>
+              <tr class="config-total-row">
+                <td colspan="5"></td>
+                <td>Total</td>
+                <td class="total-val">{{ bosSectionTotal | number:'1.2-2' }}</td>
               </tr>
             </tfoot>
           </table>
         </div>
       </div>
 
-      <!-- 3.6 Installation -->
+      <!-- 6. Installation -->
       <div class="card installation-card" id="sec-8">
         <div class="card-header">
           <h2 class="font-bold">6. Installation</h2>
         </div>
+
+        <!-- 6.1 In-House Labour Costs -->
+        <h3 class="k-subsection-title">6.1 In-House Labour Costs</h3>
         <div class="table-scroll-wrap">
           <table class="config-table">
             <thead>
               <tr>
-                <th>Type</th>
+                <th>Item</th>
                 <th>Description</th>
-                <th>Total Cost</th>
-                <th>Cost / W</th>
-                <th>Price Markup</th>
-                <th>Profit</th>
+                <th>Unit Rate</th>
                 <th class="col-qty">Units</th>
                 <th>Total</th>
                 <th class="no-print"></th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>
-                  <p-select [options]="installationTypeOptions" appendTo="body" [(ngModel)]="selectedInstallationType"
-                    optionLabel="label" optionValue="value" [filter]="true" filterBy="label" [showClear]="true"
-                    placeholder="Select Type" class="w-full">
-                  </p-select>
-                </td>
-                <td><input type="text" placeholder="Description"></td>
-                <td class="cell-auto">—<br><span class="desc-lbl">.= Total / W</span></td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
-                <td class="col-qty"><input type="text" placeholder="Units"></td>
-                <td class="cell-auto">—</td>
+              <tr *ngFor="let row of inHouseLabourRows; let i = index">
+                <td class="cell-auto">{{ i + 1 }}</td>
+                <td><input type="text" placeholder="Description" [(ngModel)]="row.description"></td>
+                <td class="col-qty"><input type="number" placeholder="Unit Rate" [(ngModel)]="row.unitRate"></td>
+                <td class="col-qty"><input type="number" placeholder="Units" [(ngModel)]="row.units"></td>
+                <td class="cell-auto">{{ rowTotal(row) | number:'1.2-2' }}</td>
                 <td class="no-print">
-                  <button class="icon-btn" title="Remove">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                      </path>
-                    </svg>
+                  <button class="icon-btn" title="Remove" (click)="removeLabourRow(inHouseLabourRows, i)">
+                    <i class="fa-solid fa-trash"></i>
                   </button>
                 </td>
               </tr>
-              <tr class="accessories-row">
-                <td><span class="desc-lbl">Additional Costs</span></td>
-                <td><input type="text" placeholder="Description"></td>
-                <td class="cell-dash">—</td>
-                <td class="cell-auto">—</td>
-                <td class="cell-auto">—</td>
-                <td></td>
-                <td><input type="text" placeholder="Amount (฿)"></td>
-                <td class="cell-auto">—</td>
-                <td class="no-print"></td>
-              </tr>
-              <tr class="no-print">
-                <td colspan="9" class="add-row-cell">
-                  <button class="k-btn k-btn-text">+ Add installation item</button>
+              <tr>
+                <td colspan="6" class="no-print">
+                  <button class="k-btn-sm k-btn-outline" type="button" (click)="addLabourRow(inHouseLabourRows)">
+                    <i class="fas fa-plus"></i> Add Row
+                  </button>
                 </td>
               </tr>
             </tbody>
             <tfoot>
               <tr class="config-total-row">
-                <td colspan="4"></td>
-                <td colspan="2" class="section-total-name">Section 1.6: Installation</td>
+                <td colspan="3"></td>
                 <td>Total</td>
-                <td class="total-val">—</td>
+                <td class="total-val">{{ inHouseLabourTotal | number:'1.2-2' }}</td>
                 <td class="no-print"></td>
               </tr>
             </tfoot>
           </table>
         </div>
+        <!-- 6.2 Outsourced Labour Costs -->
+        <h3 class="k-subsection-title !mt-4">6.2 Outsourced Labour Costs</h3>
+        <div class="table-scroll-wrap">
+          <table class="config-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Description</th>
+                <th>Unit Rate</th>
+                <th class="col-qty">Units</th>
+                <th>Total</th>
+                <th class="no-print"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of outsourcedLabourRows; let i = index">
+                <td class="cell-auto">{{ i + 1 }}</td>
+                <td><input type="text" placeholder="Description" [(ngModel)]="row.description"></td>
+                <td class="col-qty"><input type="number" placeholder="Unit Rate" [(ngModel)]="row.unitRate"></td>
+                <td class="col-qty"><input type="number" placeholder="Units" [(ngModel)]="row.units"></td>
+                <td class="cell-auto">{{ rowTotal(row) | number:'1.2-2' }}</td>
+                <td class="no-print">
+                  <button class="icon-btn" title="Remove" (click)="removeLabourRow(outsourcedLabourRows, i)">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="6" class="no-print">
+                  <button class="k-btn-sm k-btn-outline" type="button" (click)="addLabourRow(outsourcedLabourRows)">
+                    <i class="fas fa-plus"></i> Add Row
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="config-total-row">
+                <td colspan="3"></td>
+                <td>Total</td>
+                <td class="total-val">{{ outsourcedLabourTotal | number:'1.2-2' }}</td>
+                <td class="no-print"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- 6.3 Machinery -->
+        <h3 class="k-subsection-title !mt-4">6.3 Machinery</h3>
+        <div class="table-scroll-wrap">
+          <table class="config-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Description</th>
+                <th>Unit Rate</th>
+                <th class="col-qty">Units</th>
+                <th>Total</th>
+                <th class="no-print"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of machineryRows; let i = index">
+                <td class="cell-auto">{{ i + 1 }}</td>
+                <td><input type="text" placeholder="Description" [(ngModel)]="row.description"></td>
+                <td class="col-qty"><input type="number" placeholder="Unit Rate" [(ngModel)]="row.unitRate"></td>
+                <td class="col-qty"><input type="number" placeholder="Units" [(ngModel)]="row.units"></td>
+                <td class="cell-auto">{{ rowTotal(row) | number:'1.2-2' }}</td>
+                <td class="no-print">
+                  <button class="icon-btn" title="Remove" (click)="removeLabourRow(machineryRows, i)">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="6" class="no-print">
+                  <button class="k-btn-sm k-btn-outline" type="button" (click)="addLabourRow(machineryRows)">
+                    <i class="fas fa-plus"></i> Add Row
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="config-total-row">
+                <td colspan="3"></td>
+                <td>Total</td>
+                <td class="total-val">{{ machineryTotal | number:'1.2-2' }}</td>
+                <td class="no-print"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- Section 6 grand total -->
+        <!-- <div class="table-scroll-wrap mt-4">
+          <table class="config-table">
+            <tfoot>
+              <tr class="config-total-row">
+                <td class="section-total-name">Section 6: Installation</td>
+                <td>Total</td>
+                <td class="total-val">{{ installationSectionTotal | number:'1.2-2' }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div> -->
       </div>
 
-      <!-- 3.7 Documentation -->
+      <!-- 7. Documentation -->
       <div class="card documentation-card" id="sec-9">
         <div class="card-header">
           <h2 class="font-bold">7. Documentation</h2>
@@ -641,8 +1193,7 @@
             </tbody>
             <tfoot>
               <tr class="config-total-row">
-                <td colspan="4"></td>
-                <td colspan="2" class="section-total-name">Section 1.7: Documentation</td>
+                <td colspan="6"></td>
                 <td>Total</td>
                 <td class="total-val">฿ 15,000.00</td>
                 <td class="no-print"></td>
@@ -794,9 +1345,15 @@
 
       <!-- Bottom Actions (Hidden on Print) -->
       <div class="no-print" style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 16px;">
-        <button class="k-btn k-btn-outline" [routerLink]="['/detail',7]">Save Draft</button>
-        <button class="k-btn k-btn-primary">Export to PDF</button>
+        <button class="k-btn k-btn-outline" [disabled]="saving() || !customerId" (click)="onSaveDraft()">Save
+          Draft</button>
+        <button class="k-btn k-btn-primary" [disabled]="saving() || !customerId" (click)="onSave()">Save</button>
+        <button class="k-btn k-btn-primary" (click)="onExportPdf()">Export to PDF</button>
       </div>
     </div>
   </div>
 </div>
+
+<app-solar-bos-dialog [visible]="showSolarBOSDialog()" (visibleChange)="showSolarBOSDialog.set($event)"
+  [bosOptions]="bosOptions">
+</app-solar-bos-dialog>

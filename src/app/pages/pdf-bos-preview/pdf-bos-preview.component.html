@@ -1,0 +1,210 @@
+<div class="preview-shell">
+  <!-- Toolbar — ไม่พิมพ์ -->
+  <div class="preview-toolbar no-print">
+    <p-button [routerLink]="backLink()" [rounded]="true" variant="outlined" severity="danger">
+      <i class="fa-solid fa-xmark"></i>
+    </p-button>
+    <button class="k-btn k-btn-primary" type="button" (click)="print()" [disabled]="!snapshot()">
+      <i class="fa-solid fa-print"></i>&nbsp; Print / Save as PDF
+    </button>
+  </div>
+
+  @if (snapshot(); as snap) {
+    <!-- กระดาษ A4 -->
+    <div class="quote-doc">
+
+      <!-- ===== Header ===== -->
+      <header class="q-header">
+        <img class="q-logo" src="assets/icons/logoKunini.webp" alt="Kunini logo" />
+        <!-- ⚠️ HARDCODE: ข้อมูลบริษัท — quotation-hardcode.ts › company -->
+        <div class="q-company">
+          <div class="q-company-name">{{ hc.company.name }}</div>
+          <div>{{ hc.company.address }}</div>
+          <div>Web : {{ hc.company.web }} &nbsp; Facebook : {{ hc.company.facebook }}</div>
+          <div>Office {{ hc.company.office }}</div>
+        </div>
+      </header>
+
+      <!-- ===== Title (auto-generate จากอุปกรณ์ที่เลือก) ===== -->
+      <h1 class="q-title">{{ snap.systemTitle }}</h1>
+
+      <!-- ===== Customer details ===== -->
+      <table class="q-customer">
+        <tbody>
+          <tr>
+            <td class="q-cell">Customer Details : <strong>{{ snap.customerName }}</strong></td>
+            <td class="q-cell" colspan="2">Contact Person : <strong>{{ snap.contactPersonName }}</strong></td>
+          </tr>
+          <tr>
+            <!-- ⚠️ HARDCODE (เว้นว่าง): CustomerDetail ไม่มี field address -->
+            <td class="q-cell" rowspan="3">Address :</td>
+            <td class="q-cell">Date : {{ snap.issuedDateIso | date: 'dd/MM/yyyy' }}</td>
+            <!-- ⚠️ HARDCODE (เว้นว่าง): ยังไม่มีข้อมูล Sales Rep -->
+            <td class="q-cell">Sales Rep :</td>
+          </tr>
+          <tr>
+            <!-- ⚠️ HARDCODE (เว้นว่าง): Location -->
+            <td class="q-cell">Location :</td>
+            <!-- ⚠️ HARDCODE (เว้นว่าง): Customer # -->
+            <td class="q-cell">Customer # :</td>
+          </tr>
+          <tr>
+            <!-- ⚠️ HARDCODE (เว้นว่าง): Quotation # -->
+            <td class="q-cell">Quotation # :</td>
+            <!-- ⚠️ HARDCODE (เว้นว่าง): Validity -->
+            <td class="q-cell">Validity :</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- ===== Items ===== -->
+      <table class="q-items">
+        <thead>
+          <tr>
+            <th class="c-item">Item</th>
+            <th class="c-desc">Description</th>
+            <th class="c-unit"></th>
+            <th class="c-qty">Quantity</th>
+            <th class="c-total">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of snap.rows; track $index) {
+            <tr>
+              <td class="c-item">{{ row.item }}</td>
+              <td class="c-desc">{{ row.description }}</td>
+              <td class="c-unit">{{ row.unit }}</td>
+              <td class="c-qty">{{ row.quantity | number }}</td>
+              <td class="c-total">
+                @if (row.total != null) {
+                  THB{{ row.total | number: '1.2-2' }}
+                }
+              </td>
+            </tr>
+          }
+
+          <!-- Solar PV Kit = รวมทุก section (panel + inverter + battery + racking + bos + installation) -->
+          <tr class="q-subrow">
+            <td class="c-item"></td>
+            <td class="c-desc q-subrow-label">Solar PV Kit</td>
+            <td class="c-unit"></td>
+            <td class="c-qty"></td>
+            <td class="c-total q-underline">THB{{ snap.solarPvKitTotal | number: '1.2-2' }}</td>
+          </tr>
+
+          <!-- ⚠️ HARDCODE: แถว Documentation — description/หน่วยจาก quotation-hardcode.ts, มูลค่า = snapshot.documentationTotal (ยัง hardcode) -->
+          <tr>
+            <td class="c-item">DOCUMENTATION</td>
+            <td class="c-desc">{{ hc.rowDescription.documentation }}</td>
+            <td class="c-unit">{{ hc.unit.documentation }}</td>
+            <td class="c-qty">1</td>
+            <td class="c-total q-underline">THB{{ snap.documentationTotal | number: '1.2-2' }}</td>
+          </tr>
+
+          <tr class="q-subrow">
+            <td class="c-item"></td>
+            <td class="c-desc q-subrow-label">TOTAL COST</td>
+            <td class="c-unit"></td>
+            <td class="c-qty"></td>
+            <td class="c-total q-underline">THB{{ snap.totalCost | number: '1.2-2' }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- ===== Remarks + Summary ===== -->
+      <div class="q-remarks-block">
+        <div class="q-remarks">
+          <div class="q-remarks-head">Remarks หมายเหตุ</div>
+          <!-- ⚠️ HARDCODE: ข้อความ Remarks — quotation-hardcode.ts › remarks (ข้อ 1 เติมยี่ห้อแผงอัตโนมัติ) -->
+          <ol class="q-remarks-list">
+            @for (line of remarks(); track $index) {
+              <li>{{ line }}</li>
+            }
+          </ol>
+        </div>
+        <table class="q-summary">
+          <tbody>
+            <tr>
+              <td class="q-summary-lbl">SUBTOTAL</td>
+              <td class="q-summary-val">THB{{ snap.totalCost | number: '1.2-2' }}</td>
+            </tr>
+            <tr>
+              <td class="q-summary-lbl">VAT</td>
+              <td class="q-summary-val">THB{{ snap.vatAmount | number: '1.2-2' }}</td>
+            </tr>
+            <tr class="q-summary-total">
+              <td class="q-summary-lbl">TOTAL</td>
+              <td class="q-summary-val">THB{{ snap.grandTotal | number: '1.2-2' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ===== Terms & Conditions ===== -->
+      <div class="q-section-title">Terms &amp; Conditions</div>
+      <!-- ⚠️ HARDCODE: เนื้อหา Terms & Conditions — quotation-hardcode.ts › termsAndConditions (รูปต้นแบบเว้นว่าง) -->
+      @if (hc.termsAndConditions) {
+        <p class="q-terms">{{ hc.termsAndConditions }}</p>
+      }
+
+      <!-- ⚠️ HARDCODE (เว้นว่าง): ROI -->
+      <div class="q-roi">ROI = Est. Years</div>
+
+      <!-- ===== Signatures ===== -->
+      <div class="q-signatures">
+        <!-- ⚠️ HARDCODE (เว้นว่าง): Approved By -->
+        <div class="q-sign">
+          <div class="q-sign-line"></div>
+          <div class="q-sign-label">Approved By</div>
+        </div>
+        <div class="q-sign">
+          <div class="q-sign-line"></div>
+          <div class="q-sign-label">Customer Acceptance</div>
+        </div>
+      </div>
+
+      <!-- ===== Payment terms ===== -->
+      <div class="q-section-title">Payment Terms</div>
+      <table class="q-payment">
+        <tbody>
+          <!-- ⚠️ HARDCODE: สัดส่วน % — quotation-hardcode.ts › payment (จำนวนเงินคิดจาก TOTAL) -->
+          @for (term of paymentTerms(); track term.label) {
+            <tr>
+              <td>{{ term.label }}</td>
+              <td>{{ term.percentLabel }}</td>
+              <td class="q-payment-amt">THB{{ term.amount | number: '1.2-2' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <!-- ===== Warranty ===== -->
+      <div class="q-section-title">Warranty</div>
+      <!-- ⚠️ HARDCODE: ตารางรับประกัน — quotation-hardcode.ts › warranty -->
+      <table class="q-warranty">
+        <tbody>
+          @for (w of hc.warranty; track w.item) {
+            <tr>
+              <td class="q-warranty-item">{{ w.item }}</td>
+              <td>{{ w.text }}</td>
+            </tr>
+          }
+          <!-- ⚠️ HARDCODE: O&M — quotation-hardcode.ts › omMaintenance -->
+          <tr>
+            <td class="q-warranty-item">O&amp;M (Cleaning &amp; Maintenance)</td>
+            <td>{{ hc.omMaintenance }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- ⚠️ HARDCODE: ย่อหน้า disclaimer — quotation-hardcode.ts › disclaimer -->
+      <p class="q-disclaimer">{{ hc.disclaimer }}</p>
+    </div>
+  } @else {
+    <div class="q-empty no-print">
+      <p>ไม่มีข้อมูลใบเสนอราคา (อาจเปิดหน้านี้โดยตรงหรือรีเฟรชหน้า)</p>
+      <p class="q-empty-hint">กรุณากลับไปหน้า Price Estimation แล้วกดปุ่ม <strong>Export to PDF</strong> อีกครั้ง</p>
+      <a class="k-btn k-btn-outline" routerLink="/dashboard">กลับ Dashboard</a>
+    </div>
+  }
+</div>

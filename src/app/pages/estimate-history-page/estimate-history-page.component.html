@@ -1,0 +1,328 @@
+<div class="max-w-container">
+  <div class="flex !mb-2 !flex-row justify-between flex-wrap">
+    <h1 class="k-header">Estimate History</h1>
+    <p-button [routerLink]="backLink" [rounded]="true" variant="outlined" severity="danger">
+      <i class="fa-solid fa-xmark"></i>
+    </p-button>
+  </div>
+
+  @if (loading) {
+  <div class="card">Loading...</div>
+  }
+
+  @if (notFound) {
+  <div class="card">ไม่พบ estimate นี้ หรือถูกลบไปแล้ว</div>
+  }
+
+  @if (detail) {
+  <!-- Customer Information -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="font-bold">Customer Information</h2>
+      <span class="badge badge-final">Estimate v{{ detail.versionNo }}</span>
+    </div>
+    <div class="grid grid-cols-2">
+      <div class="input-group">
+        <span class="input-label">Customer Name / Company</span>
+        <div style="font-size: 14px; font-weight: 700; color: var(--k-black);">{{ detail.customerDisplayName ?? '—' }}</div>
+      </div>
+      <div class="input-group">
+        <span class="input-label">Contact Reference</span>
+        <div style="font-size: 14px;">{{ detail.contactReference ?? '—' }}</div>
+      </div>
+      <div class="input-group">
+        <span class="input-label">Installation Address</span>
+        <div style="font-size: 14px;">{{ detail.projectLocationName ?? '—' }}</div>
+      </div>
+      <div class="input-group">
+        <span class="input-label">Type of System</span>
+        <div style="font-size: 14px;">{{ detail.typeOfSystemName ?? '—' }}</div>
+      </div>
+      <div class="input-group">
+        <span class="input-label">Finalized By</span>
+        <div style="font-size: 14px;">{{ detail.finalizedBy ?? '—' }} • {{ detail.finalizedAt | date:'dd MMM yyyy' }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. Panels -->
+  @if (detail.panelItems.length > 0) {
+  <div class="card">
+    <div class="card-header">
+      <h2 class="font-bold">1. Panels</h2>
+    </div>
+    <div class="table-scroll-wrap">
+      <table class="config-table">
+        <thead>
+          <tr>
+            <th>Brand</th>
+            <th>Description</th>
+            <th>kW</th>
+            <th>Cost Price</th>
+            <th>Sale Price</th>
+            <th class="col-qty">Quantity</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of detail.panelItems; track $index) {
+          <tr>
+            <td>{{ item.brand }}</td>
+            <td>{{ item.description }}{{ item.itemRole === 'accessory' ? ' (Accessory)' : '' }}</td>
+            <td class="cell-auto">{{ item.kw | number:'1.0-2' }}</td>
+            <td class="cell-auto">{{ item.costPrice | number:'1.2-2' }}</td>
+            <td class="cell-auto">{{ item.salePrice | number:'1.2-2' }}</td>
+            <td class="col-qty cell-auto">{{ item.quantity }}</td>
+            <td class="cell-auto">{{ item.total | number:'1.2-2' }}</td>
+          </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr class="config-total-row">
+            <td colspan="5"></td>
+            <td>Total</td>
+            <td class="total-val">{{ detail.panelTotal | number:'1.2-2' }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+  }
+
+  <!-- 2. Inverters -->
+  @if (detail.inverterItems.length > 0) {
+  <div class="card">
+    <div class="card-header">
+      <h2 class="font-bold">2. Inverters</h2>
+    </div>
+    <div class="table-scroll-wrap">
+      <table class="config-table">
+        <thead>
+          <tr>
+            <th>Brand</th>
+            <th>Phase</th>
+            <th>Description</th>
+            <th>kW</th>
+            <th>Cost Price</th>
+            <th>Sale Price</th>
+            <th class="col-qty">Quantity</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of detail.inverterItems; track $index) {
+          <tr>
+            <td>{{ item.brand }}</td>
+            <td>{{ item.phase || '—' }}</td>
+            <td>{{ item.description }}{{ item.itemRole === 'accessory' ? ' (Accessory)' : '' }}</td>
+            <td class="cell-auto">{{ item.kw | number:'1.0-2' }}</td>
+            <td class="cell-auto">{{ item.costPrice | number:'1.2-2' }}</td>
+            <td class="cell-auto">{{ item.salePrice | number:'1.2-2' }}</td>
+            <td class="col-qty cell-auto">{{ item.quantity }}</td>
+            <td class="cell-auto">{{ item.total | number:'1.2-2' }}</td>
+          </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr class="config-total-row">
+            <td colspan="6"></td>
+            <td>Total</td>
+            <td class="total-val">{{ detail.inverterTotal | number:'1.2-2' }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+  }
+
+  <!-- 3. Batteries -->
+  @if (detail.batteryItems.length > 0) {
+  <div class="card">
+    <div class="card-header">
+      <h2 class="font-bold">3. Batteries</h2>
+    </div>
+    <div class="table-scroll-wrap">
+      <table class="config-table">
+        <thead>
+          <tr>
+            <th>Brand</th>
+            <th>Description</th>
+            <th>kW</th>
+            <th>Cost Price</th>
+            <th>Sale Price</th>
+            <th class="col-qty">Quantity</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of detail.batteryItems; track $index) {
+          <tr>
+            <td>{{ item.brand }}</td>
+            <td>{{ item.description }}{{ item.itemRole === 'accessory' ? ' (Accessory)' : '' }}</td>
+            <td class="cell-auto">{{ item.kw | number:'1.0-2' }}</td>
+            <td class="cell-auto">{{ item.costPrice | number:'1.2-2' }}</td>
+            <td class="cell-auto">{{ item.salePrice | number:'1.2-2' }}</td>
+            <td class="col-qty cell-auto">{{ item.quantity }}</td>
+            <td class="cell-auto">{{ item.total | number:'1.2-2' }}</td>
+          </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr class="config-total-row">
+            <td colspan="5"></td>
+            <td>Total</td>
+            <td class="total-val">{{ detail.batteryTotal | number:'1.2-2' }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+  }
+
+  <!-- 4. Solar Racking -->
+  @if (detail.rackingItems.length > 0) {
+  <div class="card">
+    <div class="card-header">
+      <h2 class="font-bold">4. Solar Racking</h2>
+    </div>
+    <div class="table-scroll-wrap">
+      <table class="config-table">
+        <thead>
+          <tr>
+            <th>Roof Type</th>
+            <th>Part</th>
+            <th>Description</th>
+            <th>Sale Price</th>
+            <th class="col-qty">Quantity</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of detail.rackingItems; track $index) {
+          <tr>
+            <td>{{ item.roofTypeName }}</td>
+            <td>{{ item.part }}</td>
+            <td>{{ item.description }}</td>
+            <td class="cell-auto">{{ item.salePrice | number:'1.2-2' }}</td>
+            <td class="col-qty cell-auto">{{ item.quantity }}</td>
+            <td class="cell-auto">{{ item.total | number:'1.2-2' }}</td>
+          </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr class="config-total-row">
+            <td colspan="4"></td>
+            <td>Total</td>
+            <td class="total-val">{{ detail.rackingTotal | number:'1.2-2' }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+  }
+
+  <!-- 5. Solar BOS -->
+  @if (detail.bosItems.length > 0) {
+  <div class="card">
+    <div class="card-header">
+      <h2 class="font-bold">5. Solar BOS</h2>
+    </div>
+    <div class="table-scroll-wrap">
+      <table class="config-table">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Item</th>
+            <th>Description</th>
+            <th>Size</th>
+            <th>Cost Price</th>
+            <th class="col-qty">Quantity</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of detail.bosItems; track $index) {
+          <tr>
+            <td>{{ bosCategoryLabel(item.category) }}</td>
+            <td>{{ item.item }}</td>
+            <td>{{ item.description }}</td>
+            <td>{{ item.size }}</td>
+            <td class="cell-auto">{{ item.costPrice | number:'1.2-2' }}</td>
+            <td class="col-qty cell-auto">{{ item.quantity }}</td>
+            <td class="cell-auto">{{ item.total | number:'1.2-2' }}</td>
+          </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr class="config-total-row">
+            <td colspan="5"></td>
+            <td>Total</td>
+            <td class="total-val">{{ detail.bosTotal | number:'1.2-2' }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+  }
+
+  <!-- 6. Installation -->
+  @if (detail.labourItems.length > 0) {
+  <div class="card">
+    <div class="card-header">
+      <h2 class="font-bold">6. Installation</h2>
+    </div>
+    @for (category of ['in_house', 'outsourced', 'machinery']; track category) {
+    @if (labourItemsFor(category).length > 0) {
+    <h3 class="k-subsection-title !mt-4">{{ labourCategoryLabel(category) }}</h3>
+    <div class="table-scroll-wrap">
+      <table class="config-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Unit Rate</th>
+            <th class="col-qty">Units</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of labourItemsFor(category); track $index) {
+          <tr>
+            <td>{{ row.description }}</td>
+            <td class="cell-auto">{{ row.unitRate | number:'1.2-2' }}</td>
+            <td class="col-qty cell-auto">{{ row.units }}</td>
+            <td class="cell-auto">{{ row.total | number:'1.2-2' }}</td>
+          </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr class="config-total-row">
+            <td colspan="2"></td>
+            <td>Total</td>
+            <td class="total-val">{{ labourCategoryTotal(category) | number:'1.2-2' }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    }
+    }
+  </div>
+  }
+
+  <!-- Summary -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="font-bold">Summary</h2>
+    </div>
+    <div class="grid grid-cols-2">
+      <div class="input-group">
+        <span class="input-label">Total System Size</span>
+        <div style="font-size: 14px; font-weight: 700;">{{ detail.totalKw | number:'1.0-2' }} kWp</div>
+      </div>
+      <div class="input-group">
+        <span class="input-label">Grand Total</span>
+        <div style="font-size: 16px; font-weight: 700; color: var(--k-red);">฿{{ detail.grandTotal | number:'1.2-2' }}</div>
+      </div>
+    </div>
+  </div>
+  }
+</div>

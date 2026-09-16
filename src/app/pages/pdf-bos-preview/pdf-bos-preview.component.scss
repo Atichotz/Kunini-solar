@@ -1,0 +1,310 @@
+:host {
+  display: block;
+}
+
+/* ===== หน้าจอ: กระดาษวางบนพื้นเทา ===== */
+.preview-shell {
+  min-height: 100vh;
+  background: var(--bg-color);
+  padding: 24px 16px 64px;
+}
+
+.preview-toolbar {
+  max-width: 210mm;
+  margin: 0 auto 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ===== กระดาษ A4 ===== */
+.quote-doc {
+  width: 210mm;
+  max-width: 100%;
+  margin: 0 auto;
+  background: var(--k-white);
+  color: var(--k-black);
+  box-shadow: var(--k-shadow);
+  padding: 14mm 12mm;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+/* ---- Header ---- */
+.q-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding-bottom: 10px;
+}
+
+.q-logo {
+  width: 68px;
+  height: 68px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.q-company {
+  font-size: 10px;
+  color: var(--k-dark-grey);
+}
+
+.q-company-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--k-black);
+  margin-bottom: 2px;
+}
+
+/* ---- Title ---- */
+.q-title {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: underline;
+  margin: 14px 0 16px;
+}
+
+/* ---- ตารางทั่วไป ---- */
+.q-customer,
+.q-items,
+.q-summary,
+.q-payment,
+.q-warranty {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.q-customer {
+  margin-bottom: 14px;
+}
+
+.q-customer .q-cell {
+  border: 1px solid var(--k-black);
+  padding: 6px 8px;
+  vertical-align: top;
+  width: 33.33%;
+}
+
+/* ---- ตารางรายการ ---- */
+.q-items {
+  margin-bottom: 0;
+  border: 1px solid var(--k-black);
+}
+
+.q-items th,
+.q-items td {
+  border-left: 1px solid var(--k-black);
+  border-right: 1px solid var(--k-black);
+  padding: 7px 8px;
+  vertical-align: top;
+}
+
+.q-items thead th {
+  border-bottom: 1px solid var(--k-black);
+  font-weight: 700;
+  text-align: center;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.q-items .c-item {
+  width: 15%;
+  font-weight: 700;
+}
+.q-items .c-desc {
+  width: 55%;
+}
+.q-items .c-unit {
+  width: 8%;
+  text-align: center;
+  white-space: nowrap;
+}
+.q-items .c-qty {
+  width: 10%;
+  text-align: center;
+}
+.q-items .c-total {
+  width: 12%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.q-subrow-label {
+  text-align: right;
+  font-weight: 700;
+}
+
+.q-underline {
+  text-decoration: underline;
+}
+
+/* ---- Remarks + Summary ---- */
+.q-remarks-block {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--k-black);
+  border-top: none;
+}
+
+.q-remarks {
+  flex: 1 1 auto;
+  padding: 8px;
+  border-right: 1px solid var(--k-black);
+}
+
+.q-remarks-head {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.q-remarks-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.q-remarks-list li {
+  margin-bottom: 4px;
+}
+
+.q-summary {
+  flex: 0 0 34%;
+}
+
+.q-summary td {
+  border-bottom: 1px solid var(--k-black);
+  padding: 6px 8px;
+}
+
+.q-summary-lbl {
+  font-weight: 700;
+  text-align: right;
+}
+
+.q-summary-val {
+  text-align: right;
+  white-space: nowrap;
+  border-left: 1px solid var(--k-black);
+}
+
+.q-summary-total .q-summary-lbl,
+.q-summary-total .q-summary-val {
+  font-weight: 700;
+}
+
+/* ---- Section title ---- */
+.q-section-title {
+  text-align: center;
+  font-weight: 700;
+  margin: 22px 0 10px;
+}
+
+.q-terms {
+  margin: 0 0 16px;
+}
+
+.q-roi {
+  margin: 20px 0 10px;
+  font-weight: 700;
+}
+
+/* ---- Signatures ---- */
+.q-signatures {
+  display: flex;
+  gap: 48px;
+  margin: 28px 0 24px;
+}
+
+.q-sign {
+  flex: 1 1 0;
+}
+
+.q-sign-line {
+  border-top: 1px solid var(--k-black);
+  margin-bottom: 4px;
+  height: 40px;
+}
+
+.q-sign-label {
+  font-size: 10px;
+  color: var(--k-dark-grey);
+}
+
+/* ---- Payment ---- */
+.q-payment td {
+  padding: 4px 8px 4px 0;
+}
+
+.q-payment-amt {
+  white-space: nowrap;
+}
+
+/* ---- Warranty ---- */
+.q-warranty {
+  margin-bottom: 14px;
+}
+
+.q-warranty td {
+  padding: 4px 8px 4px 0;
+  vertical-align: top;
+}
+
+.q-warranty-item {
+  width: 28%;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.q-disclaimer {
+  font-size: 9px;
+  font-style: italic;
+  color: var(--k-dark-grey);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* ---- Empty state ---- */
+.q-empty {
+  max-width: 480px;
+  margin: 80px auto 0;
+  text-align: center;
+  background: var(--k-white);
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-sm);
+  padding: 32px 24px;
+}
+
+.q-empty-hint {
+  font-size: 12px;
+  color: var(--k-mid-grey);
+  margin: 8px 0 20px;
+}
+
+/* ===== พิมพ์ / บันทึกเป็น PDF ===== */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .preview-shell {
+    background: #ffffff;
+    padding: 0;
+    min-height: 0;
+  }
+
+  .quote-doc {
+    width: auto;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+}

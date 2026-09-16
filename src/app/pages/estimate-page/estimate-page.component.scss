@@ -305,136 +305,49 @@ textarea {
 }
 
 .panels-card .card-header {
-  background: #e6e9bc;
+  // background: #e6e9bc;
   color: #4a5210;
   border-bottom-color: #c8cc70;
 }
 
 .inverters-card .card-header {
-  background: #f5d0d0;
+  // background: #f5d0d0;
   color: #7a1f1f;
   border-bottom-color: #e09090;
 }
 
 .batteries-card .card-header {
-  background: #ddd5f0;
+  // background: #ddd5f0;
   color: #3a1f70;
   border-bottom-color: #b0a0e0;
 }
 
 .racking-card .card-header {
-  background: #f5e8d0;
+  // background: #f5e8d0;
   color: #7a4a1f;
   border-bottom-color: #e0c090;
 }
 
 .bos-card .card-header {
-  background: #d0e8f5;
+  // background: #d0e8f5;
   color: #1a5f7a;
   border-bottom-color: #90c8e0;
 }
 
 .installation-card .card-header {
-  background: #d0ecd0;
+  // background: #d0ecd0;
   color: #1f5a1f;
   border-bottom-color: #90c890;
 }
 
 .documentation-card .card-header {
-  background: #e8e8e8;
+  // background: #e8e8e8;
   color: #3a3a3a;
   border-bottom-color: #c0c0c0;
 }
 
-.table-scroll-wrap {
-  overflow-x: auto;
-}
-
-.config-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-  min-width: 820px;
-
-  th,
-  td {
-    border: 1px solid var(--k-light-grey);
-    padding: 6px 8px;
-    vertical-align: middle;
-  }
-
-  th {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--k-dark-grey);
-    background: var(--bg-color);
-    white-space: nowrap;
-  }
-
-  input[type='number'],
-  input[type='text'] {
-    width: 100%;
-    min-width: 50px;
-  }
-
-  .cell-auto {
-    background: #fffde7;
-    color: var(--k-mid-grey);
-    text-align: center;
-    font-size: 11px;
-  }
-
-  .cell-dash {
-    text-align: center;
-    color: var(--k-mid-grey);
-  }
-
-  .col-qty {
-    width: 10%;
-  }
-
-  .add-row-cell {
-    border: none;
-    padding: 4px 0;
-    background: transparent;
-  }
-
-  .desc-lbl {
-    font-size: 11px;
-    color: var(--k-mid-grey);
-    font-style: italic;
-  }
-
-  .accessories-row td {
-    background: var(--bg-color);
-  }
-}
-
-.config-total-row {
-  td {
-    background: var(--bg-color);
-    border-top: 2px solid var(--k-dark-grey);
-    font-size: 12px;
-    font-weight: 700;
-    padding: 8px;
-  }
-
-  .section-total-name {
-    text-align: right;
-    color: var(--k-dark-grey);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-  }
-
-  .total-val {
-    text-align: right;
-    color: var(--k-red);
-    font-size: 13px;
-  }
-}
+/* .table-scroll-wrap, .config-table, .config-table--fixed-cols, .config-total-row, .k-subsection-title
+   ย้ายไป src/styles.scss แล้ว — ใช้ซ้ำใน estimate-history-page ด้วย (ตาม .claude/rules/ui-ux.md) */
 
 /* Toggles */
 .toggle-group {
@@ -480,18 +393,6 @@ textarea {
   color: var(--k-dark-grey);
   font-weight: 600;
   text-transform: uppercase;
-}
-
-/* File Upload Area */
-.upload-area {
-  border: 2px dashed var(--k-mid-grey);
-  border-radius: var(--radius-sm);
-  padding: 24px;
-  text-align: center;
-  color: var(--k-mid-grey);
-  font-size: 13px;
-  cursor: pointer;
-  background: #fafafa;
 }
 
 /* Chart Placeholders */
@@ -584,5 +485,22 @@ textarea {
     border-radius: 0;
     padding: 4px 0;
     background: transparent;
+  }
+}
+
+::ng-deep .k-estimate-accordion {
+  .p-accordionheader {
+    --p-accordion-header-padding: 1.125rem 0 !important;
+  }
+
+  .p-accordioncontent-content {
+    --p-accordion-content-padding: 0 !important;
+  }
+}
+
+::ng-deep .k-category {
+  .p-togglebutton-content {
+    background: var(--k-white);
+    box-shadow: 1px 1px 2px 0px #00000021;
   }
 }

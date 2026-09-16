@@ -1,0 +1,68 @@
+<p-dialog header="Solar Racking" [visible]="visible" (visibleChange)="visibleChange.emit($event)" [modal]="true"
+  [style]="{ width: '1100px', maxWidth: '95vw' }" [draggable]="false" [resizable]="false">
+
+  <!-- 3.4 Solar Racking -->
+  <div class="card racking-card" id="sec-6">
+    <div class="card-header">
+      <h2 class="font-bold">4. Solar Racking</h2>
+    </div>
+    <div class="table-scroll-wrap">
+      <table class="config-table">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Total Cost</th>
+            <th>kW</th>
+            <th>Cost / W</th>
+            <th>Price Markup</th>
+            <th>Profit</th>
+            <th class="col-qty">Units</th>
+            <th>Total</th>
+            <th class="no-print"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <p-select [options]="rackingOptions" appendTo="body" [(ngModel)]="selectedRacking" optionLabel="label"
+                optionValue="value" [filter]="true" filterBy="label" [showClear]="true" placeholder="Select Type"
+                class="w-full">
+              </p-select>
+            </td>
+            <td class="cell-auto">—</td>
+            <td class="cell-auto"></td>
+            <td class="cell-auto">—</td>
+            <td><input type="number" placeholder="Markup"></td>
+            <td class="cell-auto">—</td>
+            <td class="col-qty"><input type="number" placeholder="Units"></td>
+            <td class="cell-auto">—</td>
+            <td class="no-print">
+              <button class="icon-btn" title="Remove">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                  </path>
+                </svg>
+              </button>
+            </td>
+          </tr>
+          <tr class="no-print">
+            <td colspan="9" class="add-row-cell">
+              <button class="k-btn k-btn-text">+ Add racking type</button>
+            </td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr class="config-total-row">
+            <td colspan="4"></td>
+            <td colspan="2" class="section-total-name">Section 1.4: Solar Racking</td>
+            <td>Total</td>
+            <td class="total-val">—</td>
+            <td class="no-print"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</p-dialog>
