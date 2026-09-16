@@ -13,6 +13,8 @@
   --p-button-danger-border-color: var(--k-red) !important;
   --p-button-outlined-danger-hover-background: var(--k-red) !important;
   --p-button-outlined-danger-hover-border-color: var(--k-red) !important;
+  --p-togglebutton-checked-color: var(--k-white) !important;
+  --p-togglebutton-content-checked-background: var(--k-red) !important;
   /* Corporate Colours */
   --k-dark-grey: #414142;
   --k-mid-grey: #a7a9ac;
@@ -161,7 +163,7 @@ h1.k-header {
   cursor: pointer;
   color: var(--k-mid-grey);
   padding: 4px;
-  display: flex;
+  // display: flex;
   align-items: center;
   justify-content: center;
   transition: color 0.2s ease;
@@ -502,17 +504,17 @@ select:focus {
     input,
     select {
       padding: 6px 8px;
-      border: 1px solid transparent;
+      border: 1px solid var(--k-light-grey);
       border-radius: var(--radius-sm);
-      background: transparent;
+      background: var(--bg-color);
       width: 100%;
       min-width: 80px;
       font-size: 13px;
       transition: var(--k-transition);
 
       &:hover {
-        border-color: var(--k-light-grey);
-        background: var(--bg-color);
+        border-color: var(--k-mid-grey);
+        background: var(--k-white);
       }
 
       &:focus {
@@ -530,15 +532,15 @@ select:focus {
     p-select .p-select {
       min-width: 130px;
       padding: 0;
-      border: 1px solid transparent;
+      border: 1px solid var(--k-light-grey);
       border-radius: var(--radius-sm);
-      background: transparent;
+      background: var(--bg-color);
       font-size: 13px;
       transition: var(--k-transition);
 
       &:hover {
-        border-color: var(--k-light-grey);
-        background: var(--bg-color);
+        border-color: var(--k-mid-grey);
+        background: var(--k-white);
       }
 
       &.p-focus {
@@ -556,6 +558,15 @@ select:focus {
 
     input[type='number'] {
       min-width: 80px;
+    }
+
+    &:has(input[type='number']) {
+      width: 100px;
+    }
+
+    &.k-setting-actions {
+      width: 1%;
+      white-space: nowrap;
     }
   }
 
@@ -578,6 +589,10 @@ select:focus {
   }
 }
 
+.save-btn:hover {
+  color: var(--k-accent-green);
+}
+
 /* ===== BADGE ===== */
 .badge {
   display: inline-block;
@@ -587,4 +602,142 @@ select:focus {
   font-weight: 700;
   background-color: var(--k-light-grey);
   color: var(--k-dark-grey);
+}
+
+.badge-final {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+/* ===== CONFIG TABLE (ตารางแบบ estimate section — ใช้ซ้ำใน estimate-page และ history) ===== */
+.table-scroll-wrap {
+  overflow-x: auto;
+}
+
+.config-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 820px;
+
+  th,
+  td {
+    border: 1px solid var(--k-light-grey);
+    padding: 6px 8px;
+    vertical-align: middle;
+  }
+
+  th {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--k-dark-grey);
+    background: var(--bg-color);
+    white-space: nowrap;
+  }
+
+  input[type='number'],
+  input[type='text'] {
+    width: 100%;
+    min-width: 50px;
+
+    &[readonly] {
+      background: var(--bg-color);
+      color: var(--k-mid-grey);
+      cursor: not-allowed;
+    }
+  }
+
+  .cell-auto {
+    background: #fffde7;
+    color: var(--k-dark-grey);
+    text-align: center;
+    font-size: 11px;
+  }
+
+  .cell-dash {
+    text-align: center;
+    color: var(--k-mid-grey);
+  }
+
+  .col-qty {
+    width: 10%;
+  }
+
+  .col-qty.col-qty--solarbos {
+    width: 6%;
+  }
+
+  /* Column widths shared between a section's main table and its
+     accessories-separated footer table, so totals line up under
+     the correct columns even though they're different <table> elements. */
+  .col-brand { width: 14%; }
+  .col-brand.col-brand--inverter { width: 12%; }
+  .col-desc { width: 18%; }
+  .col-kw { width: 6%; }
+  .col-phase { width: 10%; }
+  .col-price { width: 10%; }
+  .col-profit { width: 8%; }
+  .col-total { width: 10%; }
+  .col-total--solar-bos { width: 6%; }
+  .col-totalkw { width: 10%; }
+  .col-noprint { width: 4%; }
+
+  .col-item { width: 3%; }
+  .col-bos-desc { width: 30%; }
+  .col-size { width: 6%; }
+  .col-bos-price { width: 6%; }
+  .col-costw { width: 12%; }
+
+  .add-row-cell {
+    border: none;
+    padding: 4px 0;
+    background: transparent;
+  }
+
+  .desc-lbl {
+    font-size: 11px;
+    color: var(--k-mid-grey);
+    font-style: italic;
+  }
+
+  .accessories-row td {
+    background: var(--bg-color);
+  }
+}
+
+.config-table--fixed-cols {
+  table-layout: fixed;
+}
+
+.config-total-row {
+  td {
+    background: var(--bg-color);
+    border-top: 2px solid var(--k-dark-grey);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px;
+  }
+
+  .section-total-name {
+    text-align: right;
+    color: var(--k-dark-grey);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .total-val {
+    text-align: right;
+    color: var(--k-red);
+    font-size: 13px;
+  }
+}
+
+.k-subsection-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--k-dark-grey);
+  margin: 0 0 8px;
 }

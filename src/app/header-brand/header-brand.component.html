@@ -13,10 +13,10 @@
     <a class="solar-guide-link" [routerLink]="'/workflow'">
       Workflow
     </a>
-    <a class="solar-guide-link">
+    <!-- <a class="solar-guide-link">
       <i class="pi pi-bell"></i>
-    </a>
-    <a class="solar-guide-link">
+    </a> -->
+    <a class="solar-guide-link" [routerLink]="'/setting'">
       <i class="pi pi-cog"></i>
     </a>
     <a class="solar-guide-link cursor-pointer"  tooltipPosition="bottom"  [pTooltip]="'Logout'" (click)="logout()" [class.opacity-50]="isLoggingOut" [attr.aria-disabled]="isLoggingOut">
