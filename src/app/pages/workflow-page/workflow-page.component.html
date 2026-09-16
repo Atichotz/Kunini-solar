@@ -77,18 +77,16 @@
   </div>
   }
 </div>
-@if(showNewCustomerDialog()){
-<p-dialog header="Create New Customer Profile" [visible]="showNewCustomerDialog()"
-  (visibleChange)="showNewCustomerDialog.set($event)" [modal]="true" [style]="{ width: '620px', maxWidth: '95vw' }"
-  [draggable]="false" [resizable]="false">
-  <app-new-customer-page (saved)="onCustomerSaved($event)" (cancelled)="onCustomerCancelled()">
-  </app-new-customer-page>
-</p-dialog>
-}
-@if(showSuccessPopup){
-<p-dialog [visible]="showSuccessPopup" (visibleChange)="showSuccessPopup = $event" [modal]="true" [showHeader]="false"
-  [style]="{ width: 'auto' }" [draggable]="false" [resizable]="false">
-  <app-new-customer-success-popup [data]="newCustomerData" (close)="showSuccessPopup = false" (openDetail)="openDetail($event)">
-  </app-new-customer-success-popup>
-</p-dialog>
-}
+<app-new-customer-page
+  [visible]="showNewCustomerDialog()"
+  (visibleChange)="showNewCustomerDialog.set($event)"
+  (saved)="onCustomerSaved($event)"
+  (cancelled)="onCustomerCancelled()">
+</app-new-customer-page>
+
+<app-new-customer-success-popup
+  [visible]="showSuccessPopup"
+  (visibleChange)="showSuccessPopup = $event"
+  [data]="newCustomerData"
+  (openDetail)="openDetail($event)">
+</app-new-customer-success-popup>

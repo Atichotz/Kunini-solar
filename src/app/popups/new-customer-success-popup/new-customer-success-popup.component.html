@@ -1,4 +1,14 @@
-<div class="popup-card">
+<p-dialog
+  [visible]="visible"
+  (visibleChange)="visibleChange.emit($event)"
+  [modal]="true"
+  [showHeader]="false"
+  [style]="{ width: 'auto' }"
+  [draggable]="false"
+  [resizable]="false">
+
+  @if (data) {
+  <div class="popup-card">
     <div class="popup-success-icon">
         <i class="fa-solid fa-check"></i>
     </div>
@@ -29,6 +39,9 @@
 
     <div class="popup-actions">
         <button class="k-btn k-btn-primary" (click)="openDetailPopup()">OPEN DETAIL</button>
-        <button class="k-btn k-btn-outline">OK</button>
+        <button class="k-btn k-btn-outline" (click)="visibleChange.emit(false)">OK</button>
     </div>
-</div>
+  </div>
+  }
+
+</p-dialog>

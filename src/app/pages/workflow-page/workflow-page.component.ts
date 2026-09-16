@@ -7,7 +7,6 @@ import { FormsModule } from '@angular/forms';
 import { Customer, WorkflowService } from '../../services/workflow.service';
 import { TooltipModule } from 'primeng/tooltip';
 import { ButtonModule } from 'primeng/button';
-import { DialogModule } from 'primeng/dialog';
 import { Router } from '@angular/router';
 import { NewCustomerPageComponent } from '../new-customer-page/new-customer-page.component';
 import { NewCustomerSuccessPopupComponent } from '../../popups/new-customer-success-popup/new-customer-success-popup.component';
@@ -33,7 +32,7 @@ const COLUMN_DEFS: Omit<WorkflowColumn, 'cards'>[] = [
 
 @Component({
   selector: 'app-workflow-page',
-  imports: [CommonModule, FormsModule, CdkDropList, CdkDrag, CdkDragPreview, CdkDragPlaceholder, CdkDropListGroup, CdkScrollable, TooltipModule, ButtonModule, DialogModule, NewCustomerPageComponent, NewCustomerSuccessPopupComponent, KLoadingComponent],
+  imports: [CommonModule, FormsModule, CdkDropList, CdkDrag, CdkDragPreview, CdkDragPlaceholder, CdkDropListGroup, CdkScrollable, TooltipModule, ButtonModule, NewCustomerPageComponent, NewCustomerSuccessPopupComponent, KLoadingComponent],
   templateUrl: './workflow-page.component.html',
   styleUrl: './workflow-page.component.scss'
 })

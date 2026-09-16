@@ -1,6 +1,7 @@
-import { Component, Output, EventEmitter, inject, OnInit } from '@angular/core';
+import { Component, Output, EventEmitter, Input, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SelectModule } from 'primeng/select';
+import { DialogModule } from 'primeng/dialog';
 import { CustomerService } from '../../services/customer.service';
 import type { StatusOption } from '../../dto/customer.dto';
 
@@ -10,11 +11,13 @@ type SystemTypeOption = 'On-Grid' | 'Off-Grid' | 'Hybrid';
 
 @Component({
   selector: 'app-new-customer-page',
-  imports: [FormsModule, SelectModule],
+  imports: [FormsModule, SelectModule, DialogModule],
   templateUrl: './new-customer-page.component.html',
   styleUrls: ['./new-customer-page.component.scss']
 })
 export class NewCustomerPageComponent implements OnInit {
+  @Input() visible = false;
+  @Output() visibleChange = new EventEmitter<boolean>();
   @Output() saved = new EventEmitter<any>();
   @Output() cancelled = new EventEmitter<void>();
 
@@ -105,6 +108,7 @@ export class NewCustomerPageComponent implements OnInit {
   }
 
   onCancel(): void {
+    this.visibleChange.emit(false);
     this.cancelled.emit();
   }
 }

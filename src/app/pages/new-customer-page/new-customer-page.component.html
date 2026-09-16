@@ -1,4 +1,12 @@
-<div class="modal-body">
+<p-dialog header="Create New Customer Profile"
+  [visible]="visible"
+  (visibleChange)="visibleChange.emit($event)"
+  [modal]="true"
+  [style]="{ width: '620px', maxWidth: '95vw' }"
+  [draggable]="false"
+  [resizable]="false">
+
+  <div class="modal-body">
     <div class="type-toggle">
         <div class="toggle-slider" [class.slide-right]="selectedType === 'company'"></div>
         <div class="type-option" [class.active]="selectedType === 'personal'" (click)="selectedType = 'personal'">
@@ -126,11 +134,13 @@
     @if (errorMessage) {
         <div class="error-banner">{{ errorMessage }}</div>
     }
-</div>
+  </div>
 
-<div class="modal-footer">
-    <button class="btn btn-cancel" type="button" (click)="onCancel()" [disabled]="isSaving">Discard</button>
-    <button class="btn btn-save" type="button" (click)="onSave()" [disabled]="isSaving">
-        @if (isSaving) { Saving... } @else { Create Profile }
-    </button>
-</div>
+  <div class="modal-footer">
+      <button class="btn btn-cancel" type="button" (click)="onCancel()" [disabled]="isSaving">Discard</button>
+      <button class="btn btn-save" type="button" (click)="onSave()" [disabled]="isSaving">
+          @if (isSaving) { Saving... } @else { Create Profile }
+      </button>
+  </div>
+
+</p-dialog>
