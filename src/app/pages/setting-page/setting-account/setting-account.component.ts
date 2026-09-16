@@ -6,7 +6,7 @@ import { SelectModule } from 'primeng/select';
 import { TooltipModule } from 'primeng/tooltip';
 import { filter, take, Subscription } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
-import { UsersService, UserListItem } from '../../../services/users.service';
+import { UsersService, UserListItem, AddGoogleUserPayload } from '../../../services/users.service';
 
 interface ResetForm {
   newPassword: string;
@@ -14,7 +14,9 @@ interface ResetForm {
 }
 
 interface CreateForm {
+  loginType: 'username' | 'google';
   name: string;
+  email: string;
   username: string;
   password: string;
   confirm: string;
@@ -46,7 +48,7 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
 
   // --- Create User Dialog ---
   showCreateDialog = false;
-  createForm: CreateForm = { name: '', username: '', password: '', confirm: '', role: 'technician' };
+  createForm: CreateForm = { loginType: 'username', name: '', email: '', username: '', password: '', confirm: '', role: 'technician' };
   createLoading = false;
   createError = '';
 
@@ -59,16 +61,16 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
 
   readonly roleOptions = [
     { label: 'CEO', value: 'ceo' },
-    { label: 'ผู้ดูแลระบบ', value: 'admin' },
-    { label: 'จัดซื้อ', value: 'purchasing' },
-    { label: 'ช่างติดตั้ง', value: 'technician' },
+    { label: 'Admin', value: 'admin' },
+    { label: 'Purchasing', value: 'purchasing' },
+    { label: 'Technician', value: 'technician' },
   ];
 
   readonly roleLabels: Record<string, string> = {
     ceo: 'CEO',
-    admin: 'ผู้ดูแลระบบ',
-    purchasing: 'จัดซื้อ',
-    technician: 'ช่างติดตั้ง',
+    admin: 'Admin',
+    purchasing: 'Purchasing',
+    technician: 'Technician',
   };
 
   ngOnInit(): void {
@@ -175,15 +177,41 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
   // ===== Create User =====
 
   openCreateDialog(): void {
-    this.createForm = { name: '', username: '', password: '', confirm: '', role: 'technician' };
+    this.createForm = { loginType: 'username', name: '', email: '', username: '', password: '', confirm: '', role: 'technician' };
     this.createError = '';
     this.showCreateDialog = true;
   }
 
   submitCreate(): void {
-    const { name, username, password, confirm, role } = this.createForm;
+    const { loginType, name, email, username, password, confirm, role } = this.createForm;
 
     if (!name.trim()) { this.createError = 'กรุณากรอกชื่อ'; return; }
+
+    if (loginType === 'google') {
+      if (!email.trim()) { this.createError = 'กรุณากรอก Gmail'; return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        this.createError = 'รูปแบบ Email ไม่ถูกต้อง';
+        return;
+      }
+
+      this.createLoading = true;
+      this.createError = '';
+      const payload: AddGoogleUserPayload = { email: email.trim(), name: name.trim(), role };
+      this.usersService.addGoogleUser(payload).subscribe({
+        next: () => {
+          this.createLoading = false;
+          this.showCreateDialog = false;
+          this.loadUsers();
+        },
+        error: (err) => {
+          this.createLoading = false;
+          this.createError = err?.error?.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+        },
+      });
+      return;
+    }
+
+    // Username/Password flow
     if (!username.trim()) { this.createError = 'กรุณากรอก Username'; return; }
     if (!/^[a-z0-9_]+$/.test(username)) {
       this.createError = 'Username ใช้ได้แค่ a-z, 0-9, _ เท่านั้น';

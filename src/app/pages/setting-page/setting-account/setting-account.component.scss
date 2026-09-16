@@ -205,6 +205,60 @@ tr:hover .edit-btn {
   white-space: nowrap;
 }
 
+// ===== Login Type Toggle =====
+
+.login-type-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--k-light-grey);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 3px;
+}
+
+.toggle-btn {
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: transparent;
+  color: var(--k-mid-grey);
+  cursor: pointer;
+  transition: var(--k-transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  i { font-size: 11px; }
+
+  &.active {
+    background: var(--k-white);
+    color: var(--k-dark-grey);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  &:not(.active):hover {
+    color: var(--k-dark-grey);
+  }
+}
+
+.google-hint {
+  font-size: 12px;
+  color: var(--k-mid-grey);
+  background: #f8f9fa;
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  line-height: 1.5;
+
+  i {
+    color: #4285F4;
+    margin-right: 4px;
+  }
+}
+
 // ===== Dialog =====
 
 .dialog-body {

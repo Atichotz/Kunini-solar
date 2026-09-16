@@ -18,6 +18,12 @@ export interface CreateUserPayload {
   name: string;
 }
 
+export interface AddGoogleUserPayload {
+  email: string;
+  name: string;
+  role: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class UsersService {
   private readonly http = inject(HttpClient);
@@ -44,5 +50,10 @@ export class UsersService {
       `${this.api}/auth/create-user`,
       payload,
     );
+  }
+
+  // input: AddGoogleUserPayload — pre-authorize Google email ลง allowed_users (Supabase trigger จัดการ user_roles ตอน login)
+  addGoogleUser(payload: AddGoogleUserPayload): Observable<void> {
+    return this.http.post<void>(`${this.api}/auth/add-google-user`, payload);
   }
 }
