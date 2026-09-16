@@ -223,6 +223,14 @@ a:hover {
     color: var(--k-black);
 }
 
+/* ค่าจาก draft ที่ยังไม่ finalize — แสดงคู่กับค่าปัจจุบันของระบบ */
+.system-pending {
+    margin-left: 6px;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--k-mid-grey);
+}
+
 /* SVG Icons */
 .icon {
     width: 14px;
@@ -481,6 +489,71 @@ a:hover {
 
 .form-textarea:focus {
     outline: none;
+}
+
+/* Electric Bill Grid */
+.grid {
+    display: grid;
+    gap: 16px;
+}
+
+.grid-cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+.upload-area {
+    border: 2px dashed var(--k-mid-grey);
+    border-radius: var(--radius-sm);
+    padding: 24px;
+    text-align: center;
+    color: var(--k-mid-grey);
+    font-size: 13px;
+    cursor: pointer;
+    background: #fafafa;
+
+    &.is-dragover {
+        border-color: var(--k-red);
+        color: var(--k-red);
+    }
+}
+
+.bill-file-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 1px solid var(--k-light-grey);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+}
+
+.bill-file-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.bill-file-link {
+    color: var(--k-accent-blue);
+    font-size: 13px;
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+.bill-error {
+    color: var(--k-red);
+    font-size: 13px;
 }
 
 .header-actions {

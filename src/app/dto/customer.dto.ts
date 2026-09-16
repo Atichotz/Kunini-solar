@@ -13,6 +13,26 @@ export interface ContactDetail {
   isPrimary: boolean;
 }
 
+export interface ElectricBillDetail {
+  billName: string | null;
+  billAmount: number | null;
+  caRefNo: string | null;
+  installationNo: string | null;
+  electricityUsageType: string | null;
+  kwhPerMonth: number | null;
+  fileName: string | null;
+  fileUrl: string | null;
+}
+
+export interface SaveElectricBillPayload {
+  billName?: string;
+  billAmount?: number;
+  caRefNo?: string;
+  installationNo?: string;
+  electricityUsageType?: string;
+  kwhPerMonth?: number;
+}
+
 export interface CustomerDetail {
   id: string;
   displayName: string;
@@ -22,6 +42,7 @@ export interface CustomerDetail {
   statusId: number | null;
   createdAt: string;
   contacts: ContactDetail[];
+  electricBill: ElectricBillDetail | null;
 }
 
 export interface CreateCustomerPayload {

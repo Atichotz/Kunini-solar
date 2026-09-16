@@ -9,15 +9,17 @@
         </div>
         <div class="flex gap-2 header-buttons">
             <button class="k-btn-sm k-btn-outline"><i class="fa-solid fa-pen"></i> Edit</button>
-            <button class="k-btn-sm k-btn-primary" [routerLink]="'/estimate'">Quotation</button>
+            <button class="k-btn-sm k-btn-primary" [routerLink]="'/estimate'"
+                [queryParams]="{customerId: customer?.id}">Quotation</button>
             <button class="k-btn-sm k-btn-primary">Survey</button>
+            <button class="k-btn-sm k-btn-primary">Scope Of Work</button>
 
             <div class="dropdown">
-                <button class="k-btn-sm k-btn-primary">Additional Work <i class="fa-solid fa-angle-down"></i></button>
+                <button class="k-btn-sm k-btn-primary">Report <i class="fa-solid fa-angle-down"></i></button>
                 <div class="dropdown-content">
                     <a href="#">Maintenance</a>
                     <a href="#">System Cleaning</a>
-                    <a href="#">Battery Upgrade</a>
+                    <a href="#">Upgrade</a>
                 </div>
             </div>
         </div>
@@ -89,19 +91,25 @@
                 <div class="info-group">
                     <span class="info-label">Location</span>
                     <div class="tag-group">
-                        <span class="tag-item" [class.active]="customer?.projectLocationName === 'Pattaya'">Pattaya</span>
+                        <span class="tag-item"
+                            [class.active]="customer?.projectLocationName === 'Pattaya'">Pattaya</span>
                         <span class="tag-item" [class.active]="customer?.projectLocationName === 'Huahin'">Huahin</span>
-                        <span class="tag-item" [class.active]="customer?.projectLocationName === 'Bangkok'">Bangkok</span>
-                        <span class="tag-item" [class.active]="customer?.projectLocationName === 'Up Country'">Up Country</span>
+                        <span class="tag-item"
+                            [class.active]="customer?.projectLocationName === 'Bangkok'">Bangkok</span>
+                        <span class="tag-item" [class.active]="customer?.projectLocationName === 'Up Country'">Up
+                            Country</span>
                     </div>
                 </div>
 
                 <div class="info-group">
                     <span class="info-label">Project Type</span>
                     <div class="tag-group">
-                        <span class="tag-item" [class.active]="customer?.typeOfCustomerName === 'Residential'">Residential</span>
-                        <span class="tag-item" [class.active]="customer?.typeOfCustomerName === 'Commercial'">Commercial</span>
-                        <span class="tag-item" [class.active]="customer?.typeOfCustomerName === 'Upgrade'">Upgrade</span>
+                        <span class="tag-item"
+                            [class.active]="customer?.typeOfCustomerName === 'Residential'">Residential</span>
+                        <span class="tag-item"
+                            [class.active]="customer?.typeOfCustomerName === 'Commercial'">Commercial</span>
+                        <span class="tag-item"
+                            [class.active]="customer?.typeOfCustomerName === 'Upgrade'">Upgrade</span>
                     </div>
                 </div>
 
@@ -109,7 +117,8 @@
                     <span class="info-label">Type of System</span>
                     <div class="tag-group">
                         <span class="tag-item" [class.active]="customer?.typeOfSystemName === 'On-Grid'">On-Grid</span>
-                        <span class="tag-item" [class.active]="customer?.typeOfSystemName === 'Off-Grid'">Off-Grid</span>
+                        <span class="tag-item"
+                            [class.active]="customer?.typeOfSystemName === 'Off-Grid'">Off-Grid</span>
                         <span class="tag-item" [class.active]="customer?.typeOfSystemName === 'Hybrid'">Hybrid</span>
                     </div>
                 </div>
@@ -128,14 +137,252 @@
                 </div>
             </div>
 
-            <!-- TODO: System Details — pending DB schema (no system columns in customers table yet) -->
+            <div class="card mb-6">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-solar-panel" style="color: var(--k-red);"></i> System Details</h2>
+                    @if (currentSystem) {
+                    <span class="badge" style="background-color: var(--k-accent-green); color: white;">Current</span>
+                    }
+                </div>
+
+                @if (isLoadingSystem) {
+                <div class="text-sm" style="color: var(--k-mid-grey);">กำลังโหลด...</div>
+                } @else if (systemErrorMessage) {
+                <div class="text-sm" style="color: var(--k-red);">{{ systemErrorMessage }}</div>
+                } @else if (!currentSystem && !pendingSystem) {
+                <div class="text-sm" style="color: var(--k-mid-grey);">ยังไม่มี Estimate ที่ยืนยัน</div>
+                } @else {
+
+                @if (finalizedEstimateCount > 1) {
+                <div class="text-sm mb-2" style="color: var(--k-mid-grey);">รวมจาก {{ finalizedEstimateCount }} ใบ Estimate</div>
+                }
+
+                <div class="flex-col gap-4">
+                    <div class="flex justify-between items-center border-bottom pb-2">
+                        <span class="info-label mb-0"><i class="fa-solid fa-sun"></i> Total Installed PV</span>
+                        <span class="info-value">
+                            <strong>
+                                @if (currentSystem?.kwp) { {{ currentSystem?.kwp | number:'1.0-2' }} kWp } @else { — }
+                            </strong>
+                            @if (pendingSystem?.kwp) {
+                            <span class="system-pending">({{ pendingSystem?.kwp | number:'1.0-2' }} kWp)</span>
+                            }
+                        </span>
+                    </div>
+                    <div class="divider" style="margin: 8px 0;"></div>
+                    <div class="flex justify-between items-center border-bottom pb-2">
+                        <span class="info-label mb-0"><i class="fa-solid fa-bolt"></i> Inverter Size</span>
+                        <span class="info-value">
+                            <strong>
+                                @if (currentSystem?.inverterKw) {
+                                {{ currentSystem?.inverterKw | number:'1.0-2' }} kW
+                                @if (currentSystem?.typeOfSystemName) { · {{ currentSystem?.typeOfSystemName }} }
+                                } @else { — }
+                            </strong>
+                            @if (pendingSystem?.inverterKw) {
+                            <span class="system-pending">({{ pendingSystem?.inverterKw | number:'1.0-2' }} kW)</span>
+                            }
+                        </span>
+                    </div>
+                    <div class="divider" style="margin: 8px 0;"></div>
+
+                    <div class="flex justify-between items-center border-bottom pb-2">
+                        <span class="info-label mb-0"><i class="fa-solid fa-battery-full"></i> Battery Size</span>
+                        <span class="info-value">
+                            <strong>
+                                @if (currentSystem?.batteryKwh) { {{ currentSystem?.batteryKwh | number:'1.0-2' }} kWh } @else { — }
+                            </strong>
+                            @if (pendingSystem?.batteryKwh) {
+                            <span class="system-pending">({{ pendingSystem?.batteryKwh | number:'1.0-2' }} kWh)</span>
+                            }
+                        </span>
+                    </div>
+                    <div class="divider" style="margin: 8px 0;"></div>
+
+                    <div class="flex justify-between items-center">
+                        <span class="info-label mb-0"><i class="fa-solid fa-tag"></i> System Price</span>
+                        <span class="info-value">
+                            <span style="color: var(--k-red); font-weight: 700;">
+                                @if (currentSystem?.systemPrice) { ฿{{ currentSystem?.systemPrice | number:'1.2-2' }} } @else { — }
+                            </span>
+                            @if (pendingSystem?.systemPrice) {
+                            <span class="system-pending">(฿{{ pendingSystem?.systemPrice | number:'1.2-2' }})</span>
+                            }
+                        </span>
+                    </div>
+                </div>
+                }
+            </div>
+
+            <div class="card mb-6">
+                <div class="card-header">
+                    <h2>Electric Bill Details</h2>
+                    @if (!isEditingBill) {
+                    <button type="button" class="k-btn-sm k-btn-outline" (click)="enableBillEdit()">
+                        <i class="fa-solid fa-pen"></i> Edit
+                    </button>
+                    }
+                </div>
+                <div class="grid grid-cols-3">
+                    <div class="input-group">
+                        <label class="input-label">Electric Bill Name</label>
+                        <input type="text" name="billName" placeholder="Name on bill" [disabled]="!isEditingBill"
+                            [(ngModel)]="electricBillForm.billName">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Electric Bill Amount (฿)</label>
+                        <input type="number" name="billAmount" min="0" placeholder="e.g. 5500" [disabled]="!isEditingBill"
+                            [(ngModel)]="electricBillForm.billAmount">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">CA / Ref No. 1</label>
+                        <input type="text" name="caRefNo" placeholder="Account Ref" [disabled]="!isEditingBill"
+                            [(ngModel)]="electricBillForm.caRefNo">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Installation No.</label>
+                        <input type="text" name="installationNo" placeholder="Installation ID" [disabled]="!isEditingBill"
+                            [(ngModel)]="electricBillForm.installationNo">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Electricity Usage Type</label>
+                        <p-select [options]="electricityOptions" appendTo="body" [(ngModel)]="electricBillForm.electricityUsageType"
+                            name="electricityUsageType" optionLabel="label" optionValue="value" [filter]="true"
+                            [disabled]="!isEditingBill" filterBy="label,value" [showClear]="true"
+                            placeholder="Select Electricity Usage Type" class="w-full">
+                        </p-select>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">KWH Consumption / Month</label>
+                        <input type="number" name="kwhPerMonth" min="0" placeholder="e.g. 1200" [disabled]="!isEditingBill"
+                            [(ngModel)]="electricBillForm.kwhPerMonth">
+                    </div>
+
+                    <div class="input-group full-width mt-4">
+                        <label class="input-label">Attach File</label>
+
+                        @if (electricBillFile) {
+                        <div class="bill-file-row">
+                            <a [href]="electricBillFile.url" target="_blank" rel="noopener" class="bill-file-link">
+                                📎 {{ electricBillFile.name }}
+                            </a>
+                            @if (isEditingBill) {
+                            <div class="bill-file-actions">
+                                <button type="button" class="k-btn-text" [disabled]="isUploadingBill"
+                                    (click)="billFileInput.click()">{{ isUploadingBill ? 'Uploading...' : 'Replace' }}</button>
+                                <button type="button" class="btn-icon btn-remove" title="Remove file"
+                                    [disabled]="isUploadingBill" (click)="removeBillFile()">✕</button>
+                            </div>
+                            }
+                        </div>
+                        } @else if (isEditingBill) {
+                        <div class="upload-area" [class.is-dragover]="isBillDragOver"
+                            (dragover)="onBillDragOver($event)" (dragleave)="onBillDragLeave($event)"
+                            (drop)="onBillDrop($event)" (click)="billFileInput.click()">
+                            @if (isUploadingBill) {
+                            กำลังอัปโหลด...
+                            } @else {
+                            + Drag & Drop Electric Bill PDF/Image here
+                            }
+                        </div>
+                        } @else {
+                        <div class="text-sm" style="color: var(--k-mid-grey);">ไม่มีไฟล์แนบ</div>
+                        }
+                        <input #billFileInput type="file" hidden accept="application/pdf,image/jpeg,image/png"
+                            [disabled]="!isEditingBill" (change)="onBillFileInputChange($event)">
+                    </div>
+
+                    @if (billErrorMessage) {
+                    <div class="input-group full-width bill-error">{{ billErrorMessage }}</div>
+                    }
+
+                    @if (isEditingBill) {
+                    <div class="input-group full-width mt-4 flex gap-2">
+                        <button class="k-btn k-btn-primary" [disabled]="isSavingBill" (click)="saveElectricBill()">
+                            {{ isSavingBill ? 'Saving...' : 'Save Electric Bill' }}
+                        </button>
+                        @if (hasSavedElectricBill) {
+                        <button type="button" class="k-btn k-btn-outline" [disabled]="isSavingBill"
+                            (click)="cancelBillEdit()">Cancel</button>
+                        }
+                    </div>
+                    }
+                </div>
+            </div>
 
         </div>
 
+        <!-- FULL WIDTH BOTTOM SECTIONS -->
+        <!-- TODO: Notes — pending customer_notes table -->
+        <!-- TODO: Document History — pending customer_documents table -->
+
     </div>
+    <div class="flex flex-col gap-6">
 
-    <!-- FULL WIDTH BOTTOM SECTIONS -->
-    <!-- TODO: Notes — pending customer_notes table -->
-    <!-- TODO: Document History — pending customer_documents table -->
+        <!-- Notes Section (Full Width) -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Internal Notes</h2>
+                <button class="btn btn-outline" style="font-size: 12px; padding: 6px 12px;" (click)="toggleNoteForm()">
+                    {{ showNoteForm ? '✕ Cancel' : '+ Add Note' }}
+                </button>
+            </div>
 
+            @if (showNoteForm) {
+            <div class="note-form">
+                <textarea class="form-textarea" [(ngModel)]="newNoteText" placeholder="Write your note here..." rows="4"
+                    autofocus></textarea>
+                <div class="note-form-actions">
+                    <button class="k-btn k-btn-primary" (click)="saveNote()" [disabled]="!newNoteText.trim()">Save
+                        Note</button>
+                    <button class="k-btn k-btn-outline" (click)="toggleNoteForm()">Cancel</button>
+                </div>
+            </div>
+            }
+
+            @for (note of notes; track note.id) {
+            <div class="note-item">
+                <div class="note-item-body">
+                    <div class="text-sm mb-2 w-full note-text" readonly>{{ note.text }}</div>
+                    <div class="item-meta">{{ note.date | date:'dd MMM yyyy' }} • by <strong>{{ note.author
+                            }}</strong>
+                    </div>
+                </div>
+                <button class="btn-icon btn-remove note-delete-btn" (click)="removeNote(note.id)"
+                    title="Remove note">✕</button>
+            </div>
+            }
+
+            @if (notes.length === 0) {
+            <div class="note-empty">No notes yet. Click "+ Add Note" to get started.</div>
+            }
+        </div>
+
+        <!-- Estimate History Card (Full Width) -->
+        <div class="card mb-[1.5rem]">
+            <div class="card-header">
+                <h2>History</h2>
+            </div>
+            <div class="doc-list">
+                @for (row of estimateHistoryRows; track row.id) {
+                <div class="doc-item">
+                    <a [routerLink]="row.isDraft ? ['/estimate'] : ['/detail', customer?.id, 'estimate', row.id]"
+                        [queryParams]="row.isDraft ? { customerId: customer?.id, estimateId: row.id } : null"
+                        class="doc-item-title">
+                        📄 {{ row.title }}
+                        <span class="badge" [class.badge-final]="!row.isDraft">{{ row.badgeLabel }}</span>
+                    </a>
+                    <div class="item-meta" style="text-align: right;">
+                        {{ row.dateIso | date:'dd MMM yyyy' }} • by <strong>{{ row.author }}</strong> •
+                        ฿{{ row.grandTotal | number:'1.0-0' }}
+                    </div>
+                </div>
+                }
+                @if (estimateHistoryRows.length === 0) {
+                <div class="note-empty">No estimate history yet.</div>
+                }
+            </div>
+        </div>
+
+    </div>
 </div>
