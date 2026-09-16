@@ -1,14 +1,11 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, WritableSignal, inject, signal } from '@angular/core';
 import { DecimalPipe, DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-
-interface TodoItem {
-  id: number;
-  title: string;
-  details?: string;
-  meta: string;
-  done: boolean;
-}
+import { FormsModule } from '@angular/forms';
+import { SelectModule } from 'primeng/select';
+import { DatePickerModule } from 'primeng/datepicker';
+import { TodoService } from '../../services/todo.service';
+import type { TodoCard, TodoAssignee, TodoCategory } from '../../dto/todo.dto';
 
 interface QuoteRecord {
   id: string;
@@ -42,92 +39,125 @@ interface SizeBar {
 
 @Component({
   selector: 'app-dashboard',
-  imports: [DecimalPipe, DatePipe, RouterLink],
+  imports: [DecimalPipe, DatePipe, RouterLink, FormsModule, SelectModule, DatePickerModule],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss'
 })
-export class DashboardComponent {
+export class DashboardComponent implements OnInit {
+  private readonly todoService = inject(TodoService);
 
   techCollapsed = signal(false);
   adminCollapsed = signal(false);
 
-  techTodos = signal<TodoItem[]>([
-    {
-      id: 1,
-      title: 'Follow up on inverter stock',
-      details: 'Check with the supplier about the backordered Huawei SUN2000-10KTL units. We need 3 by next week.',
-      meta: 'Due Tomorrow • Assigned to Mark',
-      done: false
-    },
-    {
-      id: 2,
-      title: 'Prepare equipment for installation',
-      details: 'Pattaya Branch — 10kW On-Grid system. Verify all panels, mounting hardware, and cabling.',
-      meta: 'Due Today • Assigned to Tech Team',
-      done: false
-    },
-    {
-      id: 3,
-      title: 'Complete site survey report: ABC Corp',
-      meta: 'Completed May 2',
-      done: true
+  techTodos = signal<TodoCard[]>([]);
+  adminTodos = signal<TodoCard[]>([]);
+  assignees = signal<TodoAssignee[]>([]);
+
+  techDueDate: Date | null = null;
+  techAssignee: string | null = null;
+  adminDueDate: Date | null = null;
+  adminAssignee: string | null = null;
+
+  ngOnInit(): void {
+    this.loadTodos('technician', this.techTodos);
+    this.loadTodos('admin', this.adminTodos);
+    this.todoService.getAssignees().subscribe(list => this.assignees.set(list));
+  }
+
+  private loadTodos(category: TodoCategory, target: WritableSignal<TodoCard[]>): void {
+    this.todoService.getAll(category).subscribe(list => target.set(list));
+  }
+
+  // input: Date จาก p-datepicker — output: string "YYYY-MM-DD" ให้ API (ใช้ local date, ไม่ใช้ toISOString เพื่อกัน timezone เพี้ยน)
+  private toDueDateString(date: Date | null): string | undefined {
+    if (!date) return undefined;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  // input: due_date ("2026-07-10") — output: ข้อความสัมพัทธ์ ("Due Today"/"Due Tomorrow"/"Due Jul 10")
+  private formatDueDate(dueDate: string): string {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((due.getTime() - today.getTime()) / 86400000);
+
+    if (diffDays === 0) return 'Due Today';
+    if (diffDays === 1) return 'Due Tomorrow';
+    if (diffDays < 0) return `Overdue since ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    return `Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  }
+
+  // input: todo card — output: meta line ("Due Tomorrow • Assigned to Mark" / "Completed Jul 9")
+  todoMeta(todo: TodoCard): string {
+    if (todo.isDone) {
+      const completed = new Date(todo.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return `Completed ${completed}`;
     }
-  ]);
 
-  adminTodos = signal<TodoItem[]>([
-    {
-      id: 101,
-      title: 'Finalize quote for ABC Corp',
-      details: 'Ensure the new battery pricing is included before sending. They requested the 15kWh option instead of the 10kWh.',
-      meta: 'Due Today • Assigned to Jane',
-      done: false
-    },
-    {
-      id: 102,
-      title: 'Send introductory email to John Doe',
-      meta: 'Completed May 2',
-      done: true
-    }
-  ]);
-
-  toggleTechTask(id: number): void {
-    this.techTodos.update(list =>
-      list.map(t => t.id === id ? { ...t, done: !t.done } : t)
-    );
+    const parts: string[] = [];
+    if (todo.dueDate) parts.push(this.formatDueDate(todo.dueDate));
+    if (todo.assignedToName) parts.push(`Assigned to ${todo.assignedToName}`);
+    return parts.join(' • ');
   }
 
-  addTechTask(input: HTMLInputElement): void {
-    const title = input.value.trim();
+  toggleTechTask(id: string): void {
+    this.todoService.toggle(id).subscribe(() => this.loadTodos('technician', this.techTodos));
+  }
+
+  addTechTask(titleInput: HTMLInputElement, descriptionInput: HTMLInputElement): void {
+    const title = titleInput.value.trim();
     if (!title) return;
-    this.techTodos.update(list => [
-      ...list,
-      { id: Date.now(), title, meta: 'Just added', done: false }
-    ]);
-    input.value = '';
+    const description = descriptionInput.value.trim();
+
+    this.todoService.create({
+      title,
+      category: 'technician',
+      description: description || undefined,
+      due_date: this.toDueDateString(this.techDueDate),
+      assigned_to: this.techAssignee || undefined
+    }).subscribe(() => {
+      this.loadTodos('technician', this.techTodos);
+      titleInput.value = '';
+      descriptionInput.value = '';
+      this.techDueDate = null;
+      this.techAssignee = null;
+    });
   }
 
-  deleteTechTask(id: number): void {
-    this.techTodos.update(list => list.filter(t => t.id !== id));
+  deleteTechTask(id: string): void {
+    this.todoService.delete(id).subscribe(() => this.loadTodos('technician', this.techTodos));
   }
 
-  toggleAdminTask(id: number): void {
-    this.adminTodos.update(list =>
-      list.map(t => t.id === id ? { ...t, done: !t.done } : t)
-    );
+  toggleAdminTask(id: string): void {
+    this.todoService.toggle(id).subscribe(() => this.loadTodos('admin', this.adminTodos));
   }
 
-  addAdminTask(input: HTMLInputElement): void {
-    const title = input.value.trim();
+  addAdminTask(titleInput: HTMLInputElement, descriptionInput: HTMLInputElement): void {
+    const title = titleInput.value.trim();
     if (!title) return;
-    this.adminTodos.update(list => [
-      ...list,
-      { id: Date.now(), title, meta: 'Just added', done: false }
-    ]);
-    input.value = '';
+    const description = descriptionInput.value.trim();
+
+    this.todoService.create({
+      title,
+      category: 'admin',
+      description: description || undefined,
+      due_date: this.toDueDateString(this.adminDueDate),
+      assigned_to: this.adminAssignee || undefined
+    }).subscribe(() => {
+      this.loadTodos('admin', this.adminTodos);
+      titleInput.value = '';
+      descriptionInput.value = '';
+      this.adminDueDate = null;
+      this.adminAssignee = null;
+    });
   }
 
-  deleteAdminTask(id: number): void {
-    this.adminTodos.update(list => list.filter(t => t.id !== id));
+  deleteAdminTask(id: string): void {
+    this.todoService.delete(id).subscribe(() => this.loadTodos('admin', this.adminTodos));
   }
 
   readonly recentQuotes: QuoteRecord[] = [

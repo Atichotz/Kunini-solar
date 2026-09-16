@@ -333,6 +333,39 @@ h3 {
   border-color: var(--k-red);
 }
 
+.add-todo-form {
+  margin-top: 16px;
+
+  .add-todo-input:first-child {
+    margin-top: 0;
+  }
+}
+
+.add-todo-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+
+  .add-todo-input {
+    flex: 1;
+    min-width: 160px;
+    margin-top: 0;
+  }
+
+  .add-todo-date {
+    width: 140px;
+  }
+
+  .add-todo-assignee {
+    width: 160px;
+  }
+
+  .add-todo-confirm {
+    flex-shrink: 0;
+  }
+}
+
 /* Calendar Widget */
 .calendar-agenda {
   display: flex;
