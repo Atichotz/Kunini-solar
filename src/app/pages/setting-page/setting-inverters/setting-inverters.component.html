@@ -1,3 +1,5 @@
+<p-toast></p-toast>
+
 <div class="k-setting-table-wrap">
   <table class="k-setting-table">
     <thead>
@@ -14,22 +16,21 @@
       </tr>
     </thead>
     <tbody>
-      @for (row of rows; track $index) {
+      @for (row of rows; track row; let i = $index) {
       <tr>
-        <td>
-          <p-select [options]="brands" [(ngModel)]="row.brand" [style]="{'width':'100%'}" appendTo="body" />
-        </td>
-        <td>
-          <p-select [options]="phases" [(ngModel)]="row.phase" [style]="{'width':'100%'}" appendTo="body" />
-        </td>
+        <td><input type="text" [(ngModel)]="row.brand" placeholder="Brand" /></td>
+        <td><input type="text" [(ngModel)]="row.phase" placeholder="Phase" /></td>
         <td><input type="number" [(ngModel)]="row.kw" min="0" /></td>
         <td><input type="text" [(ngModel)]="row.description" /></td>
         <td><input type="number" [(ngModel)]="row.costPrice" min="0" /></td>
         <td><input type="number" [(ngModel)]="row.shipping" min="0" /></td>
         <td><input type="number" [(ngModel)]="row.salePrice" min="0" /></td>
         <td><input type="text" [(ngModel)]="row.notes" /></td>
-        <td>
-          <button class="icon-btn remove-btn" type="button" (click)="removeRow($index)">
+        <td class="k-setting-actions">
+          <button class="icon-btn save-btn" type="button" title="Save" [disabled]="row.saving" (click)="saveRow(row)">
+            <i class="fas" [ngClass]="row.saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+          </button>
+          <button class="icon-btn remove-btn" type="button" title="Remove" (click)="removeRow(i)">
             <i class="fas fa-trash-alt"></i>
           </button>
         </td>
@@ -42,5 +43,48 @@
 <div class="k-setting-footer">
   <button class="k-btn k-btn-outline" type="button" (click)="addRow()">
     <i class="fas fa-plus"></i> Add Row
+  </button>
+</div>
+
+<h3 class="k-subsection-title !mt-4">Accessories</h3>
+<div class="k-setting-table-wrap">
+  <table class="k-setting-table">
+    <thead>
+      <tr>
+        <th>Brand</th>
+        <th>Description</th>
+        <th>Cost Price</th>
+        <th>Shipping</th>
+        <th>Sale Price</th>
+        <th>Notes</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of accessoryRows; track row; let i = $index) {
+      <tr>
+        <td><input type="text" [(ngModel)]="row.brand" placeholder="Brand" /></td>
+        <td><input type="text" [(ngModel)]="row.description" /></td>
+        <td><input type="number" [(ngModel)]="row.costPrice" min="0" /></td>
+        <td><input type="number" [(ngModel)]="row.shipping" min="0" /></td>
+        <td><input type="number" [(ngModel)]="row.salePrice" min="0" /></td>
+        <td><input type="text" [(ngModel)]="row.notes" /></td>
+        <td class="k-setting-actions">
+          <button class="icon-btn save-btn" type="button" title="Save" [disabled]="row.saving" (click)="saveAccessoryRow(row)">
+            <i class="fas" [ngClass]="row.saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+          </button>
+          <button class="icon-btn remove-btn" type="button" title="Remove" (click)="removeAccessoryRow(i)">
+            <i class="fas fa-trash-alt"></i>
+          </button>
+        </td>
+      </tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+<div class="k-setting-footer">
+  <button class="k-btn k-btn-outline" type="button" (click)="addAccessoryRow()">
+    <i class="fas fa-plus"></i> Add Accessory
   </button>
 </div>

@@ -1,29 +1,30 @@
 <p-toast></p-toast>
 
-<div class="k-setting-table-wrap">
+<div class="input-group">
+  <label class="input-label">Category</label>
+  <p-selectbutton class="k-category" [options]="categoryOptions" [(ngModel)]="selectedCategory" optionLabel="label"
+    optionValue="value">
+  </p-selectbutton>
+</div>
+
+<div class="k-setting-table-wrap mt-2">
   <table class="k-setting-table">
     <thead>
       <tr>
-        <th>Brand</th>
-        <th>kW</th>
+        <th>Item</th>
         <th>Description</th>
+        <th>Size</th>
         <th>Cost Price</th>
-        <th>Shipping</th>
-        <th>Sale Price</th>
-        <th>Notes</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
       @for (row of rows; track row; let i = $index) {
       <tr>
-        <td><input type="text" [(ngModel)]="row.brand" placeholder="Brand" /></td>
-        <td><input type="number" [(ngModel)]="row.kw" min="0" /></td>
+        <td><input type="number" [(ngModel)]="row.item" min="0" /></td>
         <td><input type="text" [(ngModel)]="row.description" /></td>
+        <td><input type="text" [(ngModel)]="row.size" /></td>
         <td><input type="number" [(ngModel)]="row.costPrice" min="0" /></td>
-        <td><input type="number" [(ngModel)]="row.shipping" min="0" /></td>
-        <td><input type="number" [(ngModel)]="row.salePrice" min="0" /></td>
-        <td><input type="text" [(ngModel)]="row.notes" /></td>
         <td class="k-setting-actions">
           <button class="icon-btn save-btn" type="button" title="Save" [disabled]="row.saving" (click)="saveRow(row)">
             <i class="fas" [ngClass]="row.saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
@@ -49,26 +50,23 @@
   <table class="k-setting-table">
     <thead>
       <tr>
-        <th>Brand</th>
+        <th>Item</th>
         <th>Description</th>
+        <th>Size</th>
         <th>Cost Price</th>
-        <th>Shipping</th>
-        <th>Sale Price</th>
-        <th>Notes</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
       @for (row of accessoryRows; track row; let i = $index) {
       <tr>
-        <td><input type="text" [(ngModel)]="row.brand" placeholder="Brand" /></td>
+        <td><input type="number" [(ngModel)]="row.item" min="0" /></td>
         <td><input type="text" [(ngModel)]="row.description" /></td>
+        <td><input type="text" [(ngModel)]="row.size" /></td>
         <td><input type="number" [(ngModel)]="row.costPrice" min="0" /></td>
-        <td><input type="number" [(ngModel)]="row.shipping" min="0" /></td>
-        <td><input type="number" [(ngModel)]="row.salePrice" min="0" /></td>
-        <td><input type="text" [(ngModel)]="row.notes" /></td>
         <td class="k-setting-actions">
-          <button class="icon-btn save-btn" type="button" title="Save" [disabled]="row.saving" (click)="saveAccessoryRow(row)">
+          <button class="icon-btn save-btn" type="button" title="Save" [disabled]="row.saving"
+            (click)="saveAccessoryRow(row)">
             <i class="fas" [ngClass]="row.saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
           </button>
           <button class="icon-btn remove-btn" type="button" title="Remove" (click)="removeAccessoryRow(i)">

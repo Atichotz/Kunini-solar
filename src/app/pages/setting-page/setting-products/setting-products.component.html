@@ -8,43 +8,42 @@
 
     <!-- Tab Bar -->
     <div class="tab-bar">
-      <button
-        class="tab-btn"
-        [class.active]="activeTab === 'panels'"
-        (click)="activeTab = 'panels'"
-        type="button"
-      >
+      <button class="tab-btn" [class.active]="activeTab === 'panels'" (click)="activeTab = 'panels'" type="button">
         <i class="fas fa-solar-panel"></i>
         <span>Panels</span>
       </button>
-      <button
-        class="tab-btn"
-        [class.active]="activeTab === 'inverters'"
-        (click)="activeTab = 'inverters'"
-        type="button"
-      >
+      <button class="tab-btn" [class.active]="activeTab === 'inverters'" (click)="activeTab = 'inverters'"
+        type="button">
         <i class="fas fa-bolt"></i>
         <span>Inverters</span>
       </button>
-      <button
-        class="tab-btn"
-        [class.active]="activeTab === 'batteries'"
-        (click)="activeTab = 'batteries'"
-        type="button"
-      >
+      <button class="tab-btn" [class.active]="activeTab === 'batteries'" (click)="activeTab = 'batteries'"
+        type="button">
         <i class="fas fa-battery-full"></i>
         <span>Batteries</span>
+      </button>
+      <button class="tab-btn" [class.active]="activeTab === 'racking'" (click)="activeTab = 'racking'" type="button">
+        <i class="fas fa-th-large"></i>
+        <span>Solar Racking</span>
+      </button>
+      <button class="tab-btn" [class.active]="activeTab === 'bos'" (click)="activeTab = 'bos'" type="button">
+        <i class="fas fa-plug"></i>
+        <span>Solar BOS</span>
       </button>
     </div>
 
     <!-- Tab Content -->
     <div class="tab-content">
       @if (activeTab === 'panels') {
-        <app-setting-panels />
+      <app-setting-panels />
       } @else if (activeTab === 'inverters') {
-        <app-setting-inverters />
+      <app-setting-inverters />
       } @else if (activeTab === 'batteries') {
-        <app-setting-batteries />
+      <app-setting-batteries />
+      } @else if (activeTab === 'racking') {
+      <app-setting-racking />
+      } @else if (activeTab === 'bos') {
+      <app-setting-bos />
       }
     </div>
   </div>

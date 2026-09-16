@@ -1,8 +1,20 @@
-import { Component } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SelectModule } from 'primeng/select';
+import { ToastModule } from 'primeng/toast';
+import { MessageService } from 'primeng/api';
+import {
+  EquipmentService,
+  PanelItem,
+  AccessoryItem,
+  CreatePanelPayload,
+  UpdatePanelPayload,
+  CreateAccessoryPayload,
+} from '../../../services/equipment.service';
 
 interface PanelRow {
+  id: number | null;
   brand: string;
   kw: number | null;
   description: string;
@@ -10,30 +22,184 @@ interface PanelRow {
   shipping: number | null;
   salePrice: number | null;
   notes: string;
+  saving: boolean;
 }
 
-const BRANDS = ['Jinko', 'Canadian Solar', 'LONGi', 'Trina Solar', 'JA Solar'];
+interface AccessoryRow {
+  id: number | null;
+  brand: string;
+  description: string;
+  costPrice: number | null;
+  shipping: number | null;
+  salePrice: number | null;
+  notes: string;
+  saving: boolean;
+}
+
+function toPanelRow(p: PanelItem): PanelRow {
+  return {
+    id: p.id,
+    brand: p.brand,
+    kw: p.kw,
+    description: p.description,
+    costPrice: p.costPrice,
+    shipping: p.shipping,
+    salePrice: p.salePrice,
+    notes: p.notes,
+    saving: false,
+  };
+}
+
+function toAccessoryRow(a: AccessoryItem): AccessoryRow {
+  return {
+    id: a.id,
+    brand: a.brand,
+    description: a.description,
+    costPrice: a.costPrice,
+    shipping: a.shipping,
+    salePrice: a.salePrice,
+    notes: a.notes,
+    saving: false,
+  };
+}
 
 @Component({
   selector: 'app-setting-panels',
-  imports: [FormsModule, SelectModule],
+  imports: [FormsModule, ToastModule, NgClass],
   templateUrl: './setting-panels.component.html',
-  styleUrl: './setting-panels.component.scss'
+  styleUrl: './setting-panels.component.scss',
+  providers: [MessageService],
 })
-export class SettingPanelsComponent {
-  readonly brands = BRANDS;
+export class SettingPanelsComponent implements OnInit {
+  private readonly equipmentService = inject(EquipmentService);
+  private readonly messageService = inject(MessageService);
+  private readonly destroyRef = inject(DestroyRef);
 
-  rows: PanelRow[] = [
-    { brand: 'Jinko', kw: 1, description: '', costPrice: null, shipping: null, salePrice: null, notes: '' },
-    { brand: 'Jinko', kw: 2, description: '', costPrice: null, shipping: null, salePrice: null, notes: '' },
-    { brand: 'Jinko', kw: 3, description: '', costPrice: null, shipping: null, salePrice: null, notes: '' },
-  ];
+  rows: PanelRow[] = [];
+  accessoryRows: AccessoryRow[] = [];
+
+  ngOnInit(): void {
+    this.equipmentService.getPanels()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (panels) => (this.rows = panels.map(toPanelRow)),
+        error: () => this.messageService.add({ severity: 'error', summary: 'Load Failed', detail: 'โหลดข้อมูล Panels ไม่สำเร็จ' }),
+      });
+
+    this.equipmentService.getPanelAccessories()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (accessories) => (this.accessoryRows = accessories.map(toAccessoryRow)),
+        error: () => this.messageService.add({ severity: 'error', summary: 'Load Failed', detail: 'โหลดข้อมูล Accessories ไม่สำเร็จ' }),
+      });
+  }
 
   addRow(): void {
-    this.rows.push({ brand: 'Jinko', kw: null, description: '', costPrice: null, shipping: null, salePrice: null, notes: '' });
+    this.rows.push({ id: null, brand: '', kw: null, description: '', costPrice: null, shipping: null, salePrice: null, notes: '', saving: false });
+  }
+
+  saveRow(row: PanelRow): void {
+    if (!row.brand || !row.description.trim()) {
+      this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'กรุณากรอก Brand และ Description ก่อนบันทึก' });
+      return;
+    }
+
+    row.saving = true;
+    const request$ = row.id === null
+      ? this.equipmentService.createPanel(this.buildCreatePayload(row))
+      : this.equipmentService.updatePanel(row.id, this.buildUpdatePayload(row));
+
+    request$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (saved) => {
+        Object.assign(row, toPanelRow(saved));
+        this.messageService.add({ severity: 'success', summary: 'Saved', detail: `บันทึก ${saved.brand} เรียบร้อย`, life: 2000 });
+      },
+      error: () => {
+        row.saving = false;
+        this.messageService.add({ severity: 'error', summary: 'Save Failed', detail: 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง' });
+      },
+    });
   }
 
   removeRow(index: number): void {
-    this.rows.splice(index, 1);
+    const row = this.rows[index];
+    if (row.id === null) {
+      this.rows.splice(index, 1);
+      return;
+    }
+    if (!window.confirm(`ลบ ${row.brand} - ${row.description} ออกจากรายการ?`)) return;
+
+    this.equipmentService.deletePanel(row.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.rows.splice(index, 1),
+        error: () => this.messageService.add({ severity: 'error', summary: 'Delete Failed', detail: 'ลบไม่สำเร็จ ลองใหม่อีกครั้ง' }),
+      });
+  }
+
+  private buildCreatePayload(row: PanelRow): CreatePanelPayload {
+    const payload: CreatePanelPayload = { brand: row.brand, description: row.description };
+    if (row.kw !== null) payload.kw = row.kw;
+    if (row.costPrice !== null) payload.costPrice = row.costPrice;
+    if (row.shipping !== null) payload.shipping = row.shipping;
+    if (row.salePrice !== null) payload.salePrice = row.salePrice;
+    if (row.notes) payload.notes = row.notes;
+    return payload;
+  }
+
+  private buildUpdatePayload(row: PanelRow): UpdatePanelPayload {
+    return this.buildCreatePayload(row);
+  }
+
+  addAccessoryRow(): void {
+    this.accessoryRows.push({ id: null, brand: '', description: '', costPrice: null, shipping: null, salePrice: null, notes: '', saving: false });
+  }
+
+  saveAccessoryRow(row: AccessoryRow): void {
+    if (!row.brand || !row.description.trim()) {
+      this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'กรุณากรอก Brand และ Description ก่อนบันทึก' });
+      return;
+    }
+
+    row.saving = true;
+    const request$ = row.id === null
+      ? this.equipmentService.createPanelAccessory(this.buildAccessoryCreatePayload(row))
+      : this.equipmentService.updatePanelAccessory(row.id, this.buildAccessoryCreatePayload(row));
+
+    request$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (saved) => {
+        Object.assign(row, toAccessoryRow(saved));
+        this.messageService.add({ severity: 'success', summary: 'Saved', detail: `บันทึก ${saved.brand} เรียบร้อย`, life: 2000 });
+      },
+      error: () => {
+        row.saving = false;
+        this.messageService.add({ severity: 'error', summary: 'Save Failed', detail: 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง' });
+      },
+    });
+  }
+
+  removeAccessoryRow(index: number): void {
+    const row = this.accessoryRows[index];
+    if (row.id === null) {
+      this.accessoryRows.splice(index, 1);
+      return;
+    }
+    if (!window.confirm(`ลบ ${row.brand} - ${row.description} ออกจากรายการ?`)) return;
+
+    this.equipmentService.deletePanelAccessory(row.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.accessoryRows.splice(index, 1),
+        error: () => this.messageService.add({ severity: 'error', summary: 'Delete Failed', detail: 'ลบไม่สำเร็จ ลองใหม่อีกครั้ง' }),
+      });
+  }
+
+  private buildAccessoryCreatePayload(row: AccessoryRow): CreateAccessoryPayload {
+    const payload: CreateAccessoryPayload = { brand: row.brand, description: row.description };
+    if (row.costPrice !== null) payload.costPrice = row.costPrice;
+    if (row.shipping !== null) payload.shipping = row.shipping;
+    if (row.salePrice !== null) payload.salePrice = row.salePrice;
+    if (row.notes) payload.notes = row.notes;
+    return payload;
   }
 }

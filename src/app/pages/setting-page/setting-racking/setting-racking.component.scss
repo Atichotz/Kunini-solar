@@ -1,0 +1,21 @@
+.roof-type-toolbar {
+  margin-bottom: 20px;
+}
+
+.roof-type-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  max-width: 320px;
+
+  input {
+    flex: 1;
+  }
+
+  .k-btn-sm {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+}
