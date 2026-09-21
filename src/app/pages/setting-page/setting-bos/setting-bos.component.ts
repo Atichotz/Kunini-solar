@@ -4,14 +4,16 @@ import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { ToastModule } from 'primeng/toast';
-import { MessageService } from 'primeng/api';
-import { Observable } from 'rxjs';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { MessageService, ConfirmationService } from 'primeng/api';
+import { Observable, finalize } from 'rxjs';
 import {
   EquipmentService,
   BOSItem,
   CreateBOSItemPayload,
   UpdateBOSItemPayload,
 } from '../../../services/equipment.service';
+import { PermissionService } from '../../../services/permission.service';
 
 type BosCategory = 'cables' | 'switch_gears' | 'solar_equipment' | 'conduit_junction_boxes';
 
@@ -22,6 +24,7 @@ interface BOSRow {
   size: string;
   costPrice: number | null;
   saving: boolean;
+  deleting?: boolean;
 }
 
 interface CategoryOption {
@@ -49,15 +52,17 @@ function toBOSRow(b: BOSItem): BOSRow {
 
 @Component({
   selector: 'app-setting-bos',
-  imports: [FormsModule, SelectButtonModule, ToastModule, NgClass],
+  imports: [FormsModule, SelectButtonModule, ToastModule, ConfirmDialogModule, NgClass],
   templateUrl: './setting-bos.component.html',
   styleUrl: './setting-bos.component.scss',
-  providers: [MessageService],
+  providers: [MessageService, ConfirmationService],
 })
 export class SettingBOSComponent implements OnInit {
   private readonly equipmentService = inject(EquipmentService);
   private readonly messageService = inject(MessageService);
+  private readonly confirmationService = inject(ConfirmationService);
   private readonly destroyRef = inject(DestroyRef);
+  readonly canManage = inject(PermissionService).canManage;
 
   private readonly categoryApi: Record<BosCategory, CategoryApi> = {
     cables: {
@@ -102,6 +107,19 @@ export class SettingBOSComponent implements OnInit {
   };
   accessoryRows: BOSRow[] = [];
 
+  // โหลดแยกต่อหมวด — แต่ละหมวดยิง request ของตัวเอง ผู้ใช้อาจสลับไปหมวดที่ยังโหลดไม่เสร็จ
+  isLoadingByCategory: Record<BosCategory, boolean> = {
+    cables: true,
+    switch_gears: true,
+    solar_equipment: true,
+    conduit_junction_boxes: true,
+  };
+  isLoadingAccessories = true;
+
+  get isLoadingRows(): boolean {
+    return this.isLoadingByCategory[this.selectedCategory];
+  }
+
   get rows(): BOSRow[] {
     return this.rowsByCategory[this.selectedCategory];
   }
@@ -109,28 +127,30 @@ export class SettingBOSComponent implements OnInit {
   ngOnInit(): void {
     for (const category of this.categoryOptions.map((o) => o.value)) {
       this.categoryApi[category].get()
-        .pipe(takeUntilDestroyed(this.destroyRef))
+        .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => (this.isLoadingByCategory[category] = false)))
         .subscribe({
           next: (items) => (this.rowsByCategory[category] = items.map(toBOSRow)),
-          error: () => this.messageService.add({ severity: 'error', summary: 'Load Failed', detail: `โหลดข้อมูล ${category} ไม่สำเร็จ` }),
+          error: () => this.messageService.add({ severity: 'error', summary: 'Load Failed', detail: `Failed to load ${category}` }),
         });
     }
 
     this.equipmentService.getBosAccessories()
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => (this.isLoadingAccessories = false)))
       .subscribe({
         next: (accessories) => (this.accessoryRows = accessories.map(toBOSRow)),
-        error: () => this.messageService.add({ severity: 'error', summary: 'Load Failed', detail: 'โหลดข้อมูล Accessories ไม่สำเร็จ' }),
+        error: () => this.messageService.add({ severity: 'error', summary: 'Load Failed', detail: 'Failed to load accessories' }),
       });
   }
 
   addRow(): void {
+    if (!this.canManage()) return;
     this.rows.push({ id: null, item: null, description: '', size: '', costPrice: null, saving: false });
   }
 
   saveRow(row: BOSRow): void {
+    if (!this.canManage()) return;
     if (row.item === null || !row.description.trim()) {
-      this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'กรุณากรอก Item และ Description ก่อนบันทึก' });
+      this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Please fill in Item and Description before saving' });
       return;
     }
 
@@ -143,38 +163,58 @@ export class SettingBOSComponent implements OnInit {
     request$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (saved) => {
         Object.assign(row, toBOSRow(saved));
-        this.messageService.add({ severity: 'success', summary: 'Saved', detail: `บันทึก Item ${saved.item} เรียบร้อย`, life: 2000 });
+        this.messageService.add({ severity: 'success', summary: 'Saved', detail: `Item ${saved.item} saved successfully`, life: 2000 });
       },
       error: () => {
         row.saving = false;
-        this.messageService.add({ severity: 'error', summary: 'Save Failed', detail: 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง' });
+        this.messageService.add({ severity: 'error', summary: 'Save Failed', detail: 'Failed to save. Please try again' });
       },
     });
   }
 
-  removeRow(index: number): void {
-    const row = this.rows[index];
+  // input: แถวที่กด Remove — จำหมวดตอนกด (ไม่ใช่ตอน response กลับ) เพราะผู้ใช้อาจสลับหมวดระหว่างรอ ไม่งั้นจะลบ/splice ผิดหมวด
+  removeRow(row: BOSRow): void {
+    if (!this.canManage()) return;
+    if (row.saving || row.deleting) return;
+    const category = this.selectedCategory;
+    const removeFromList = (): void => {
+      this.rowsByCategory[category] = this.rowsByCategory[category].filter((r) => r !== row);
+    };
     if (row.id === null) {
-      this.rows.splice(index, 1);
+      removeFromList();
       return;
     }
-    if (!window.confirm(`ลบ Item ${row.item} - ${row.description} ออกจากรายการ?`)) return;
-
-    this.categoryApi[this.selectedCategory].remove(row.id)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => this.rows.splice(index, 1),
-        error: () => this.messageService.add({ severity: 'error', summary: 'Delete Failed', detail: 'ลบไม่สำเร็จ ลองใหม่อีกครั้ง' }),
-      });
+    const id = row.id;
+    this.confirmationService.confirm({
+      header: 'Confirm Delete',
+      message: `Remove Item ${row.item} - ${row.description} from the list?`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => {
+        row.deleting = true;
+        this.categoryApi[category].remove(id)
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe({
+            next: removeFromList,
+            error: () => {
+              row.deleting = false;
+              this.messageService.add({ severity: 'error', summary: 'Delete Failed', detail: 'Failed to delete. Please try again' });
+            },
+          });
+      },
+    });
   }
 
   addAccessoryRow(): void {
+    if (!this.canManage()) return;
     this.accessoryRows.push({ id: null, item: null, description: '', size: '', costPrice: null, saving: false });
   }
 
   saveAccessoryRow(row: BOSRow): void {
+    if (!this.canManage()) return;
     if (row.item === null || !row.description.trim()) {
-      this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'กรุณากรอก Item และ Description ก่อนบันทึก' });
+      this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Please fill in Item and Description before saving' });
       return;
     }
 
@@ -186,29 +226,43 @@ export class SettingBOSComponent implements OnInit {
     request$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (saved) => {
         Object.assign(row, toBOSRow(saved));
-        this.messageService.add({ severity: 'success', summary: 'Saved', detail: `บันทึก Item ${saved.item} เรียบร้อย`, life: 2000 });
+        this.messageService.add({ severity: 'success', summary: 'Saved', detail: `Item ${saved.item} saved successfully`, life: 2000 });
       },
       error: () => {
         row.saving = false;
-        this.messageService.add({ severity: 'error', summary: 'Save Failed', detail: 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง' });
+        this.messageService.add({ severity: 'error', summary: 'Save Failed', detail: 'Failed to save. Please try again' });
       },
     });
   }
 
-  removeAccessoryRow(index: number): void {
-    const row = this.accessoryRows[index];
+  removeAccessoryRow(row: BOSRow): void {
+    if (!this.canManage()) return;
+    if (row.saving || row.deleting) return;
     if (row.id === null) {
-      this.accessoryRows.splice(index, 1);
+      this.accessoryRows = this.accessoryRows.filter((r) => r !== row);
       return;
     }
-    if (!window.confirm(`ลบ Item ${row.item} - ${row.description} ออกจากรายการ?`)) return;
-
-    this.equipmentService.deleteBosAccessory(row.id)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => this.accessoryRows.splice(index, 1),
-        error: () => this.messageService.add({ severity: 'error', summary: 'Delete Failed', detail: 'ลบไม่สำเร็จ ลองใหม่อีกครั้ง' }),
-      });
+    const id = row.id;
+    this.confirmationService.confirm({
+      header: 'Confirm Delete',
+      message: `Remove Item ${row.item} - ${row.description} from the list?`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => {
+        row.deleting = true;
+        this.equipmentService.deleteBosAccessory(id)
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe({
+            // filter ด้วย reference (ไม่ใช้ index) กันลบผิดแถวถ้า list เปลี่ยนระหว่างรอ confirm/response
+            next: () => (this.accessoryRows = this.accessoryRows.filter((r) => r !== row)),
+            error: () => {
+              row.deleting = false;
+              this.messageService.add({ severity: 'error', summary: 'Delete Failed', detail: 'Failed to delete. Please try again' });
+            },
+          });
+      },
+    });
   }
 
   private buildPayload(row: BOSRow): CreateBOSItemPayload {

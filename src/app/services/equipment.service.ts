@@ -56,6 +56,19 @@ export interface RoofTypeItem {
   name: string;
 }
 
+export interface DocumentationTypeItem {
+  id: number;
+  name: string;
+  unitRate: number;
+}
+
+export interface CreateDocumentationTypePayload {
+  name: string;
+  unitRate?: number;
+}
+
+export type UpdateDocumentationTypePayload = Partial<CreateDocumentationTypePayload>;
+
 export interface CreateRoofTypePayload {
   name: string;
 }
@@ -247,6 +260,27 @@ export class EquipmentService {
 
   createRoofType(payload: CreateRoofTypePayload): Observable<RoofTypeItem> {
     return this.http.post<RoofTypeItem>(`${this.api}/equipment/roof-types`, payload);
+  }
+
+  deleteRoofType(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.api}/equipment/roof-types/${id}`);
+  }
+
+  // output: documentation type ทั้งหมด (ชื่อ + unit rate) สำหรับ dropdown Type ใน section 7 ของหน้า estimate และตารางหน้า Settings
+  getDocumentationTypes(): Observable<DocumentationTypeItem[]> {
+    return this.http.get<DocumentationTypeItem[]>(`${this.api}/equipment/documentation-types`);
+  }
+
+  createDocumentationType(payload: CreateDocumentationTypePayload): Observable<DocumentationTypeItem> {
+    return this.http.post<DocumentationTypeItem>(`${this.api}/equipment/documentation-types`, payload);
+  }
+
+  updateDocumentationType(id: number, payload: UpdateDocumentationTypePayload): Observable<DocumentationTypeItem> {
+    return this.http.patch<DocumentationTypeItem>(`${this.api}/equipment/documentation-types/${id}`, payload);
+  }
+
+  deleteDocumentationType(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.api}/equipment/documentation-types/${id}`);
   }
 
   // output: solar racking ทั้งหมดจาก catalog (ทุก roof type) สำหรับ filter ตาม roof type ที่เลือก

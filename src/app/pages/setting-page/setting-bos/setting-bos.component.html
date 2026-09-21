@@ -1,4 +1,5 @@
 <p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
 
 <div class="input-group">
   <label class="input-label">Category</label>
@@ -15,35 +16,48 @@
         <th>Description</th>
         <th>Size</th>
         <th>Cost Price</th>
-        <th></th>
+        @if (canManage()) {
+          <th></th>
+        }
       </tr>
     </thead>
     <tbody>
-      @for (row of rows; track row; let i = $index) {
+      @if (isLoadingRows) {
       <tr>
-        <td><input type="number" [(ngModel)]="row.item" min="0" /></td>
-        <td><input type="text" [(ngModel)]="row.description" /></td>
-        <td><input type="text" [(ngModel)]="row.size" /></td>
-        <td><input type="number" [(ngModel)]="row.costPrice" min="0" /></td>
-        <td class="k-setting-actions">
-          <button class="icon-btn save-btn" type="button" title="Save" [disabled]="row.saving" (click)="saveRow(row)">
-            <i class="fas" [ngClass]="row.saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
-          </button>
-          <button class="icon-btn remove-btn" type="button" title="Remove" (click)="removeRow(i)">
-            <i class="fas fa-trash-alt"></i>
-          </button>
+        <td class="k-setting-loading" [attr.colspan]="canManage() ? 5 : 4">
+          <i class="fas fa-spinner fa-spin"></i> Loading…
         </td>
+      </tr>
+      }
+      @for (row of rows; track row) {
+      <tr>
+        <td><input type="number" [disabled]="!canManage()" [(ngModel)]="row.item" min="0" /></td>
+        <td><input type="text" [disabled]="!canManage()" [(ngModel)]="row.description" /></td>
+        <td><input type="text" [disabled]="!canManage()" [(ngModel)]="row.size" /></td>
+        <td><input type="number" [disabled]="!canManage()" [(ngModel)]="row.costPrice" min="0" /></td>
+        @if (canManage()) {
+          <td class="k-setting-actions">
+            <button class="icon-btn save-btn" type="button" title="Save" [disabled]="row.saving || row.deleting" (click)="saveRow(row)">
+              <i class="fas" [ngClass]="row.saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+            </button>
+            <button class="icon-btn remove-btn" type="button" title="Remove" [disabled]="row.saving || row.deleting" (click)="removeRow(row)">
+              <i class="fas" [ngClass]="row.deleting ? 'fa-spinner fa-spin' : 'fa-trash-alt'"></i>
+            </button>
+          </td>
+        }
       </tr>
       }
     </tbody>
   </table>
 </div>
 
-<div class="k-setting-footer">
-  <button class="k-btn k-btn-outline" type="button" (click)="addRow()">
-    <i class="fas fa-plus"></i> Add Row
-  </button>
-</div>
+@if (canManage()) {
+  <div class="k-setting-footer">
+    <button class="k-btn k-btn-outline" type="button" [disabled]="isLoadingRows" (click)="addRow()">
+      <i class="fas fa-plus"></i> Add Row
+    </button>
+  </div>
+}
 
 <h3 class="k-subsection-title !mt-4">Accessories</h3>
 <div class="k-setting-table-wrap">
@@ -54,33 +68,46 @@
         <th>Description</th>
         <th>Size</th>
         <th>Cost Price</th>
-        <th></th>
+        @if (canManage()) {
+          <th></th>
+        }
       </tr>
     </thead>
     <tbody>
-      @for (row of accessoryRows; track row; let i = $index) {
+      @if (isLoadingAccessories) {
       <tr>
-        <td><input type="number" [(ngModel)]="row.item" min="0" /></td>
-        <td><input type="text" [(ngModel)]="row.description" /></td>
-        <td><input type="text" [(ngModel)]="row.size" /></td>
-        <td><input type="number" [(ngModel)]="row.costPrice" min="0" /></td>
-        <td class="k-setting-actions">
-          <button class="icon-btn save-btn" type="button" title="Save" [disabled]="row.saving"
-            (click)="saveAccessoryRow(row)">
-            <i class="fas" [ngClass]="row.saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
-          </button>
-          <button class="icon-btn remove-btn" type="button" title="Remove" (click)="removeAccessoryRow(i)">
-            <i class="fas fa-trash-alt"></i>
-          </button>
+        <td class="k-setting-loading" [attr.colspan]="canManage() ? 5 : 4">
+          <i class="fas fa-spinner fa-spin"></i> Loading…
         </td>
+      </tr>
+      }
+      @for (row of accessoryRows; track row) {
+      <tr>
+        <td><input type="number" [disabled]="!canManage()" [(ngModel)]="row.item" min="0" /></td>
+        <td><input type="text" [disabled]="!canManage()" [(ngModel)]="row.description" /></td>
+        <td><input type="text" [disabled]="!canManage()" [(ngModel)]="row.size" /></td>
+        <td><input type="number" [disabled]="!canManage()" [(ngModel)]="row.costPrice" min="0" /></td>
+        @if (canManage()) {
+          <td class="k-setting-actions">
+            <button class="icon-btn save-btn" type="button" title="Save" [disabled]="row.saving || row.deleting"
+              (click)="saveAccessoryRow(row)">
+              <i class="fas" [ngClass]="row.saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+            </button>
+            <button class="icon-btn remove-btn" type="button" title="Remove" [disabled]="row.saving || row.deleting" (click)="removeAccessoryRow(row)">
+              <i class="fas" [ngClass]="row.deleting ? 'fa-spinner fa-spin' : 'fa-trash-alt'"></i>
+            </button>
+          </td>
+        }
       </tr>
       }
     </tbody>
   </table>
 </div>
 
-<div class="k-setting-footer">
-  <button class="k-btn k-btn-outline" type="button" (click)="addAccessoryRow()">
-    <i class="fas fa-plus"></i> Add Accessory
-  </button>
-</div>
+@if (canManage()) {
+  <div class="k-setting-footer">
+    <button class="k-btn k-btn-outline" type="button" [disabled]="isLoadingAccessories" (click)="addAccessoryRow()">
+      <i class="fas fa-plus"></i> Add Accessory
+    </button>
+  </div>
+}

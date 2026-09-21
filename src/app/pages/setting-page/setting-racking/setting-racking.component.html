@@ -1,25 +1,50 @@
 <p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
 
-<div class="roof-type-toolbar">
-  @if (!showAddRoofTypeForm) {
-    <button class="k-btn-sm k-btn-outline" type="button" (click)="showAddRoofTypeForm = true">
-      <i class="fas fa-plus"></i> Add Roof Type
-    </button>
-  } @else {
-    <div class="input-group">
-      <label class="input-label">Roof Type Name</label>
-      <div class="roof-type-input-row">
-        <input type="text" [(ngModel)]="newRoofTypeName" placeholder="e.g. Metal Sheet" (keyup.enter)="addRoofType()" />
-        <button class="k-btn-sm k-btn-primary" type="button" [disabled]="addingRoofType" (click)="addRoofType()">
-          <i class="fas" [ngClass]="addingRoofType ? 'fa-spinner fa-spin' : 'fa-check'"></i> Save
+@if (canManage()) {
+  <div class="roof-type-toolbar">
+    @if (showDeleteRoofTypeForm) {
+      <div class="input-group">
+        <label class="input-label">Delete Roof Type</label>
+        <div class="roof-type-input-row">
+          <p-select [options]="roofTypeOptions" appendTo="body" [(ngModel)]="roofTypeIdToDelete" optionLabel="label"
+            optionValue="value" placeholder="Select Roof Type" class="w-full">
+          </p-select>
+          <button class="k-btn-sm k-btn-primary" type="button" [disabled]="roofTypeIdToDelete === null || deletingRoofType"
+            (click)="removeRoofType()">
+            <i class="fas" [ngClass]="deletingRoofType ? 'fa-spinner fa-spin' : 'fa-trash-alt'"></i> Delete
+          </button>
+          <button class="icon-btn" type="button" title="Cancel" (click)="cancelDeleteRoofType()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+    } @else if (!showAddRoofTypeForm) {
+      <div class="roof-type-actions">
+        <button class="k-btn-sm k-btn-outline" type="button" (click)="showAddRoofTypeForm = true">
+          <i class="fas fa-plus"></i> Add Roof Type
         </button>
-        <button class="icon-btn" type="button" title="Cancel" (click)="cancelAddRoofType()">
-          <i class="fas fa-times"></i>
+        <button class="k-btn-sm k-btn-outline" type="button" [disabled]="roofTypeOptions.length === 0"
+          (click)="showDeleteRoofTypeForm = true">
+          <i class="fas fa-trash-alt"></i> Delete Roof Type
         </button>
       </div>
-    </div>
-  }
-</div>
+    } @else {
+      <div class="input-group">
+        <label class="input-label">Roof Type Name</label>
+        <div class="roof-type-input-row">
+          <input type="text" [(ngModel)]="newRoofTypeName" placeholder="e.g. Metal Sheet" (keyup.enter)="addRoofType()" />
+          <button class="k-btn-sm k-btn-primary" type="button" [disabled]="addingRoofType" (click)="addRoofType()">
+            <i class="fas" [ngClass]="addingRoofType ? 'fa-spinner fa-spin' : 'fa-check'"></i> Save
+          </button>
+          <button class="icon-btn" type="button" title="Cancel" (click)="cancelAddRoofType()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+}
 
 <div class="k-setting-table-wrap">
   <table class="k-setting-table">
@@ -30,37 +55,50 @@
         <th>Description</th>
         <th>Cost Price</th>
         <th>Sale Price</th>
-        <th></th>
+        @if (canManage()) {
+          <th></th>
+        }
       </tr>
     </thead>
     <tbody>
-      @for (row of rows; track row; let i = $index) {
+      @if (isLoading) {
+      <tr>
+        <td class="k-setting-loading" [attr.colspan]="canManage() ? 6 : 5">
+          <i class="fas fa-spinner fa-spin"></i> Loading…
+        </td>
+      </tr>
+      }
+      @for (row of rows; track row) {
       <tr>
         <td>
-          <p-select [options]="roofTypeOptions" appendTo="body" [(ngModel)]="row.roofTypeId" optionLabel="label"
+          <p-select [disabled]="!canManage()" [options]="roofTypeOptions" appendTo="body" [(ngModel)]="row.roofTypeId" optionLabel="label"
             optionValue="value" placeholder="Select Roof Type" class="w-full">
           </p-select>
         </td>
-        <td><input type="text" [(ngModel)]="row.part" placeholder="Part" /></td>
-        <td><input type="text" [(ngModel)]="row.description" /></td>
-        <td><input type="number" [(ngModel)]="row.costPrice" min="0" /></td>
-        <td><input type="number" [(ngModel)]="row.salePrice" min="0" /></td>
-        <td class="k-setting-actions">
-          <button class="icon-btn save-btn" type="button" title="Save" [disabled]="row.saving" (click)="saveRow(row)">
-            <i class="fas" [ngClass]="row.saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
-          </button>
-          <button class="icon-btn remove-btn" type="button" title="Remove" (click)="removeRow(i)">
-            <i class="fas fa-trash-alt"></i>
-          </button>
-        </td>
+        <td><input type="text" [disabled]="!canManage()" [(ngModel)]="row.part" placeholder="Part" /></td>
+        <td><input type="text" [disabled]="!canManage()" [(ngModel)]="row.description" /></td>
+        <td><input type="number" [disabled]="!canManage()" [(ngModel)]="row.costPrice" min="0" /></td>
+        <td><input type="number" [disabled]="!canManage()" [(ngModel)]="row.salePrice" min="0" /></td>
+        @if (canManage()) {
+          <td class="k-setting-actions">
+            <button class="icon-btn save-btn" type="button" title="Save" [disabled]="row.saving || row.deleting" (click)="saveRow(row)">
+              <i class="fas" [ngClass]="row.saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+            </button>
+            <button class="icon-btn remove-btn" type="button" title="Remove" [disabled]="row.saving || row.deleting" (click)="removeRow(row)">
+              <i class="fas" [ngClass]="row.deleting ? 'fa-spinner fa-spin' : 'fa-trash-alt'"></i>
+            </button>
+          </td>
+        }
       </tr>
       }
     </tbody>
   </table>
 </div>
 
-<div class="k-setting-footer">
-  <button class="k-btn k-btn-outline" type="button" (click)="addRow()">
-    <i class="fas fa-plus"></i> Add Row
-  </button>
-</div>
+@if (canManage()) {
+  <div class="k-setting-footer">
+    <button class="k-btn k-btn-outline" type="button" [disabled]="isLoading" (click)="addRow()">
+      <i class="fas fa-plus"></i> Add Row
+    </button>
+  </div>
+}

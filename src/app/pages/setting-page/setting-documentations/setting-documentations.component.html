@@ -1,0 +1,49 @@
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
+
+<div class="k-setting-table-wrap">
+  <table class="k-setting-table">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Unit Rate</th>
+        @if (canManage()) {
+          <th></th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @if (isLoadingRows) {
+      <tr>
+        <td class="k-setting-loading" [attr.colspan]="canManage() ? 3 : 2">
+          <i class="fas fa-spinner fa-spin"></i> Loading…
+        </td>
+      </tr>
+      }
+      @for (row of rows; track row) {
+      <tr>
+        <td><input type="text" [disabled]="!canManage()" [(ngModel)]="row.name" placeholder="e.g. PEA / MEA Registration" /></td>
+        <td><input type="number" [disabled]="!canManage()" [(ngModel)]="row.unitRate" min="0" placeholder="0" /></td>
+        @if (canManage()) {
+          <td class="k-setting-actions">
+            <button class="icon-btn save-btn" type="button" title="Save" [disabled]="row.saving || row.deleting" (click)="saveRow(row)">
+              <i class="fas" [ngClass]="row.saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+            </button>
+            <button class="icon-btn remove-btn" type="button" title="Remove" [disabled]="row.saving || row.deleting" (click)="removeRow(row)">
+              <i class="fas" [ngClass]="row.deleting ? 'fa-spinner fa-spin' : 'fa-trash-alt'"></i>
+            </button>
+          </td>
+        }
+      </tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+@if (canManage()) {
+  <div class="k-setting-footer">
+    <button class="k-btn k-btn-outline" type="button" [disabled]="isLoadingRows" (click)="addRow()">
+      <i class="fas fa-plus"></i> Add Row
+    </button>
+  </div>
+}

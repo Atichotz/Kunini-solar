@@ -6,16 +6,18 @@
       <h3 class="sidebar-heading">Settings</h3>
       <ul class="nav-list">
 
-        <li class="nav-item" [class.active]="activeSection() === 'account'" (click)="activeSection.set('account')">
-          <span class="nav-icon"><i class="fas fa-user"></i></span>
-          <span class="nav-text">
-            <span class="nav-title">Account</span>
-            <span class="nav-desc">Manage your profile</span>
-          </span>
-          <i class="fas fa-chevron-right nav-arrow"></i>
-        </li>
+        @if (canManage()) {
+          <li class="nav-item" [class.active]="activeSection() === 'account'" (click)="selectSection('account')">
+            <span class="nav-icon"><i class="fas fa-user"></i></span>
+            <span class="nav-text">
+              <span class="nav-title">Account</span>
+              <span class="nav-desc">Manage your profile</span>
+            </span>
+            <i class="fas fa-chevron-right nav-arrow"></i>
+          </li>
+        }
 
-        <li class="nav-item" [class.active]="activeSection() === 'products'" (click)="activeSection.set('products')">
+        <li class="nav-item" [class.active]="activeSection() === 'products'" (click)="selectSection('products')">
           <span class="nav-icon"><i class="fa-solid fa-boxes-packing"></i></span>
           <span class="nav-text">
             <span class="nav-title">Products</span>

@@ -1,6 +1,9 @@
 ::ng-deep .k-category {
-  .p-togglebutton-content {
+  p-togglebutton:not(.p-togglebutton-checked) .p-togglebutton-content {
     background: var(--k-white);
+  }
+
+  .p-togglebutton-content {
     box-shadow: 1px 1px 2px 0px #00000021;
   }
 }

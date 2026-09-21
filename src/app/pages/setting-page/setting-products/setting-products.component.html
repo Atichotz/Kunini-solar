@@ -30,6 +30,11 @@
         <i class="fas fa-plug"></i>
         <span>Solar BOS</span>
       </button>
+      <button class="tab-btn" [class.active]="activeTab === 'documentation'" (click)="activeTab = 'documentation'"
+        type="button">
+        <i class="fas fa-file-alt"></i>
+        <span>Documentation</span>
+      </button>
     </div>
 
     <!-- Tab Content -->
@@ -44,6 +49,8 @@
       <app-setting-racking />
       } @else if (activeTab === 'bos') {
       <app-setting-bos />
+      } @else if (activeTab === 'documentation') {
+      <app-setting-documentations />
       }
     </div>
   </div>
