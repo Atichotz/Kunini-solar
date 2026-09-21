@@ -1,11 +1,13 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
 import { SelectModule } from 'primeng/select';
 import { TooltipModule } from 'primeng/tooltip';
 import { filter, take, Subscription } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
+import { PermissionService } from '../../../services/permission.service';
 import { UsersService, UserListItem, AddGoogleUserPayload } from '../../../services/users.service';
 
 interface ResetForm {
@@ -33,10 +35,15 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly usersService = inject(UsersService);
 
+  private readonly permission = inject(PermissionService);
+  readonly canManage = this.permission.canManage;
+  readonly isCeo = this.permission.isCeo;
   profile$ = this.auth.currentProfile$;
 
   users: UserListItem[] = [];
   isLoadingUsers = false;
+  // โหลดรายชื่อไม่สำเร็จ — แยกจาก "ไม่มีผู้ใช้" ให้ผู้ใช้เห็นว่าพังและกด Retry ได้
+  usersLoadError = '';
 
   // --- Reset Password Dialog ---
   showResetDialog = false;
@@ -45,6 +52,19 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
   resetLoading = false;
   resetError = '';
   resetSuccess = false;
+
+  // --- Change Role Dialog ---
+  showRoleDialog = false;
+  roleTarget: UserListItem | null = null;
+  selectedRole: UserListItem['role'] = 'technician';
+  roleLoading = false;
+  roleError = '';
+
+  // --- Delete User Dialog ---
+  showDeleteDialog = false;
+  deleteTarget: UserListItem | null = null;
+  deleteLoading = false;
+  deleteError = '';
 
   // --- Create User Dialog ---
   showCreateDialog = false;
@@ -58,6 +78,7 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
   editingUserId: string | null = null;
   editingName = '';
   editSaving = false;
+  editError = '';
 
   readonly roleOptions = [
     { label: 'CEO', value: 'ceo' },
@@ -78,7 +99,7 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
     this.profileSub = this.profile$
       .pipe(filter((p) => p !== null), take(1))
       .subscribe((p) => {
-        if (p?.role === 'ceo') this.loadUsers();
+        if (this.canManage()) this.loadUsers();
       });
   }
 
@@ -88,13 +109,16 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
 
   loadUsers(): void {
     this.isLoadingUsers = true;
+    this.usersLoadError = '';
     this.usersService.getUsers().subscribe({
       next: (list) => {
         this.users = list;
         this.isLoadingUsers = false;
       },
-      error: (err) => {
+      error: (err: HttpErrorResponse) => {
+        console.error('[SettingAccount] loadUsers failed', err);
         this.isLoadingUsers = false;
+        this.usersLoadError = err.error?.message ?? 'Failed to load users. Please try again';
       },
     });
   }
@@ -110,18 +134,18 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
   }
 
   submitReset(): void {
-    if (!this.resetTarget) return;
+    if (!this.resetTarget || this.resetLoading) return;
 
     if (this.resetForm.newPassword.length < 8) {
-      this.resetError = 'Password ต้องมีอย่างน้อย 8 ตัวอักษร';
+      this.resetError = 'Password must be at least 8 characters';
       return;
     }
     if (!/\d/.test(this.resetForm.newPassword)) {
-      this.resetError = 'Password ต้องมีตัวเลขอย่างน้อย 1 ตัว';
+      this.resetError = 'Password must contain at least 1 digit';
       return;
     }
     if (this.resetForm.newPassword !== this.resetForm.confirm) {
-      this.resetError = 'Password ไม่ตรงกัน';
+      this.resetError = 'Passwords do not match';
       return;
     }
 
@@ -134,7 +158,7 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.resetLoading = false;
-        this.resetError = err?.error?.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+        this.resetError = err?.error?.message ?? 'Something went wrong. Please try again';
       },
     });
   }
@@ -144,14 +168,18 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
   startEdit(user: UserListItem): void {
     this.editingUserId = user.userId;
     this.editingName = user.name;
+    this.editError = '';
   }
 
   cancelEdit(): void {
     this.editingUserId = null;
     this.editingName = '';
+    this.editError = '';
   }
 
   saveName(user: UserListItem): void {
+    if (this.editSaving) return;
+
     const trimmed = this.editingName.trim();
     if (!trimmed || trimmed === user.name) {
       this.cancelEdit();
@@ -159,6 +187,7 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
     }
 
     this.editSaving = true;
+    this.editError = '';
     this.usersService.updateName(user.userId, trimmed).subscribe({
       next: () => {
         this.users = this.users.map((u) =>
@@ -167,9 +196,80 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
         this.editingUserId = null;
         this.editSaving = false;
       },
-      error: (err) => {
+      error: (err: HttpErrorResponse) => {
         console.error('[SettingAccount] updateName failed', err);
         this.editSaving = false;
+        // ช่องแก้ไขเปิดค้างไว้ให้กดลองใหม่ได้
+        this.editError = err.error?.message ?? 'Failed to update name. Please try again';
+        // 403/404 = list ในหน้าเก่าแล้ว (เช่น ถูกลบจาก tab อื่น) → โหลดใหม่
+        if (err.status === 403 || err.status === 404) this.loadUsers();
+      },
+    });
+  }
+
+  // ===== Change Role =====
+
+  // input: user ที่ต้องการเปลี่ยน role — CEO เท่านั้นที่เปิดได้ และไม่เปิดให้แถวที่เป็น CEO อยู่แล้ว
+  openRoleDialog(user: UserListItem): void {
+    if (!this.isCeo() || user.role === 'ceo') return;
+    this.roleTarget = user;
+    this.selectedRole = user.role;
+    this.roleError = '';
+    this.showRoleDialog = true;
+  }
+
+  submitRole(): void {
+    const target = this.roleTarget;
+    if (!target || this.roleLoading || this.selectedRole === target.role) return;
+
+    const newRole = this.selectedRole;
+    this.roleLoading = true;
+    this.roleError = '';
+    this.usersService.updateRole(target.userId, newRole).subscribe({
+      next: () => {
+        this.users = this.users.map((u) =>
+          u.userId === target.userId ? { ...u, role: newRole } : u,
+        );
+        this.roleLoading = false;
+        this.showRoleDialog = false;
+      },
+      error: (err: HttpErrorResponse) => {
+        this.roleLoading = false;
+        this.roleError = err.error?.message ?? 'Something went wrong. Please try again';
+        // 403/404 = list ในหน้าเก่าแล้ว (เช่น target ถูกตั้งเป็น CEO หรือถูกลบจาก tab อื่น) → โหลดใหม่
+        if (err.status === 403 || err.status === 404) this.loadUsers();
+      },
+    });
+  }
+
+  // ===== Delete User (soft delete) =====
+
+  // input: user ที่ต้องการลบ — CEO เท่านั้นที่เปิดได้ และไม่เปิดให้แถวที่เป็น CEO
+  openDeleteDialog(user: UserListItem): void {
+    if (!this.isCeo() || user.role === 'ceo') return;
+    this.deleteTarget = user;
+    this.deleteError = '';
+    this.showDeleteDialog = true;
+  }
+
+  submitDelete(): void {
+    const target = this.deleteTarget;
+    if (!target || this.deleteLoading) return;
+
+    this.deleteLoading = true;
+    this.deleteError = '';
+    this.usersService.deleteUser(target.userId).subscribe({
+      next: () => {
+        this.users = this.users.filter((u) => u.userId !== target.userId);
+        this.deleteLoading = false;
+        this.showDeleteDialog = false;
+      },
+      error: (err: HttpErrorResponse) => {
+        this.deleteLoading = false;
+        // 409 = มีงานค้าง → แสดงเหตุผลจาก backend ตรงๆ
+        this.deleteError = err.error?.message ?? 'Something went wrong. Please try again';
+        // 403/404 = list ในหน้าเก่าแล้ว (เช่น ถูกลบจาก tab อื่น) → โหลดใหม่
+        if (err.status === 403 || err.status === 404) this.loadUsers();
       },
     });
   }
@@ -183,14 +283,16 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
   }
 
   submitCreate(): void {
+    if (this.createLoading) return;
+
     const { loginType, name, email, username, password, confirm, role } = this.createForm;
 
-    if (!name.trim()) { this.createError = 'กรุณากรอกชื่อ'; return; }
+    if (!name.trim()) { this.createError = 'Please enter a name'; return; }
 
     if (loginType === 'google') {
-      if (!email.trim()) { this.createError = 'กรุณากรอก Gmail'; return; }
+      if (!email.trim()) { this.createError = 'Please enter a Gmail address'; return; }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-        this.createError = 'รูปแบบ Email ไม่ถูกต้อง';
+        this.createError = 'Invalid email format';
         return;
       }
 
@@ -205,21 +307,21 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.createLoading = false;
-          this.createError = err?.error?.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+          this.createError = err?.error?.message ?? 'Something went wrong. Please try again';
         },
       });
       return;
     }
 
     // Username/Password flow
-    if (!username.trim()) { this.createError = 'กรุณากรอก Username'; return; }
+    if (!username.trim()) { this.createError = 'Please enter a username'; return; }
     if (!/^[a-z0-9_]+$/.test(username)) {
-      this.createError = 'Username ใช้ได้แค่ a-z, 0-9, _ เท่านั้น';
+      this.createError = 'Username may only contain a-z, 0-9, and _';
       return;
     }
-    if (password.length < 8) { this.createError = 'Password ต้องมีอย่างน้อย 8 ตัวอักษร'; return; }
-    if (!/\d/.test(password)) { this.createError = 'Password ต้องมีตัวเลขอย่างน้อย 1 ตัว'; return; }
-    if (password !== confirm) { this.createError = 'Password ไม่ตรงกัน'; return; }
+    if (password.length < 8) { this.createError = 'Password must be at least 8 characters'; return; }
+    if (!/\d/.test(password)) { this.createError = 'Password must contain at least 1 digit'; return; }
+    if (password !== confirm) { this.createError = 'Passwords do not match'; return; }
 
     this.createLoading = true;
     this.createError = '';
@@ -231,7 +333,7 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.createLoading = false;
-        this.createError = err?.error?.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+        this.createError = err?.error?.message ?? 'Something went wrong. Please try again';
       },
     });
   }

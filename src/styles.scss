@@ -67,6 +67,13 @@ a {
   color: inherit;
 }
 
+h1 {
+  color: var(--k-black);
+  font-weight: 700;
+  font-size: 24px;
+  margin: 0;
+}
+
 h1.k-header {
   &::after {
     content: '';
@@ -171,6 +178,12 @@ h1.k-header {
 
 .icon-btn:hover {
   color: var(--k-red);
+}
+
+// กำลังบันทึก/ลบ — บอกผู้ใช้ว่าปุ่มกดไม่ได้ในตอนนี้
+.icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .k-icon-header {
@@ -579,6 +592,13 @@ select:focus {
   }
 }
 
+.k-setting-loading {
+  text-align: center;
+  padding: 16px 0;
+  font-size: 13px;
+  color: var(--k-mid-grey);
+}
+
 .k-setting-footer {
   margin-top: 16px;
 
@@ -662,7 +682,10 @@ select:focus {
   }
 
   .col-qty {
-    width: 10%;
+    width: 12%;
+  }
+  .col-units {
+    width: 8%;
   }
 
   .col-qty.col-qty--solarbos {
@@ -675,20 +698,26 @@ select:focus {
   .col-brand { width: 14%; }
   .col-brand.col-brand--inverter { width: 12%; }
   .col-desc { width: 18%; }
-  .col-kw { width: 6%; }
+  .col-kw { width: 4%; }
   .col-phase { width: 10%; }
   .col-price { width: 10%; }
+  .col-unit-rate { width: 14%; }
   .col-profit { width: 8%; }
   .col-total { width: 10%; }
   .col-total--solar-bos { width: 6%; }
   .col-totalkw { width: 10%; }
   .col-noprint { width: 4%; }
 
+  /* ตารางสรุปของ section 1-4 (Description + 5 คอลัมน์ตัวเลข) ใช้ชุดนี้ร่วมกัน ให้ขนาดเท่ากันทุก section */
+  .col-summary-desc { width: 40%; }
+  .col-summary-num { width: 12%; }
+
   .col-item { width: 3%; }
+  .col-item.col-item--cables { width: 2.55%; }
   .col-bos-desc { width: 30%; }
   .col-size { width: 6%; }
   .col-bos-price { width: 6%; }
-  .col-costw { width: 12%; }
+  .col-costw { width: 5%; }
 
   .add-row-cell {
     border: none;
@@ -740,4 +769,143 @@ select:focus {
   font-weight: 700;
   color: var(--k-dark-grey);
   margin: 0 0 8px;
+}
+
+/* Notes & File Upload (shared across customer-detail, survey, ฯลฯ) */
+.item-meta {
+  font-size: 12px;
+  color: var(--k-mid-grey);
+}
+
+.item-meta strong {
+  color: var(--k-dark-grey);
+  font-weight: 700;
+}
+
+.note-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--k-light-grey);
+}
+
+.note-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.note-item-body {
+  flex: 1;
+}
+
+.note-delete-btn {
+  flex-shrink: 0;
+  margin-top: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.note-item:hover .note-delete-btn {
+  opacity: 1;
+}
+
+.note-form {
+  margin-bottom: 20px;
+  padding: 16px;
+  background-color: var(--bg-color);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--k-light-grey);
+}
+
+.note-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.note-empty {
+  font-size: 13px;
+  color: var(--k-mid-grey);
+  text-align: center;
+  padding: 24px 0;
+}
+
+.note-text {
+  color: var(--k-dark-grey);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere; // ข้อความยาวไม่มีช่องว่างต้องไม่ล้น card
+}
+
+.upload-area {
+  border: 2px dashed var(--k-mid-grey);
+  border-radius: var(--radius-sm);
+  padding: 24px;
+  text-align: center;
+  color: var(--k-mid-grey);
+  font-size: 13px;
+  cursor: pointer;
+  background: #fafafa;
+
+  &.is-dragover {
+    border-color: var(--k-red);
+    color: var(--k-red);
+  }
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+  font-size: 14px;
+}
+
+.form-textarea:focus {
+  outline: none;
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &.btn-remove {
+    background-color: transparent;
+    color: var(--k-mid-grey);
+
+    &:hover:not(:disabled) {
+      background-color: #fee2e2;
+      color: var(--k-red);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+
+  &.btn-set-primary {
+    background-color: transparent;
+    color: var(--k-mid-grey);
+    margin-right: 4px;
+
+    &:hover:not(:disabled) {
+      background-color: rgba(0, 136, 194, 0.1);
+      color: var(--k-accent-blue);
+    }
+  }
 }

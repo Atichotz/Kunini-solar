@@ -1,6 +1,6 @@
 <div class="settings-content">
-  <!-- Card: User Management (CEO only) -->
-  @if ((profile$ | async)?.role === 'ceo') {
+  <!-- Card: User Management (CEO / Admin only) -->
+  @if (canManage()) {
     <div class="card content-card">
       <div class="content-header">
         <div class="header-row">
@@ -17,6 +17,11 @@
       @if (isLoadingUsers) {
         <div class="user-loading">
           <i class="fas fa-spinner fa-spin"></i> Loading...
+        </div>
+      } @else if (usersLoadError) {
+        <div class="user-loading">
+          <p class="dialog-error">{{ usersLoadError }}</p>
+          <button type="button" class="k-btn k-btn-outline k-btn-sm" (click)="loadUsers()">Retry</button>
         </div>
       } @else {
         <div class="user-table-wrap">
@@ -39,6 +44,7 @@
                         <input
                           class="inline-input"
                           [(ngModel)]="editingName"
+                          [disabled]="editSaving"
                           (keydown.enter)="saveName(user)"
                           (keydown.escape)="cancelEdit()"
                           autofocus
@@ -54,6 +60,7 @@
                         </button>
                         <button
                           class="icon-btn cancel-btn"
+                          [disabled]="editSaving"
                           (click)="cancelEdit()"
                           pTooltip="Cancel"
                           tooltipPosition="top"
@@ -61,6 +68,9 @@
                           <i class="fas fa-times"></i>
                         </button>
                       </div>
+                      @if (editError) {
+                        <p class="dialog-error">{{ editError }}</p>
+                      }
                     } @else {
                       <div class="name-display">
                         <span>{{ user.name }}</span>
@@ -79,8 +89,8 @@
                   <!-- Username -->
                   <td>
                     @if (user.loginType === 'google') {
-                      <span class="google-badge">
-                        <i class="fab fa-google"></i> Google
+                      <span class="google-email">
+                        <i class="fab fa-google"></i> {{ user.email || '—' }}
                       </span>
                     } @else {
                       <span class="username-text">{{ user.username }}</span>
@@ -89,9 +99,21 @@
 
                   <!-- Role -->
                   <td>
-                    <span class="role-badge role-{{ user.role }}">
-                      {{ roleLabels[user.role] }}
-                    </span>
+                    <div class="role-display">
+                      <span class="role-badge role-{{ user.role }}">
+                        {{ roleLabels[user.role] }}
+                      </span>
+                      @if (isCeo() && user.role !== 'ceo') {
+                        <button
+                          class="icon-btn edit-btn"
+                          (click)="openRoleDialog(user)"
+                          pTooltip="Change Role"
+                          tooltipPosition="top"
+                        >
+                          <i class="fas fa-pen"></i>
+                        </button>
+                      }
+                    </div>
                   </td>
 
                   <!-- Actions -->
@@ -102,6 +124,16 @@
                         (click)="openResetDialog(user)"
                       >
                         <i class="fas fa-key"></i> Reset Password
+                      </button>
+                    }
+                    @if (isCeo() && user.role !== 'ceo') {
+                      <button
+                        class="icon-btn"
+                        (click)="openDeleteDialog(user)"
+                        pTooltip="Delete User"
+                        tooltipPosition="top"
+                      >
+                        <i class="fas fa-trash"></i>
                       </button>
                     }
                   </td>
@@ -121,6 +153,8 @@
   header="Reset Password"
   [(visible)]="showResetDialog"
   [modal]="true"
+  [closable]="!resetLoading"
+  [closeOnEscape]="!resetLoading"
   [style]="{ width: '400px' }"
   [draggable]="false"
 >
@@ -159,7 +193,7 @@
         }
 
         <div class="dialog-actions">
-          <button class="k-btn k-btn-outline k-btn-sm" (click)="showResetDialog = false">
+          <button class="k-btn k-btn-outline k-btn-sm" [disabled]="resetLoading" (click)="showResetDialog = false">
             Cancel
           </button>
           <button
@@ -176,11 +210,120 @@
   }
 </p-dialog>
 
+<!-- ===== Dialog: Change Role ===== -->
+<p-dialog
+  header="Change Role"
+  [(visible)]="showRoleDialog"
+  [modal]="true"
+  [closable]="!roleLoading"
+  [closeOnEscape]="!roleLoading"
+  [style]="{ width: '400px' }"
+  [draggable]="false"
+>
+  @if (roleTarget) {
+    <div class="dialog-body">
+      <p class="dialog-user-name">
+        <i class="fas fa-user"></i> {{ roleTarget.name }}
+      </p>
+
+      <div class="form-group">
+        <label class="input-label">New Role</label>
+        <p-select
+          [(ngModel)]="selectedRole"
+          [options]="roleOptions"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          [style]="{'width':'100%'}"
+        />
+      </div>
+
+      @if (selectedRole !== roleTarget.role) {
+        <p class="role-hint">
+          <i class="fas fa-info-circle"></i>
+          Change role from <strong>{{ roleLabels[roleTarget.role] }}</strong>
+          to <strong>{{ roleLabels[selectedRole] }}</strong>?
+          @if (selectedRole === 'ceo') {
+            A CEO's role cannot be reduced afterwards.
+          }
+        </p>
+      }
+
+      @if (roleError) {
+        <p class="dialog-error">{{ roleError }}</p>
+      }
+
+      <div class="dialog-actions">
+        <button class="k-btn k-btn-outline k-btn-sm" [disabled]="roleLoading" (click)="showRoleDialog = false">
+          Cancel
+        </button>
+        <button
+          class="k-btn k-btn-primary k-btn-sm"
+          [disabled]="roleLoading || selectedRole === roleTarget.role"
+          (click)="submitRole()"
+        >
+          @if (roleLoading) { <i class="fas fa-spinner fa-spin"></i> }
+          Confirm
+        </button>
+      </div>
+    </div>
+  }
+</p-dialog>
+
+<!-- ===== Dialog: Delete User ===== -->
+<p-dialog
+  header="Delete User"
+  [(visible)]="showDeleteDialog"
+  [modal]="true"
+  [closable]="!deleteLoading"
+  [closeOnEscape]="!deleteLoading"
+  [style]="{ width: '420px' }"
+  [draggable]="false"
+>
+  @if (deleteTarget) {
+    <div class="dialog-body">
+      <p class="dialog-user-name">
+        <i class="fas fa-user"></i> {{ deleteTarget.name }}
+        <span class="username-chip">
+          {{ deleteTarget.loginType === 'google' ? deleteTarget.email : deleteTarget.username }}
+        </span>
+      </p>
+
+      <p class="role-hint">
+        <i class="fas fa-info-circle"></i>
+        This account will be disabled and removed from the list. Task history is kept.
+        Adding the same {{ deleteTarget.loginType === 'google' ? 'email' : 'username' }}
+        again will restore it.
+      </p>
+
+      @if (deleteError) {
+        <p class="dialog-error">{{ deleteError }}</p>
+      }
+
+      <div class="dialog-actions">
+        <button class="k-btn k-btn-outline k-btn-sm" [disabled]="deleteLoading" (click)="showDeleteDialog = false">
+          Cancel
+        </button>
+        <button
+          class="k-btn k-btn-primary k-btn-sm"
+          [disabled]="deleteLoading"
+          (click)="submitDelete()"
+        >
+          @if (deleteLoading) { <i class="fas fa-spinner fa-spin"></i> }
+          Delete
+        </button>
+      </div>
+    </div>
+  }
+</p-dialog>
+
 <!-- ===== Dialog: Create User ===== -->
 <p-dialog
   header="Add New User"
   [(visible)]="showCreateDialog"
   [modal]="true"
+  [closable]="!createLoading"
+  [closeOnEscape]="!createLoading"
   [style]="{ width: '440px' }"
   [draggable]="false"
 >
@@ -281,7 +424,7 @@
     }
 
     <div class="dialog-actions">
-      <button class="k-btn k-btn-outline k-btn-sm" (click)="showCreateDialog = false">
+      <button class="k-btn k-btn-outline k-btn-sm" [disabled]="createLoading" (click)="showCreateDialog = false">
         Cancel
       </button>
       <button

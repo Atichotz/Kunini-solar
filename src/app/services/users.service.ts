@@ -7,6 +7,7 @@ export interface UserListItem {
   userId: string;
   role: 'ceo' | 'purchasing' | 'admin' | 'technician';
   name: string;
+  email: string;
   username: string | null;
   loginType: 'google' | 'username';
 }
@@ -42,6 +43,17 @@ export class UsersService {
   // input: userId, name ใหม่
   updateName(userId: string, name: string): Observable<void> {
     return this.http.patch<void>(`${this.api}/users/${userId}/name`, { name });
+  }
+
+  // input: userId, role ใหม่ — backend ปฏิเสธ (403) ถ้าเป้าหมายเป็น CEO อยู่แล้ว
+  updateRole(userId: string, role: UserListItem['role']): Observable<void> {
+    return this.http.patch<void>(`${this.api}/users/${userId}/role`, { role });
+  }
+
+  // input: userId — soft delete (ปิดบัญชี + ซ่อนจากรายชื่อ)
+  // error: 409 ถ้ายังมีงาน To-Do ค้าง, 403 ถ้าเป็น CEO, 404 ถ้าไม่พบ
+  deleteUser(userId: string): Observable<void> {
+    return this.http.delete<void>(`${this.api}/users/${userId}`);
   }
 
   // input: CreateUserPayload — สร้าง username user ใหม่ + insert allowed_users

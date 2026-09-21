@@ -106,7 +106,8 @@
   border-collapse: collapse;
   font-size: 13px;
 
-  th, td {
+  th,
+  td {
     padding: 10px 12px;
     text-align: left;
     border-bottom: 1px solid var(--k-light-grey);
@@ -134,7 +135,8 @@
   min-width: 180px;
 }
 
-.name-display {
+.name-display,
+.role-display {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -145,7 +147,9 @@
     color: var(--k-mid-grey);
     font-size: 11px;
 
-    &:hover { color: var(--k-red); }
+    &:hover {
+      color: var(--k-red);
+    }
   }
 }
 
@@ -168,8 +172,15 @@ tr:hover .edit-btn {
     outline: none;
   }
 
-  .save-btn { color: var(--k-accent-green); font-size: 12px; }
-  .cancel-btn { color: var(--k-mid-grey); font-size: 12px; }
+  .save-btn {
+    color: var(--k-accent-green);
+    font-size: 12px;
+  }
+
+  .cancel-btn {
+    color: var(--k-mid-grey);
+    font-size: 12px;
+  }
 }
 
 .username-text {
@@ -178,14 +189,17 @@ tr:hover .edit-btn {
   color: var(--k-dark-grey);
 }
 
-.google-badge {
+.google-email {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
-  color: var(--k-mid-grey);
+  font-size: 12px;
+  color: var(--k-dark-grey);
+  word-break: break-all;
 
-  .fab { color: #4285F4; }
+  .fab {
+    color: #4285F4;
+  }
 }
 
 .role-badge {
@@ -195,14 +209,33 @@ tr:hover .edit-btn {
   font-size: 11px;
   font-weight: 600;
 
-  &.role-ceo        { background: #fff0f1; color: var(--k-red); }
-  &.role-admin      { background: #e8f4fd; color: #0070b8; }
-  &.role-purchasing { background: #f0faf8; color: #2e7d6f; }
-  &.role-technician { background: #f5f0ff; color: #6a3fac; }
+  &.role-ceo {
+    background: #fff0f1;
+    color: var(--k-red);
+  }
+
+  &.role-admin {
+    background: #e8f4fd;
+    color: #0070b8;
+  }
+
+  &.role-purchasing {
+    background: #f0faf8;
+    color: #2e7d6f;
+  }
+
+  &.role-technician {
+    background: #f5f0ff;
+    color: #6a3fac;
+  }
 }
 
 .action-cell {
   white-space: nowrap;
+
+  .icon-btn {
+    margin-left: 8px;
+  }
 }
 
 // ===== Login Type Toggle =====
@@ -225,19 +258,22 @@ tr:hover .edit-btn {
   background: transparent;
   color: var(--k-mid-grey);
   cursor: pointer;
-  transition: var(--k-transition);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  transition: all 0.3s ease;
 
-  i { font-size: 11px; }
+  i {
+    font-size: 11px;
+  }
 
   &.active {
+    transition: all 0.3s ease;
     background: var(--k-white);
     color: var(--k-dark-grey);
     font-weight: 600;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
   &:not(.active):hover {
@@ -245,7 +281,8 @@ tr:hover .edit-btn {
   }
 }
 
-.google-hint {
+.google-hint,
+.role-hint {
   font-size: 12px;
   color: var(--k-mid-grey);
   background: #f8f9fa;
@@ -254,9 +291,12 @@ tr:hover .edit-btn {
   line-height: 1.5;
 
   i {
-    color: #4285F4;
     margin-right: 4px;
   }
+}
+
+.google-hint i {
+  color: #4285F4;
 }
 
 // ===== Dialog =====
@@ -275,7 +315,9 @@ tr:hover .edit-btn {
   align-items: center;
   gap: 8px;
 
-  i { color: var(--k-mid-grey); }
+  i {
+    color: var(--k-mid-grey);
+  }
 }
 
 .username-chip {
@@ -321,7 +363,9 @@ tr:hover .edit-btn {
   padding: 12px 16px;
   text-align: center;
 
-  i { margin-right: 6px; }
+  i {
+    margin-right: 6px;
+  }
 }
 
 .dialog-actions {

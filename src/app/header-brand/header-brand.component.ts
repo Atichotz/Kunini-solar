@@ -17,7 +17,13 @@ export class HeaderBrandComponent {
   async logout(): Promise<void> {
     if (this.isLoggingOut) return;
     this.isLoggingOut = true;
-    await this.authService.logout();
-    this.isLoggingOut = false;
+    try {
+      await this.authService.logout();
+    } catch (err: unknown) {
+      console.error('[Auth] Logout failed:', err);
+    } finally {
+      // ไม่งั้นถ้า signOut พัง flag จะค้าง true แล้วกด logout อีกครั้งไม่ได้
+      this.isLoggingOut = false;
+    }
   }
 }
