@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { SelectModule } from 'primeng/select';
 import { SelectButtonModule } from 'primeng/selectbutton';
-import { ActivatedRoute, Router, RouterLink } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 import { ButtonModule } from 'primeng/button';
 import { ScrollSpy } from '../../scroll-spy.util';
 import { DecimalPipe, NgClass, NgFor, NgIf } from '@angular/common';
@@ -15,15 +15,19 @@ import { MessageService, ConfirmationService } from 'primeng/api';
 import { forkJoin, of, Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { SolarBOSDialogComponent } from './solar-bos-dialog/solar-bos-dialog.component';
-import { EquipmentService, PanelItem, InverterItem, BatteryItem, AccessoryItem, RoofTypeItem, SolarRackingItem, BOSItem } from '../../services/equipment.service';
+import { KLoadingComponent } from '../../k-loading/k-loading.component';
+import { EquipmentService, PanelItem, InverterItem, BatteryItem, AccessoryItem, RoofTypeItem, SolarRackingItem, BOSItem, DocumentationTypeItem } from '../../services/equipment.service';
 import { CustomerService } from '../../services/customer.service';
 import { EstimateService } from '../../services/estimate.service';
 import { QuotationPreviewService } from '../../services/quotation-preview.service';
+import { AuthService } from '../../services/auth.service';
+import { salesRepNameOf, splitRemarkLines } from '../../quotation-snapshot.util';
 import { QUOTATION_HARDCODE } from '../pdf-bos-preview/quotation-hardcode';
 import type { QuotationLineRow, QuotationSnapshot } from '../../dto/quotation.dto';
 import type { CustomerDetail, ContactDetail } from '../../dto/customer.dto';
 import type {
   EstimateDetail,
+  EstimateDocumentationItemView,
   EstimateItemsPayload,
   EstimateLabourItemView,
   SaveEstimatePayload,
@@ -35,10 +39,24 @@ interface SelectOption {
   value: string;
 }
 
+// แถวตารางสรุปของ section 1-3 (Panels / Inverters / Batteries)
+interface SectionSummaryRow {
+  description: string;
+  totalCost: number;
+  salePrice: number;
+  profit: number;
+  total: number;
+}
+
 interface LabourCostRow {
   description: string;
   unitRate: number | null;
   units: number | null;
+}
+
+interface DocumentationRow {
+  typeId: number | null;
+  quantity: number | null;
 }
 
 interface EnergyPattern {
@@ -65,11 +83,12 @@ interface CatalogBundle {
   solarEquipment: BOSItem[];
   conduitJunctionBoxes: BOSItem[];
   bosAccessories: BOSItem[];
+  documentationTypes: DocumentationTypeItem[];
 }
 
 @Component({
   selector: 'app-estimate-page',
-  imports: [FormsModule, SelectModule, SelectButtonModule, RouterLink, ButtonModule, NgClass, NgFor, NgIf, DecimalPipe, Tooltip, AccordionModule, ToastModule, ConfirmDialogModule, SolarBOSDialogComponent],
+  imports: [FormsModule, SelectModule, SelectButtonModule, ButtonModule, NgClass, NgFor, NgIf, DecimalPipe, Tooltip, AccordionModule, ToastModule, ConfirmDialogModule, SolarBOSDialogComponent, KLoadingComponent],
   templateUrl: './estimate-page.component.html',
   styleUrl: './estimate-page.component.scss',
   providers: [MessageService, ConfirmationService]
@@ -83,6 +102,7 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly customerService = inject(CustomerService);
   private readonly quotationPreview = inject(QuotationPreviewService);
+  private readonly authService = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
 
   // customer id ที่มาจากหน้า Customer Detail (ผ่าน query param) — ใช้พาผู้ใช้กลับไปหน้าลูกค้าคนเดิมตอนกด X / Save Draft
@@ -92,10 +112,68 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
   // estimate id — มีตอนเปิด draft เดิมกลับมาแก้ (?estimateId=) หรือหลังจากเจอ draft ค้างของลูกค้าตอนเปิดหน้าเปล่าๆ
   estimateId: string | null = null;
   saving = signal(false);
+  // กำลัง save แบบ finalize (ปุ่ม Save) หรือ draft — ใช้ให้ spinner ขึ้นที่ปุ่มที่ผู้ใช้กดจริง
+  finalizing = signal(false);
+  // true จนกว่า catalog ทั้ง 14 เส้น (และ draft ที่ต้อง prefill ถ้ามี) จะโหลดเสร็จ
+  pageLoading = signal(true);
+
+  // หมายเหตุสำหรับ PDF (1 บรรทัด = 1 ข้อ) — save ลง estimates.pdf_remarks
+  pdfRemarks = '';
+
+  // ชื่อ Sales Rep บน PDF — เติมชื่อ account ให้ก่อน (แก้ได้) เพราะบางคนใช้ account ร่วมกัน; save ลง estimates.sales_rep_name
+  salesRepName = '';
+  // ผู้ใช้เคยพิมพ์/ลบเองแล้ว → ห้ามให้ profile ที่โหลดมาทีหลังเขียนทับ
+  private salesRepEdited = false;
+
+  onSalesRepInput(): void {
+    this.salesRepEdited = true;
+  }
 
   // ปุ่ม X / Save Draft: กลับไปหน้าลูกค้าเดิมถ้ามี customerId, ถ้าไม่มี (เข้ามาตรงๆ ไม่ผ่าน customer detail) ให้กลับ dashboard แทน
   get backLink(): string[] {
     return this.customerId ? ['/detail', this.customerId] : ['/dashboard'];
+  }
+
+  // state ของฟอร์มตอนโหลด/prefill เสร็จ — ใช้เทียบตอนกด X ว่ามีข้อมูลที่ยังไม่ได้ save หรือไม่ (null = ยังโหลดไม่เสร็จ)
+  private loadedStateKey: string | null = null;
+
+  // ฟอร์มพร้อมใช้ (catalog + prefill เสร็จ) — เปิดหน้าจอและถ่าย baseline ไว้เทียบ
+  private finishLoading(): void {
+    this.pageLoading.set(false);
+    this.loadedStateKey = this.currentStateKey();
+  }
+
+  // output: string ที่แทน state ที่ผู้ใช้กรอกทั้งหมด — เทียบก่อน/หลังเพื่อรู้ว่ามีการแก้ไขหรือไม่
+  // ทำไมใช้ state ดิบแทน buildPayload: payload ตัดแถวที่ไม่ครบทิ้ง (เช่น เลือก brand แต่ยังไม่กรอก qty, Labour ไม่มี description)
+  // และมี field ที่โหลด async (ชื่อลูกค้า) ทำให้เทียบแล้วเพี้ยน — salesRepName ก็ไม่รวม เพราะ auto-fill จาก profile ทีหลัง
+  private currentStateKey(): string {
+    return JSON.stringify({
+      panel: [this.selectedPanelBrand, this.selectedPanelId, this.panelQuantity, this.panelAccessoryQty],
+      inverter: [this.selectedInverterBrand, this.selectedInverterPhase, this.selectedInverterId, this.inverterQuantity, this.inverterAccessoryQty],
+      battery: [this.selectedBatteryBrand, this.selectedBatteryId, this.batteryQuantity, this.batteryAccessoryQty],
+      racking: [this.selectedRoofTypeId, this.rackingQtyMap],
+      bos: [this.cableQty, this.switchGearQty, this.solarEquipmentQty, this.conduitJunctionBoxQty, this.bosAccessoryQty],
+      labour: [this.inHouseLabourRows, this.outsourcedLabourRows, this.machineryRows],
+      documentation: this.documentationRows,
+      pdfRemarks: this.pdfRemarks,
+    });
+  }
+
+  // ปุ่ม X: ไม่มีอะไรเปลี่ยน (หรือหน้ายังโหลดไม่เสร็จ) → ออกเลย, มีการแก้ไข → ถามก่อน
+  onClose(): void {
+    const hasUnsavedChanges = this.loadedStateKey !== null && this.currentStateKey() !== this.loadedStateKey;
+    if (!hasUnsavedChanges) {
+      this.router.navigate(this.backLink);
+      return;
+    }
+    this.confirmationService.confirm({
+      header: 'Unsaved Changes',
+      message: 'You have unsaved changes that will be lost. Leave without saving?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Leave',
+      rejectLabel: 'Stay',
+      accept: () => this.router.navigate(this.backLink),
+    });
   }
 
   get primaryContact(): ContactDetail | null {
@@ -103,10 +181,18 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.customer.contacts.find((c) => c.isPrimary) ?? this.customer.contacts[0];
   }
 
+  // คืน "firstname lastname" ของ primary contact, ถ้าไม่มีชื่อหรือไม่มี contact คืน ''
+  get contactPersonName(): string {
+    const contact = this.primaryContact;
+    if (!contact) return '';
+    return [contact.firstname, contact.lastname].filter((v): v is string => !!v).join(' ').trim();
+  }
+
+  // คืน "ชื่อ | tel | email" (ตัดส่วนที่ว่างออก) — ใช้ทั้งแสดงหน้าจอและ save ลง contact_reference
   get contactReference(): string {
     const contact = this.primaryContact;
     if (!contact) return '—';
-    const parts = [contact.tel, contact.email].filter((v): v is string => !!v);
+    const parts = [this.contactPersonName, contact.tel, contact.email].filter((v): v is string => !!v);
     return parts.length > 0 ? parts.join(' | ') : '—';
   }
 
@@ -147,6 +233,13 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
         });
     }
 
+    // profile โหลดแบบ async — เติมเป็นค่าเริ่มต้นเฉพาะตอนผู้ใช้ยังไม่แตะช่อง Sales Rep
+    this.authService.currentProfile$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((profile) => {
+        if (!this.salesRepEdited && !this.salesRepName) this.salesRepName = salesRepNameOf(profile);
+      });
+
     this.loadCatalogs()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((catalogs) => {
@@ -155,7 +248,7 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
       });
   }
 
-  // output: Observable ของ catalog ทั้ง 13 เส้น — endpoint ไหนพังไม่ทำให้ทั้งหน้าว่าง (catchError คืน [] + toast เตือน)
+  // output: Observable ของ catalog ทั้ง 14 เส้น — endpoint ไหนพังไม่ทำให้ทั้งหน้าว่าง (catchError คืน [] + toast เตือน)
   private loadCatalogs(): Observable<CatalogBundle> {
     return forkJoin({
       panels: this.equipmentService.getPanels().pipe(catchError(() => this.catalogLoadFailed<PanelItem>('Panels'))),
@@ -171,12 +264,13 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
       solarEquipment: this.equipmentService.getSolarEquipment().pipe(catchError(() => this.catalogLoadFailed<BOSItem>('Solar Equipment'))),
       conduitJunctionBoxes: this.equipmentService.getConduitJunctionBoxes().pipe(catchError(() => this.catalogLoadFailed<BOSItem>('Conduit & Junction Boxes'))),
       bosAccessories: this.equipmentService.getBosAccessories().pipe(catchError(() => this.catalogLoadFailed<BOSItem>('BOS Accessories'))),
+      documentationTypes: this.equipmentService.getDocumentationTypes().pipe(catchError(() => this.catalogLoadFailed<DocumentationTypeItem>('Documentation Types'))),
     });
   }
 
   private catalogLoadFailed<T>(label: string): Observable<T[]> {
     console.error(`[API] Failed to load catalog: ${label}`);
-    this.messageService.add({ severity: 'warn', summary: 'โหลดข้อมูลไม่ครบ', detail: `โหลด ${label} ไม่สำเร็จ`, life: 4000 });
+    this.messageService.add({ severity: 'warn', summary: 'Incomplete data', detail: `Failed to load ${label}`, life: 4000 });
     return of([]);
   }
 
@@ -205,30 +299,46 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.conduitJunctionBoxQty = new Array(catalogs.conduitJunctionBoxes.length).fill(null);
     this.bosAccessories = catalogs.bosAccessories;
     this.bosAccessoryQty = new Array(catalogs.bosAccessories.length).fill(null);
+
+    this.documentationTypes = catalogs.documentationTypes;
+    this.documentationTypeOptions = catalogs.documentationTypes.map((t) => ({ label: t.name, value: t.id }));
   }
 
   // โหลด prefill เฉพาะตอนมี estimateId ชัดเจน (มาจาก History) — ไม่ auto เดา draft ล่าสุดของลูกค้า
   private loadEstimateForPrefill(): void {
-    if (!this.estimateId) return;
+    if (!this.estimateId) {
+      this.finishLoading();
+      return;
+    }
 
     this.estimateService.getOne(this.estimateId)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (detail) => {
           if (detail.status === 'final') {
-            // final แก้ไม่ได้แล้ว — พาไปหน้า history แทนที่จะเปิดฟอร์มแก้
+            // final แก้ไม่ได้แล้ว — พาไปหน้า history แทนที่จะเปิดฟอร์มแก้ (คง loading ไว้ระหว่าง navigate ไม่ให้ฟอร์มแวบขึ้นมา)
             this.router.navigate(['/detail', detail.customerId, 'estimate', detail.id]);
             return;
           }
           this.prefill(detail);
+          this.finishLoading();
         },
-        error: (err) => console.error('[API] Failed to load estimate:', err),
+        error: (err) => {
+          console.error('[API] Failed to load estimate:', err);
+          this.finishLoading();
+          this.messageService.add({ severity: 'error', summary: 'Load Failed', detail: 'Failed to load the saved estimate. Please reopen the page', life: 4000 });
+        },
       });
   }
 
   // เซ็ตค่ากลับเข้า state จาก source_id (ไม่ใช่ค่า freeze) — ราคาที่แสดงจึงเป็นราคาปัจจุบันจาก catalog เสมอ
   private prefill(detail: EstimateDetail): void {
     let skipped = 0;
+    this.pdfRemarks = detail.pdfRemarks ?? '';
+    if (detail.salesRepName) {
+      this.salesRepName = detail.salesRepName;
+      this.salesRepEdited = true;
+    }
 
     for (const item of detail.panelItems) {
       if (item.itemRole === 'main') {
@@ -292,11 +402,15 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.outsourcedLabourRows = this.labourRowsFor(detail.labourItems, 'outsourced');
     this.machineryRows = this.labourRowsFor(detail.labourItems, 'machinery');
 
+    const documentationResult = this.documentationRowsFor(detail.documentationItems);
+    this.documentationRows = documentationResult.rows;
+    skipped += documentationResult.skipped;
+
     if (skipped > 0) {
       this.messageService.add({
         severity: 'warn',
-        summary: 'มีบางรายการถูกข้าม',
-        detail: `มีรายการที่ไม่มีในระบบแล้ว ${skipped} รายการ ถูกข้ามไป`,
+        summary: 'Some items skipped',
+        detail: `${skipped} item(s) no longer exist in the system and were skipped`,
         life: 5000,
       });
     }
@@ -307,6 +421,19 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
       .filter((i) => i.category === category)
       .map((i) => ({ description: i.description, unitRate: i.unitRate, units: i.units }));
     return rows.length > 0 ? rows : [this.newLabourRow()];
+  }
+
+  // input: documentation items ที่ save ไว้ — output: แถวสำหรับตาราง section 7 + จำนวนแถวที่ type ถูกลบจาก catalog ไปแล้ว (ข้าม เหมือน section อื่น)
+  // rate ที่แสดงมาจาก catalog ปัจจุบันเสมอ (ไม่ใช่ค่า snapshot) — snapshot ใช้แสดงในหน้า history ของใบที่ finalize แล้วเท่านั้น
+  private documentationRowsFor(items: EstimateDocumentationItemView[]): { rows: DocumentationRow[]; skipped: number } {
+    const rows: DocumentationRow[] = [];
+    let skipped = 0;
+    for (const item of items) {
+      const match = this.documentationTypes.find((t) => t.id === item.sourceId);
+      if (!match) { skipped++; continue; }
+      rows.push({ typeId: match.id, quantity: item.quantity });
+    }
+    return { rows: rows.length > 0 ? rows : [this.newDocumentationRow()], skipped };
   }
 
   // BOS มี 5 หมวด ผูกกับ catalog array + qty array คนละคู่ — ใช้ทั้ง prefill และตอน build payload
@@ -411,7 +538,7 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
         bos.push({
           category: meta.category, source_table: meta.sourceTable, source_id: item.id,
           item: String(item.item), description: item.description, size: item.size,
-          cost_price: item.costPrice, quantity: qty, sort_order: i,
+          cost_price: item.costPrice, sale_price: this.bosSalePriceOf(item.costPrice), quantity: qty, sort_order: i,
         });
       });
     }
@@ -428,7 +555,18 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     pushLabourRows(this.outsourcedLabourRows, 'outsourced');
     pushLabourRows(this.machineryRows, 'machinery');
 
-    return { panel, inverter, battery, racking, bos, labour };
+    // แถวที่ยังไม่เลือก type หรือ qty ว่าง/0 ไม่ save (เหมือน section อื่น) — freeze ชื่อ+rate ณ ตอน save
+    const documentation: EstimateItemsPayload['documentation'] = [];
+    this.documentationRows.forEach((row, i) => {
+      const type = this.documentationTypeOf(row);
+      if (!type || !row.quantity || row.quantity <= 0) return;
+      documentation.push({
+        source_table: 'documentation_types', source_id: type.id,
+        documentation_type_name: type.name, unit_rate: type.unitRate, quantity: row.quantity, sort_order: i,
+      });
+    });
+
+    return { panel, inverter, battery, racking, bos, labour, documentation };
   }
 
   private buildPayload(finalize: boolean): SaveEstimatePayload {
@@ -439,7 +577,11 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
         customer_display_name: this.customer?.displayName ?? null,
         contact_reference: this.primaryContact ? this.contactReference : null,
         project_location_name: this.customer?.projectLocationName ?? null,
+        project_google_maps_link: this.customer?.googleMapsLink ?? null,
         type_of_system_name: this.customer?.typeOfSystemName ?? null,
+        // ว่าง/มีแต่ช่องว่าง → null (ไม่เก็บค่าขยะลง DB)
+        pdf_remarks: this.pdfRemarks.trim() || null,
+        sales_rep_name: this.salesRepName.trim() || null,
       },
       items: this.buildItemsPayload(),
     };
@@ -448,63 +590,70 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
   // input: finalize flag + callback ตอนสำเร็จ — output: void, จัดการ validate/error/navigate ให้ทั้ง Save Draft และ Save
   private trySave(finalize: boolean, onSuccess: (result: SaveEstimateResult) => void): void {
     if (!this.customerId) {
-      this.warnIncompleteSelection('ต้องเปิดหน้านี้จากหน้าลูกค้าก่อนถึงจะบันทึกได้');
+      this.warnIncompleteSelection('Open this page from a customer page before saving');
       return;
     }
     if (this.saving()) return;
+    if (!this.ensureLabourRowsHaveDescription()) return;
 
     const payload = this.buildPayload(finalize);
     const hasAnyItem = payload.items.panel.length || payload.items.inverter.length || payload.items.battery.length
-      || payload.items.racking.length || payload.items.bos.length || payload.items.labour.length;
+      || payload.items.racking.length || payload.items.bos.length || payload.items.labour.length
+      || payload.items.documentation.length;
     if (!hasAnyItem) {
-      this.warnIncompleteSelection('ยังไม่ได้เลือกอุปกรณ์หรือกรอกรายการใดๆ');
+      this.warnIncompleteSelection('No equipment selected and no items filled in');
       return;
     }
 
     this.saving.set(true);
+    this.finalizing.set(finalize);
     this.estimateService.save(payload)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (result) => {
           this.saving.set(false);
+          this.finalizing.set(false);
           onSuccess(result);
           this.router.navigate(this.backLink);
         },
         error: (err) => {
           this.saving.set(false);
+          this.finalizing.set(false);
           console.error('[API] Failed to save estimate:', err);
           const detail = err?.status === 409
-            ? 'Estimate นี้ถูกยืนยันไปแล้วจากที่อื่น กรุณาเปิดหน้าใหม่'
-            : 'กรุณาลองใหม่อีกครั้ง';
-          this.messageService.add({ severity: 'error', summary: 'บันทึกไม่สำเร็จ', detail, life: 4000 });
+            ? 'This estimate was already finalized elsewhere. Please reopen the page'
+            : 'Please try again';
+          this.messageService.add({ severity: 'error', summary: 'Save Failed', detail, life: 4000 });
         },
       });
   }
 
   onSaveDraft(): void {
     this.trySave(false, () =>
-      this.messageService.add({ severity: 'success', summary: 'บันทึก Draft แล้ว', life: 2000 }));
+      this.messageService.add({ severity: 'success', summary: 'Draft Saved', life: 2000 }));
   }
 
   onSave(): void {
     if (!this.customerId) {
-      this.warnIncompleteSelection('ต้องเปิดหน้านี้จากหน้าลูกค้าก่อนถึงจะบันทึกได้');
+      this.warnIncompleteSelection('Open this page from a customer page before saving');
       return;
     }
     this.confirmationService.confirm({
-      header: 'ยืนยัน Estimate',
-      message: 'หลังยืนยันแล้วจะแก้ไข Estimate นี้ไม่ได้อีก ต้องการยืนยันหรือไม่?',
+      header: 'Finalize Estimate',
+      message: 'Once finalized, this estimate can no longer be edited. Continue?',
       icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'ยืนยัน',
-      rejectLabel: 'ยกเลิก',
+      acceptLabel: 'Finalize',
+      rejectLabel: 'Cancel',
       accept: () => this.trySave(true, () =>
-        this.messageService.add({ severity: 'success', summary: 'ยืนยัน Estimate แล้ว', life: 2000 })),
+        this.messageService.add({ severity: 'success', summary: 'Estimate Finalized', life: 2000 })),
     });
   }
 
   // ===== Export to PDF — รวมยอดทุก section เป็น snapshot แล้วส่งต่อหน้า preview =====
-  // preview เป็น renderer อย่างเดียว: aggregation ทั้งหมดเกิดที่นี่ (ราคาที่โชว์ลูกค้า = ราคาขาย, ยกเว้น BOS ที่ไม่มี sale price → ใช้ cost price)
+  // preview เป็น renderer อย่างเดียว: aggregation ทั้งหมดเกิดที่นี่ (ราคาที่โชว์ลูกค้า = ราคาขาย; BOS ไม่มี sale price ใน catalog จึงใช้ cost + bosMarkupRate)
   onExportPdf(): void {
+    if (!this.ensureLabourRowsHaveDescription()) return;
+
     const HC = QUOTATION_HARDCODE;
 
     // แผงกำลัง 10.32 kW → หัวเรื่องใช้จำนวนเต็ม "10kW" (ปัดเศษ)
@@ -592,7 +741,14 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     if (this.rackingSectionTotal > 0) {
-      rows.push({ item: 'SOLAR RACKING', description: rackingDescription, unit: HC.unit.racking, quantity: 1, total: null });
+      // unit/quantity ของแถวนี้ = กำลังรวมของ Panels ("10.3kW" / 10320 W) ตามรูปต้นแบบ — ไม่มีแผงเลยค่อย fallback "LOT" × 1
+      rows.push({
+        item: 'SOLAR RACKING',
+        description: rackingDescription,
+        unit: hasPanel ? `${this.panelTotalKw.toFixed(1)}kW` : HC.unit.racking,
+        quantity: hasPanel ? this.systemWatts : 1,
+        total: null,
+      });
     }
     if (this.bosSectionTotal > 0) {
       // คำบรรยาย BOS: list ทุกรายการที่กรอก qty จริงจากทั้ง 4 หมวด (Cables/Switch Gears/Solar Equipment/Conduit) + Accessories
@@ -618,28 +774,37 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
       rows.push({ item: 'INSTALLATION', description: installationDescription, unit: HC.unit.installation, quantity: 1, total: null });
     }
     // หมายเหตุ: แถว DOCUMENTATION + "Solar PV Kit" + "TOTAL COST" หน้า preview เป็นคน render เอง
-    // จาก snapshot.documentationTotal / solarPvKitTotal / totalCost (ค่ายัง hardcode — ดู quotation-hardcode.ts)
+    // จาก snapshot.documentationTotal (คิดจาก section 7) / solarPvKitTotal / totalCost
 
-    // กันสร้างใบเสนอราคาจากฟอร์มเปล่า — ไม่งั้นจะได้เอกสารที่คิดเงินลูกค้าจากค่า Documentation ที่ hardcode ไว้อย่างเดียว
+    // กันสร้างใบเสนอราคาจากฟอร์มเปล่า — ไม่งั้นจะได้เอกสารที่มีแต่ยอด Documentation (ไม่มีรายการอุปกรณ์เลย)
     // (แนวเดียวกับ guard hasAnyItem ใน trySave)
     if (rows.length === 0) {
-      this.warnIncompleteSelection('ยังไม่ได้เลือกอุปกรณ์ ยังสร้างใบเสนอราคาไม่ได้');
+      this.warnIncompleteSelection('No equipment selected. Cannot create a quotation yet');
       return;
     }
 
     // ---- สรุปยอด: VAT คิดจาก SUBTOTAL แล้วปัด 2 ตำแหน่งก่อนบวก (กันคอลัมน์บวกไม่ลง) ----
-    const solarPvKitTotal =
+    // BOS ใช้ bosSummaryTotal (cost + markup) ให้ตรงกับยอดที่โชว์บนหน้า Estimate — ไม่ใช่ bosSectionTotal ที่เป็น cost ล้วน
+    // ปัด 2 ตำแหน่งกัน float error จาก markup (เช่น 38 × 1.4 = 53.199999...)
+    const solarPvKitTotal = Math.round((
       this.panelSectionTotal + this.inverterSectionTotal + this.batterySectionTotal +
-      this.rackingSectionTotal + this.bosSectionTotal + this.installationSectionTotal;
-    const documentationTotal = HC.documentationTotal;
+      this.rackingSectionTotal + this.bosSummaryTotal + this.installationSectionTotal
+    ) * 100) / 100;
+    const documentationTotal = this.documentationSectionTotal;
+    // ใช้เงื่อนไขเดียวกับตอน save (เลือก type + qty > 0) — type ที่ rate = 0 (เช่น FIT) ก็ยังแสดงในเอกสาร แม้ยอดเป็น 0
+    const documentationDescription = Array.from(
+      new Set(
+        this.documentationRows
+          .filter((row) => (row.quantity ?? 0) > 0)
+          .map((row) => this.documentationTypeOf(row)?.name)
+          .filter((name): name is string => !!name)
+      )
+    ).join(', ');
     const totalCost = solarPvKitTotal + documentationTotal;
     const vatAmount = Math.round(totalCost * HC.vatRate * 100) / 100;
     const grandTotal = totalCost + vatAmount;
 
-    const contact = this.primaryContact;
-    const contactPersonName = contact
-      ? [contact.firstname, contact.lastname].filter((v): v is string => !!v).join(' ').trim()
-      : '';
+    const contactPersonName = this.contactPersonName;
 
     const snapshot: QuotationSnapshot = {
       customerId: this.customerId,
@@ -648,14 +813,19 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
       customerName: this.customer?.displayName ?? '',
       contactPersonName,
       issuedDateIso: new Date().toISOString(),
+      customerAddress: this.customer?.fullAddress ?? '',
+      projectLocation: this.customer?.projectLocationName ?? '',
+      salesRepName: this.salesRepName.trim(),
       rows,
       solarPvKitTotal,
       documentationTotal,
+      documentationDescription,
       totalCost,
       vatRate: HC.vatRate,
       vatAmount,
       grandTotal,
       panelBrand: this.selectedPanelBrand ?? this.selectedPanel?.brand ?? '',
+      remarkLines: splitRemarkLines(this.pdfRemarks),
     };
 
     this.quotationPreview.set(snapshot);
@@ -663,7 +833,6 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   activeSection = 'sec-1';
-  navOpen = true;
   mobileNavOpen = false;
   showSolarBOSDialog = signal(false);
 
@@ -722,22 +891,33 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.selectedPanelBrand) return [];
     return this.panels
       .filter((p) => p.brand === this.selectedPanelBrand)
-      .map((p) => ({ label: `${p.kw} kW | ${p.description}`, value: String(p.id) }));
+      .map((p) => ({ label: `${p.kw} W | ${p.description}`, value: String(p.id) }));
   }
 
   get selectedPanel(): PanelItem | undefined {
     return this.panels.find((p) => String(p.id) === this.selectedPanelId);
   }
 
-  get panelKw(): number { return this.selectedPanel?.kw ?? 0; }
+  // panels.kw เก็บค่าเป็น W จริง (เช่น 645) แม้ชื่อ field จะเป็น kw — จึงตั้งชื่อ getter ตามหน่วยจริง
+  get panelWatts(): number { return this.selectedPanel?.kw ?? 0; }
   get panelCostPrice(): number { return this.selectedPanel?.costPrice ?? 0; }
   get panelPriceMarkup(): number { return this.selectedPanel?.salePrice ?? 0; }
   get panelProfit(): number { return (this.selectedPanel?.salePrice ?? 0) - (this.selectedPanel?.costPrice ?? 0); }
   get panelTotal(): number { return this.panelPriceMarkup * (this.panelQuantity ?? 0); }
-  get panelTotalKw(): number { return this.panelKw * (this.panelQuantity ?? 0); }
+  get panelTotalWatts(): number { return this.panelWatts * (this.panelQuantity ?? 0); }
+  get panelTotalKw(): number { return this.panelTotalWatts / 1000; }
 
   // brand เปลี่ยน → description เดิมอาจไม่ตรง brand ใหม่ ต้อง reset (รวม qty เพราะ selection ไม่ครบแล้ว)
   onPanelBrandChange(): void {
+    this.selectedPanelId = null;
+    this.panelQuantity = null;
+  }
+
+  // ปุ่มถังขยะแถว Panels: ล้าง brand + description + qty กลับเป็นแถวว่าง
+  // ทำไมไม่ใช้ onPanelBrandChange: ตั้งค่าจากโค้ดไม่ยิง (onChange) ของ p-select และต้องล้างตัว brand เองด้วย
+  // accessories อยู่ตารางแยก ไม่ล้าง
+  clearPanelRow(): void {
+    this.selectedPanelBrand = null;
     this.selectedPanelId = null;
     this.panelQuantity = null;
   }
@@ -771,6 +951,42 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.panelTotal + accessoriesTotal;
   }
   get panelSectionTotalKw(): number { return this.panelTotalKw; }
+
+  // สรุป section 1 เป็นแถวเดียว: รวมแผงหลัก + accessories ที่กรอก qty > 0, description = แผงที่เลือก
+  get panelSummaryRows(): SectionSummaryRow[] {
+    const panel = this.selectedPanel;
+    const qty = this.panelQuantity ?? 0;
+    return this.buildSectionSummaryRows({
+      description: panel ? `${panel.brand} ${panel.kw} W | ${panel.description}` : '—',
+      mainCost: panel && qty > 0 ? panel.costPrice * qty : 0,
+      hasMain: !!panel && qty > 0,
+      accessories: this.selectedPanelAccessories,
+      sectionTotal: this.panelSectionTotal,
+    });
+  }
+
+  // สรุปเป็นแถวเดียวต่อ section — input: ข้อมูลของ item หลัก + accessories ที่กรอก qty แล้ว + ยอดรวมของ section
+  // output: [] ถ้ายังไม่มีอะไรให้สรุป, ไม่งั้น 1 แถว โดย total = salePrice (เหมือน roofTypeTotals ของ section 4)
+  private buildSectionSummaryRows(input: {
+    description: string;
+    mainCost: number;
+    hasMain: boolean;
+    accessories: { acc: AccessoryItem; qty: number }[];
+    sectionTotal: number;
+  }): SectionSummaryRow[] {
+    if (!input.hasMain && input.accessories.length === 0) return [];
+
+    const accessoriesCost = input.accessories.reduce((sum, item) => sum + item.acc.costPrice * item.qty, 0);
+    const totalCost = input.mainCost + accessoriesCost;
+
+    return [{
+      description: input.description,
+      totalCost,
+      salePrice: input.sectionTotal,
+      profit: input.sectionTotal - totalCost,
+      total: input.sectionTotal,
+    }];
+  }
 
   // ===== 2. Inverters — Brand → Phase → รุ่น (brand+phase+kW ซ้ำกันได้ ต้องผูก value เป็น id) =====
   inverters: InverterItem[] = [];
@@ -821,6 +1037,14 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.inverterQuantity = null;
   }
 
+  // ปุ่มถังขยะแถว Inverters: ล้าง brand + phase + รุ่น + qty (ต้องล้าง phase ด้วย ไม่งั้น dropdown รุ่นค้างตัวเลือกของ brand เดิม)
+  clearInverterRow(): void {
+    this.selectedInverterBrand = null;
+    this.selectedInverterPhase = null;
+    this.selectedInverterId = null;
+    this.inverterQuantity = null;
+  }
+
   inverterAccessories: AccessoryItem[] = [];
   inverterAccessoryQty: (number | null)[] = [];
 
@@ -848,6 +1072,19 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.inverterTotal + accessoriesTotal;
   }
   get inverterSectionTotalKw(): number { return this.inverterTotalKw; }
+
+  // สรุป section 2 เป็นแถวเดียว: รวม inverter หลัก + accessories ที่กรอก qty > 0, description = รุ่นที่เลือก
+  get inverterSummaryRows(): SectionSummaryRow[] {
+    const inverter = this.selectedInverter;
+    const qty = this.inverterQuantity ?? 0;
+    return this.buildSectionSummaryRows({
+      description: inverter ? `${inverter.brand} ${inverter.kw} kW | ${inverter.description}` : '—',
+      mainCost: inverter && qty > 0 ? inverter.costPrice * qty : 0,
+      hasMain: !!inverter && qty > 0,
+      accessories: this.selectedInverterAccessories,
+      sectionTotal: this.inverterSectionTotal,
+    });
+  }
 
   // ===== 3. Batteries — เลือก Brand ก่อน แล้ว Description ที่ filter ตาม brand จะระบุแถวจริงใน DB =====
   batteries: BatteryItem[] = [];
@@ -883,6 +1120,13 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.batteryQuantity = null;
   }
 
+  // ปุ่มถังขยะแถว Batteries: ล้าง brand + description + qty กลับเป็นแถวว่าง (accessories แยกตาราง ไม่ล้าง)
+  clearBatteryRow(): void {
+    this.selectedBatteryBrand = null;
+    this.selectedBatteryId = null;
+    this.batteryQuantity = null;
+  }
+
   batteryAccessories: AccessoryItem[] = [];
   batteryAccessoryQty: (number | null)[] = [];
 
@@ -911,6 +1155,19 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   get batterySectionTotalKw(): number { return this.batteryTotalKw; }
 
+  // สรุป section 3 เป็นแถวเดียว: รวมแบตหลัก + accessories ที่กรอก qty > 0, description = รุ่นที่เลือก
+  get batterySummaryRows(): SectionSummaryRow[] {
+    const battery = this.selectedBattery;
+    const qty = this.batteryQuantity ?? 0;
+    return this.buildSectionSummaryRows({
+      description: battery ? `${battery.brand} | ${battery.description}` : '—',
+      mainCost: battery && qty > 0 ? battery.costPrice * qty : 0,
+      hasMain: !!battery && qty > 0,
+      accessories: this.selectedBatteryAccessories,
+      sectionTotal: this.batterySectionTotal,
+    });
+  }
+
   // ===== 4. Solar Racking — เลือก Roof Type ได้ทีละอัน (คลิกแล้วสลับตารางทันทีเหมือน Section 5) =====
   roofTypes: RoofTypeItem[] = [];
   rackingItems: SolarRackingItem[] = [];
@@ -927,8 +1184,8 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.rackingItems.filter((r) => String(r.roofTypeId) === this.selectedRoofTypeId);
   }
 
-  // ใช้ Total kW จาก section Panels (สัดส่วนกำลังผลิตของระบบ) แปลงเป็น W เพื่อคำนวณ Cost / W ต่อรายการ
-  get systemWatts(): number { return this.panelTotalKw * 1000; }
+  // ใช้กำลังรวมของ section Panels (W) เป็นฐานคำนวณ Cost / W ต่อรายการ
+  get systemWatts(): number { return this.panelTotalWatts; }
 
   // รวม Total ของ "ทุก" roof type ที่เคยกรอก qty ไว้ (ไม่ใช่แค่ตัวที่กำลังดูอยู่) เพราะเป็นยอดรวมจริงของ section นี้
   get rackingSectionTotal(): number {
@@ -1027,6 +1284,48 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
       + this.conduitJunctionBoxesTotal + this.bosAccessoriesTotal;
   }
 
+  // BOS catalog ไม่มี sale_price — คิด Sale Price = Cost + 40% (ตามที่ตกลงกับ user) เปลี่ยนสัดส่วนได้ที่ค่านี้ที่เดียว
+  private readonly bosMarkupRate = 0.4;
+
+  // input: cost ต่อหน่วยของ BOS item — output: ราคาขายต่อหน่วย ปัด 2 ตำแหน่ง
+  // ปัดต่อหน่วยเพราะค่านี้ถูก freeze ลง DB (estimate_bos_items.sale_price) และ DB คิด total = sale_price × qty — ตารางสรุป/PDF ต้องรวมจากค่าเดียวกันจึงจะตรงกับ DB
+  private bosSalePriceOf(costPrice: number): number {
+    return Math.round(costPrice * (1 + this.bosMarkupRate) * 100) / 100;
+  }
+
+  private bosSaleTotalOf(items: BOSItem[], qtys: (number | null)[]): number {
+    return items.reduce((sum, item, i) => sum + this.bosSalePriceOf(item.costPrice) * (qtys[i] ?? 0), 0);
+  }
+
+  // สรุป section 5 เป็นแถวเดียวต่อหมวดที่กรอก qty > 0 (Cables / Switch Gears / Solar Equipment / Conduit & JB / Accessories)
+  // output: totalCost = ยอด cost ของหมวด, salePrice = ยอดขายของหมวด (รวมจากราคาขายต่อหน่วยที่ปัดแล้ว), total = salePrice
+  get bosSummaryRows(): SectionSummaryRow[] {
+    const categories: { name: string; items: BOSItem[]; qtys: (number | null)[]; totalCost: number }[] = [
+      { name: 'Cables', items: this.cables, qtys: this.cableQty, totalCost: this.cablesTotal },
+      { name: 'Switch Gears', items: this.switchGears, qtys: this.switchGearQty, totalCost: this.switchGearsTotal },
+      { name: 'Solar Equipment', items: this.solarEquipment, qtys: this.solarEquipmentQty, totalCost: this.solarEquipmentTotal },
+      { name: 'Conduit & Junction Boxes', items: this.conduitJunctionBoxes, qtys: this.conduitJunctionBoxQty, totalCost: this.conduitJunctionBoxesTotal },
+      { name: 'Accessories', items: this.bosAccessories, qtys: this.bosAccessoryQty, totalCost: this.bosAccessoriesTotal },
+    ];
+
+    return categories
+      .filter((category) => category.qtys.some((qty) => (qty ?? 0) > 0))
+      .map((category) => {
+        const salePrice = this.bosSaleTotalOf(category.items, category.qtys);
+        return {
+          description: category.name,
+          totalCost: category.totalCost,
+          salePrice,
+          profit: salePrice - category.totalCost,
+          total: salePrice,
+        };
+      });
+  }
+
+  get bosSummaryTotal(): number {
+    return this.bosSummaryRows.reduce((sum, row) => sum + row.total, 0);
+  }
+
   readonly bosOptions: SelectOption[] = [
     { label: 'DC Cabling Set', value: 'dc-cabling' },
     { label: 'AC Cabling Set', value: 'ac-cabling' },
@@ -1067,5 +1366,82 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
 
   get installationSectionTotal(): number {
     return this.inHouseLabourTotal + this.outsourcedLabourTotal + this.machineryTotal;
+  }
+
+  // output: จำนวนแถว Labour/Machinery ที่มียอด (unitRate × units > 0) แต่ Description ว่าง
+  // ทำไม: แถวพวกนี้ถูกนับในยอดรวม แต่ buildItemsPayload ข้ามแถวที่ไม่มี description → ยอดที่ save ไม่ตรงกับหน้าจอ/PDF
+  get labourRowsMissingDescription(): number {
+    return [...this.inHouseLabourRows, ...this.outsourcedLabourRows, ...this.machineryRows]
+      .filter((row) => this.rowTotal(row) > 0 && !row.description?.trim())
+      .length;
+  }
+
+  // ใช้ร่วมกันทั้ง save และ export PDF — true = ผ่าน, false = แจ้งเตือนแล้ว ต้องหยุดทำงานต่อ
+  private ensureLabourRowsHaveDescription(): boolean {
+    if (this.labourRowsMissingDescription === 0) return true;
+    this.warnIncompleteSelection('Please enter a description for every labour/machinery row that has a cost');
+    return false;
+  }
+
+  // สรุป section 6 เป็นแถวเดียวต่อหมวด 6.1/6.2/6.3 ที่มียอด > 0
+  // ไม่มี markup (ตามที่ตกลงกับ user): salePrice = totalCost จึง profit = 0
+  get installationSummaryRows(): SectionSummaryRow[] {
+    const categories: { name: string; totalCost: number }[] = [
+      { name: 'In-House Labour Costs', totalCost: this.inHouseLabourTotal },
+      { name: 'Outsourced Labour Costs', totalCost: this.outsourcedLabourTotal },
+      { name: 'Machinery', totalCost: this.machineryTotal },
+    ];
+
+    return categories
+      .filter((category) => category.totalCost > 0)
+      .map((category) => ({
+        description: category.name,
+        totalCost: category.totalCost,
+        salePrice: category.totalCost,
+        profit: 0,
+        total: category.totalCost,
+      }));
+  }
+
+  // ===== 7. Documentation — เลือก Type จาก catalog (ตั้งค่าที่ Settings > Products > Documentation), unit rate มาจาก type =====
+  documentationTypes: DocumentationTypeItem[] = [];
+  documentationTypeOptions: Array<{ label: string; value: number }> = [];
+
+  private newDocumentationRow(): DocumentationRow {
+    return { typeId: null, quantity: null };
+  }
+
+  documentationRows: DocumentationRow[] = [this.newDocumentationRow()];
+
+  private documentationTypeOf(row: DocumentationRow): DocumentationTypeItem | null {
+    return this.documentationTypes.find((t) => t.id === row.typeId) ?? null;
+  }
+
+  addDocumentationRow(): void {
+    this.documentationRows.push(this.newDocumentationRow());
+  }
+
+  removeDocumentationRow(index: number): void {
+    this.documentationRows.splice(index, 1);
+    // ลบจนหมดแล้วต้องเหลือแถวว่างไว้ให้กรอกต่อ (เหมือน labour rows ตอน prefill)
+    if (this.documentationRows.length === 0) this.documentationRows.push(this.newDocumentationRow());
+  }
+
+  // เลือก type แล้ว qty ยังว่าง → ใส่ 1 ให้เลย (เอกสารส่วนใหญ่ยื่นครั้งละ 1 ชุด) ผู้ใช้แก้ได้
+  onDocumentationTypeChange(row: DocumentationRow): void {
+    if (row.typeId !== null && row.quantity === null) row.quantity = 1;
+  }
+
+  // ยังไม่เลือก type → null (template แสดง "—"), rate = 0 → template แสดง "฿ —" (เช่น PEA / MEA FIT ที่ยังไม่มีราคา)
+  documentationRowRate(row: DocumentationRow): number | null {
+    return this.documentationTypeOf(row)?.unitRate ?? null;
+  }
+
+  documentationRowTotal(row: DocumentationRow): number {
+    return (this.documentationRowRate(row) ?? 0) * (row.quantity ?? 0);
+  }
+
+  get documentationSectionTotal(): number {
+    return this.documentationRows.reduce((sum, row) => sum + this.documentationRowTotal(row), 0);
   }
 }

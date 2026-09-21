@@ -3,19 +3,399 @@
   flex-direction: column;
 }
 
-.max-w-container {
+/* ===== ด้านล่างนี้ copy มาจาก estimate-page.component.scss เพื่อให้หน้า history หน้าตาเหมือนกัน =====
+   ไม่ย้ายเข้า styles.scss เพราะ .nav-item / .nav-list / .nav-title / .container-content ชื่อซ้ำกับ nav-bar, setting-page, dashboard
+   แก้สไตล์ส่วนนี้ที่ estimate-page แล้วต้องแก้ที่นี่ด้วย */
+
+.grid {
+  display: grid;
+  gap: 16px;
+}
+
+.grid-cols-2 {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.grid-cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.grid-cols-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+
+
+/* Sticky Section Nav Layout */
+.estimate-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+
+  @media (max-width: 768px) {
+    gap: 0;
+  }
+}
+
+.section-nav {
+  position: sticky;
+  top: 50px;
+  width: 148px;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: width 0.25s ease;
+  margin-top: 4.1rem;
+
+  &.collapsed {
+    width: 34px;
+
+    .nav-title,
+    .nav-list {
+      opacity: 0;
+      pointer-events: none;
+    }
+  }
+
+  @media (max-width: 768px) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100dvh;
+    width: 42%;
+    min-width: 220px;
+    z-index: 1000;
+    background: white;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px 16px;
+    margin-top: 0;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+
+    &.mobile-open {
+      transform: translateX(0);
+    }
+
+    &.collapsed {
+      width: 42%;
+      min-width: 220px;
+      transform: translateX(-100%);
+
+      .nav-title,
+      .nav-list {
+        opacity: 1;
+        pointer-events: auto;
+      }
+    }
+  }
+}
+
+.nav-overlay {
+  display: none;
+
+  @media (max-width: 768px) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+
+    &.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+}
+
+.nav-mobile-toggle {
+  display: none;
+
+  @media (max-width: 768px) {
+    display: flex;
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1001;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    background: var(--k-red);
+    color: white;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(176, 29, 42, 0.35);
+    font-size: 16px;
+    transition: var(--k-transition);
+
+    &:hover {
+      transform: scale(1.08);
+    }
+  }
+}
+
+.nav-mobile-close {
+  display: none;
+
+  @media (max-width: 768px) {
+    display: flex;
+    margin-left: auto;
+  }
+}
+
+.nav-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--k-light-grey);
+  margin-bottom: 4px;
+
+}
+
+.nav-toggle {
+  flex-shrink: 0;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
+}
+
+.nav-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--k-mid-grey);
+  margin: 0;
+  white-space: nowrap;
+  transition: opacity 0.15s ease;
+}
+
+.nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  transition: opacity 0.15s ease;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--k-mid-grey);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  transition: var(--k-transition);
+  margin-bottom: 2px;
+
+  &:hover {
+    color: var(--k-dark-grey);
+    background: var(--bg-color);
+  }
+
+  &.active {
+    color: var(--k-red);
+    border-color: var(--k-red);
+    background: #fff0f1;
+  }
+}
+
+.nav-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: var(--k-light-grey);
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  transition: var(--k-transition);
+
+  .nav-item.active & {
+    background: var(--k-red);
+    color: #fff;
+  }
+}
+
+.nav-subitem {
+  padding: 4px 8px 4px 24px;
+  font-size: 11px;
+  color: var(--k-mid-grey);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  border-left: 2px solid transparent;
+  transition: var(--k-transition);
+  margin-bottom: 2px;
+
+  &:hover {
+    color: var(--k-dark-grey);
+    background: var(--bg-color);
+  }
+
+  &.active {
+    color: var(--k-red);
+    border-left-color: var(--k-red);
+  }
+}
+
+.container-content {
+  flex: 1;
+  min-width: 0;
+  padding: 24px;
+  margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 24px 0;
+  gap: 24px;
 }
 
 .card {
+  max-width: 100vw;
+  overflow-y: auto;
   padding: 32px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+  page-break-inside: avoid;
 }
 
 .card-header {
   border-bottom: 2px solid var(--k-light-grey);
   margin-bottom: 24px;
+}
+
+input,
+select,
+textarea {
+  color: var(--k-black);
+}
+
+/* Config Section Cards (3.1 – 3.7) */
+.panels-card,
+.inverters-card,
+.batteries-card,
+.racking-card,
+.bos-card,
+.installation-card,
+.documentation-card {
+  .card-header {
+    margin: -32px -32px 24px;
+    padding: 12px 32px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+}
+
+.panels-card .card-header {
+  // background: #e6e9bc;
+  color: #4a5210;
+  border-bottom-color: #c8cc70;
+}
+.panels-card-foot{
+  height: 5px;
+  background: #c8cc70;
+}
+.inverters-card .card-header {
+  // background: #f5d0d0;
+  color: #7a1f1f;
+  border-bottom-color: #e09090;
+}
+.inverters-card-foot {
+  height: 5px;
+  background: #e09090;
+}
+
+.batteries-card .card-header {
+  // background: #ddd5f0;
+  color: #3a1f70;
+  border-bottom-color: #b0a0e0;
+}
+.batteries-card-foot {
+  height: 5px;
+  background: #b0a0e0;
+}
+
+.racking-card .card-header {
+  // background: #f5e8d0;
+  color: #7a4a1f;
+  border-bottom-color: #e0c090;
+}
+.racking-card-foot {
+  height: 5px;
+  background: #e0c090;
+}
+
+.bos-card .card-header {
+  // background: #d0e8f5;
+  color: #1a5f7a;
+  border-bottom-color: #90c8e0;
+}
+.bos-card-foot {
+  height: 5px;
+  background: #90c8e0;
+}
+
+.installation-card .card-header {
+  // background: #d0ecd0;
+  color: #1f5a1f;
+  border-bottom-color: #90c890;
+}
+.installation-card-foot {
+  height: 5px;
+  background: #90c890;
+}
+
+.documentation-card .card-header {
+  // background: #e8e8e8;
+  color: #3a3a3a;
+  border-bottom-color: #c0c0c0;
+}
+
+/* Dashboard Metrics */
+.metric-box {
+  background: var(--bg-color);
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--k-light-grey);
+  text-align: center;
+}
+
+.metric-val {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--k-red);
+  margin-bottom: 4px;
+}
+
+.metric-lbl {
+  font-size: 12px;
+  color: var(--k-dark-grey);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Chart Placeholders */
+.chart-placeholder {
+  width: 100%;
+  height: 250px;
+  background: #e2e8f0;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--k-mid-grey);
+  font-weight: 700;
+  margin-bottom: 20px;
+  border: 1px dashed var(--k-mid-grey);
 }

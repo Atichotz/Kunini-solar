@@ -1,9 +1,45 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, OnInit, AfterViewInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
+import { Tooltip } from 'primeng/tooltip';
+import { ToastModule } from 'primeng/toast';
+import { MessageService } from 'primeng/api';
+import { of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
+import { ScrollSpy } from '../../scroll-spy.util';
+import { buildQuotationSnapshot, salesRepNameOf } from '../../quotation-snapshot.util';
 import { EstimateService } from '../../services/estimate.service';
-import type { EstimateDetail } from '../../dto/estimate.dto';
+import { CustomerService } from '../../services/customer.service';
+import { QuotationPreviewService } from '../../services/quotation-preview.service';
+import { AuthService } from '../../services/auth.service';
+import type { EstimateDetail, EstimatePanelItemView } from '../../dto/estimate.dto';
+import type { ContactDetail } from '../../dto/customer.dto';
+import type { QuotationExtras } from '../../dto/quotation.dto';
+
+interface RackingRoofTypeTotal {
+  roofTypeName: string;
+  totalCost: number;
+  salePrice: number;
+  profit: number;
+  total: number;
+}
+
+// แถวตารางสรุปของแต่ละ section (Panels / Inverters / Batteries / BOS / Installation)
+interface SectionSummaryRow {
+  description: string;
+  totalCost: number;
+  salePrice: number;
+  profit: number;
+  total: number;
+}
+
+interface NavItem {
+  id: string;
+  num: number;
+  label: string;
+}
 
 const BOS_CATEGORY_LABELS: Record<string, string> = {
   cables: 'Cables',
@@ -14,25 +50,52 @@ const BOS_CATEGORY_LABELS: Record<string, string> = {
 };
 
 const LABOUR_CATEGORY_LABELS: Record<string, string> = {
-  in_house: 'In-House Labour',
-  outsourced: 'Outsourced Labour',
+  in_house: 'In-House Labour Costs',
+  outsourced: 'Outsourced Labour Costs',
   machinery: 'Machinery',
 };
 
 @Component({
   selector: 'app-estimate-history-page',
-  imports: [CommonModule, RouterLink, ButtonModule],
+  imports: [CommonModule, RouterLink, ButtonModule, Tooltip, ToastModule],
   templateUrl: './estimate-history-page.component.html',
   styleUrl: './estimate-history-page.component.scss',
+  providers: [MessageService],
 })
-export class EstimateHistoryPageComponent implements OnInit {
+export class EstimateHistoryPageComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly estimateService = inject(EstimateService);
+  private readonly customerService = inject(CustomerService);
+  private readonly quotationPreview = inject(QuotationPreviewService);
+  private readonly authService = inject(AuthService);
+  private readonly messageService = inject(MessageService);
+  private readonly destroyRef = inject(DestroyRef);
 
   detail: EstimateDetail | null = null;
   loading = true;
   notFound = false;
+  exporting = false;
+
+  // ตารางสรุปคำนวณครั้งเดียวตอนโหลด detail — ไม่ให้ template เรียก getter ซ้ำทุก change detection
+  panelSummaryRows: SectionSummaryRow[] = [];
+  inverterSummaryRows: SectionSummaryRow[] = [];
+  batterySummaryRows: SectionSummaryRow[] = [];
+  bosSummaryRows: SectionSummaryRow[] = [];
+  installationSummaryRows: SectionSummaryRow[] = [];
+
+  // ===== Section nav (เหมือน estimate-page) =====
+  navItems: NavItem[] = [];
+  activeSection = 'sec-3';
+  navOpen = true;
+  mobileNavOpen = false;
+
+  // ScrollSpy ข้าม id ที่ไม่มีใน DOM ได้ — section ที่ไม่มี item จะไม่ถูก render จึงไม่ต้องกรอง id ตรงนี้
+  // ใส่ sec-1 ไว้ด้วยเพื่อให้บนสุดของหน้า (Customer Information) ไม่ไป highlight "Panels"
+  private readonly scrollSpy = new ScrollSpy(
+    ['sec-1', 'sec-3', 'sec-4', 'sec-5', 'sec-6', 'sec-7', 'sec-8', 'sec-9', 'sec-10', 'sec-11', 'sec-12', 'sec-13'],
+    (id) => (this.activeSection = id)
+  );
 
   // ปุ่ม X: กลับไปหน้าลูกค้าเดิมเสมอ — ใช้ route param ตรงๆ กันกรณี detail ยังโหลดไม่เสร็จ/error
   get backLink(): string[] {
@@ -58,6 +121,7 @@ export class EstimateHistoryPageComponent implements OnInit {
           return;
         }
         this.detail = detail;
+        this.buildSummaries(detail);
         this.loading = false;
       },
       error: (err) => {
@@ -66,6 +130,87 @@ export class EstimateHistoryPageComponent implements OnInit {
         this.loading = false;
       },
     });
+  }
+
+  ngAfterViewInit(): void {
+    this.scrollSpy.start();
+  }
+
+  ngOnDestroy(): void {
+    this.scrollSpy.stop();
+  }
+
+  scrollTo(id: string): void {
+    const element = document.getElementById(id);
+    if (!element) return;
+
+    this.activeSection = id;
+    // ระงับ scroll-spy ระหว่าง smooth-scroll กัน active section กระโดดผิดตัว
+    this.scrollSpy.suppress(700);
+    window.scrollTo({ top: element.getBoundingClientRect().top + window.scrollY - 40, behavior: 'smooth' });
+  }
+
+  // ===== Export to PDF =====
+  // input: — (ใช้ this.detail) / output: navigate ไป /pdf-bos-preview พร้อม snapshot ใน QuotationPreviewService
+  onExportPdf(): void {
+    const detail = this.detail;
+    if (!detail || this.exporting) return;
+
+    this.exporting = true;
+    // ชื่อผู้ติดต่อ + ที่อยู่ไม่ได้เก็บใน estimate — ดึงจาก customer ปัจจุบัน; ดึงไม่ได้ก็ export ต่อโดยเว้นว่าง ไม่ให้ทั้งใบล้มเพราะข้อมูลเสริม
+    // Sales Rep = ชื่อที่กรอกไว้ตอน save; estimate เก่าที่ไม่มีค่า → fallback เป็นชื่อ account ของคนที่กด Export
+    const salesRepName = detail.salesRepName?.trim() || salesRepNameOf(this.authService.currentProfile$.value);
+    this.customerService
+      .getOne(detail.customerId)
+      .pipe(
+        map((customer) => ({
+          contactPersonName: this.contactPersonNameOf(customer.contacts),
+          extras: {
+            customerAddress: customer.fullAddress ?? '',
+            projectLocation: customer.projectLocationName ?? detail.projectLocationName ?? '',
+            salesRepName,
+          } satisfies QuotationExtras,
+        })),
+        catchError((err) => {
+          console.error('[API] Failed to load customer contact for PDF:', err);
+          return of({
+            contactPersonName: '',
+            extras: {
+              customerAddress: '',
+              projectLocation: detail.projectLocationName ?? '',
+              salesRepName,
+            } satisfies QuotationExtras,
+          });
+        }),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(({ contactPersonName, extras }) => {
+        this.exporting = false;
+        try {
+          const snapshot = buildQuotationSnapshot(detail, contactPersonName, extras);
+          if (!snapshot) {
+            this.messageService.add({
+              severity: 'warn',
+              summary: 'Cannot Export',
+              detail: 'No equipment in this estimate. Cannot create a quotation',
+              life: 3000,
+            });
+            return;
+          }
+          this.quotationPreview.set(snapshot);
+          this.router.navigate(['/pdf-bos-preview']);
+        } catch (err) {
+          console.error('[PDF] Failed to build quotation snapshot:', err);
+          this.messageService.add({ severity: 'error', summary: 'Export Failed', detail: 'Could not build the quotation', life: 3000 });
+        }
+      });
+  }
+
+  // input: contacts ของลูกค้า / output: ชื่อ-นามสกุลของ primary contact (ตัวแรกถ้าไม่มี primary), '' ถ้าไม่มีเลย
+  private contactPersonNameOf(contacts: ContactDetail[]): string {
+    const contact = contacts.find((c) => c.isPrimary) ?? contacts[0];
+    if (!contact) return '';
+    return [contact.firstname, contact.lastname].filter((v): v is string => !!v).join(' ').trim();
   }
 
   bosCategoryLabel(category: string): string {
@@ -82,5 +227,146 @@ export class EstimateHistoryPageComponent implements OnInit {
 
   labourCategoryTotal(category: string): number {
     return this.labourItemsFor(category).reduce((sum, i) => sum + i.total, 0);
+  }
+
+  // input: items ของ panel/inverter/battery — output: เฉพาะ row หลัก (ตารางบน)
+  mainItems<T extends EstimatePanelItemView>(items: T[]): T[] {
+    return items.filter((i) => i.itemRole === 'main');
+  }
+
+  // input: items ของ panel/inverter/battery — output: เฉพาะ accessory (ตารางล่าง)
+  accessoryItems<T extends EstimatePanelItemView>(items: T[]): T[] {
+    return items.filter((i) => i.itemRole === 'accessory');
+  }
+
+  // profit ต่อหน่วย = sale − cost (ตรงกับ estimate-page ที่แสดง profit ต่อหน่วย ไม่ใช่ต่อ row)
+  unitProfit(item: { costPrice: number; salePrice: number }): number {
+    return item.salePrice - item.costPrice;
+  }
+
+  // panel: item.kw เก็บเป็น W → ผลรวมเป็น W; inverter/battery: เก็บเป็น kW/kWh ตามเดิม
+  lineTotalKw(item: EstimatePanelItemView): number {
+    return item.kw * item.quantity;
+  }
+
+  // Total kW ของ panel section = ผลรวม W หาร 1000
+  panelSectionTotalKw(items: EstimatePanelItemView[]): number {
+    return this.sectionTotalKw(items) / 1000;
+  }
+
+  // kW รวมเฉพาะ row หลัก เพราะ accessory ถูกบันทึกด้วย kw = 0 และไม่นับเป็นกำลังผลิต
+  sectionTotalKw(items: EstimatePanelItemView[]): number {
+    return this.mainItems(items).reduce((sum, i) => sum + this.lineTotalKw(i), 0);
+  }
+
+  sectionTotal(items: { total: number }[]): number {
+    return items.reduce((sum, i) => sum + i.total, 0);
+  }
+
+  // ใช้กำลังรวม panel (W) เป็นฐานคำนวณ Cost / W — ตรงกับ systemWatts ใน estimate-page
+  get systemWatts(): number {
+    return this.detail ? this.sectionTotalKw(this.detail.panelItems) : 0;
+  }
+
+  // ยอดรวมตารางสรุป BOS = ผลรวม Total (ราคาที่บวก markup แล้ว) ของทุกหมวด
+  get bosSummaryTotal(): number {
+    return this.bosSummaryRows.reduce((sum, row) => sum + row.total, 0);
+  }
+
+  // สรุป racking แยกตาม roof type จาก snapshot (ไม่ผูก catalog ปัจจุบัน)
+  get rackingRoofTypeTotals(): RackingRoofTypeTotal[] {
+    if (!this.detail) return [];
+    const byRoofType = new Map<string, RackingRoofTypeTotal>();
+    for (const item of this.detail.rackingItems) {
+      const row = byRoofType.get(item.roofTypeName) ?? {
+        roofTypeName: item.roofTypeName,
+        totalCost: 0,
+        salePrice: 0,
+        profit: 0,
+        total: 0,
+      };
+      row.totalCost += item.costPrice * item.quantity;
+      row.salePrice += item.salePrice * item.quantity;
+      row.total += item.salePrice * item.quantity;
+      row.profit = row.salePrice - row.totalCost;
+      byRoofType.set(item.roofTypeName, row);
+    }
+    return [...byRoofType.values()];
+  }
+
+  // เลขหัวข้อคงที่ตาม estimate-page แม้บาง section จะถูกซ่อน (ไม่มี item) เพื่อให้ตรงกับหน้าที่ผู้ใช้คุ้นเคย
+  private buildNavItems(detail: EstimateDetail): NavItem[] {
+    const items: (NavItem & { visible: boolean })[] = [
+      { id: 'sec-3', num: 1, label: 'Panels', visible: detail.panelItems.length > 0 },
+      { id: 'sec-4', num: 2, label: 'Inverters', visible: detail.inverterItems.length > 0 },
+      { id: 'sec-5', num: 3, label: 'Batteries', visible: detail.batteryItems.length > 0 },
+      { id: 'sec-6', num: 4, label: 'Solar Racking', visible: detail.rackingItems.length > 0 },
+      { id: 'sec-7', num: 5, label: 'Solar BOS', visible: detail.bosItems.length > 0 },
+      { id: 'sec-8', num: 6, label: 'Installation', visible: detail.labourItems.length > 0 },
+      { id: 'sec-9', num: 7, label: 'Documentation', visible: detail.documentationItems.length > 0 },
+      { id: 'sec-10', num: 8, label: 'Summary', visible: true },
+      { id: 'sec-11', num: 9, label: 'Energy Output', visible: true },
+      { id: 'sec-12', num: 10, label: 'Cash Flow', visible: true },
+      { id: 'sec-13', num: 11, label: 'Energy Demand', visible: true },
+    ];
+    return items.filter((item) => item.visible);
+  }
+
+  private buildSummaries(detail: EstimateDetail): void {
+    this.navItems = this.buildNavItems(detail);
+    const panel = this.mainItems(detail.panelItems)[0];
+    const inverter = this.mainItems(detail.inverterItems)[0];
+    const battery = this.mainItems(detail.batteryItems)[0];
+
+    // description รูปแบบเดียวกับ estimate-page (panel.kw เก็บเป็น W จึงต่อท้ายด้วย W)
+    this.panelSummaryRows = this.buildEquipmentSummaryRows(
+      panel ? `${panel.brand} ${panel.kw} W | ${panel.description}` : '—',
+      detail.panelItems
+    );
+    this.inverterSummaryRows = this.buildEquipmentSummaryRows(
+      inverter ? `${inverter.brand} ${inverter.kw} kW | ${inverter.description}` : '—',
+      detail.inverterItems
+    );
+    this.batterySummaryRows = this.buildEquipmentSummaryRows(
+      battery ? `${battery.brand} | ${battery.description}` : '—',
+      detail.batteryItems
+    );
+
+    // BOS: 1 แถวต่อหมวด — Sale = ยอดขายที่ freeze ไว้ตอน save (sale_price × qty = item.total), Cost = cost_price × qty
+    this.bosSummaryRows = Object.keys(BOS_CATEGORY_LABELS)
+      .map((category) => detail.bosItems.filter((item) => item.category === category && item.quantity > 0))
+      .filter((items) => items.length > 0)
+      .map((items) => {
+        const salePrice = this.sectionTotal(items);
+        const totalCost = items.reduce((sum, item) => sum + item.costPrice * item.quantity, 0);
+        return {
+          description: BOS_CATEGORY_LABELS[items[0].category],
+          totalCost,
+          salePrice,
+          profit: salePrice - totalCost,
+          total: salePrice,
+        };
+      });
+
+    // Installation: ไม่มี markup (salePrice = totalCost, profit = 0) และข้ามหมวดที่ยอดเป็น 0
+    this.installationSummaryRows = Object.keys(LABOUR_CATEGORY_LABELS)
+      .map((category) => ({ name: LABOUR_CATEGORY_LABELS[category], totalCost: this.labourCategoryTotal(category) }))
+      .filter((category) => category.totalCost > 0)
+      .map((category) => ({
+        description: category.name,
+        totalCost: category.totalCost,
+        salePrice: category.totalCost,
+        profit: 0,
+        total: category.totalCost,
+      }));
+  }
+
+  // สรุป section เครื่องจักรเป็นแถวเดียว: cost = ผลรวม cost×qty ของ main + accessories, sale = ผลรวม total ของทุก row
+  // output: [] ถ้า section ไม่มี item
+  private buildEquipmentSummaryRows(description: string, items: EstimatePanelItemView[]): SectionSummaryRow[] {
+    if (items.length === 0) return [];
+    const totalCost = items.reduce((sum, item) => sum + item.costPrice * item.quantity, 0);
+    const total = this.sectionTotal(items);
+    return [{ description, totalCost, salePrice: total, profit: total - totalCost, total }];
   }
 }
