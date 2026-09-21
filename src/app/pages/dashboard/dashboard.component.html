@@ -262,7 +262,7 @@
           </svg>
         </div>
         <div class="kpi-details">
-          <div class="kpi-val">12</div>
+          <div class="kpi-val">{{ kpiLoading() || kpiError() ? '–' : needAnalysisCount() }}</div>
           <div class="kpi-lbl">Need Analysis</div>
         </div>
       </div>
@@ -276,7 +276,7 @@
           </svg>
         </div>
         <div class="kpi-details">
-          <div class="kpi-val">8</div>
+          <div class="kpi-val">{{ kpiLoading() || kpiError() ? '–' : waitingInstallCount() }}</div>
           <div class="kpi-lbl">Waiting Install</div>
         </div>
       </div>
@@ -292,10 +292,11 @@
           </svg>
         </div>
         <div class="kpi-details">
-          <div class="kpi-val">24</div>
+          <div class="kpi-val">{{ kpiLoading() || kpiError() ? '–' : installedThisYearCount() }}</div>
           <div class="kpi-lbl">Installed (This Year)</div>
         </div>
       </div>
+      @if (isManager()) {
       <div class="kpi-card revenue">
         <div class="kpi-icon revenue">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -305,10 +306,11 @@
           </svg>
         </div>
         <div class="kpi-details">
-          <div class="kpi-val">฿ 4.2M</div>
+          <div class="kpi-val">{{ kpiLoading() || kpiError() ? '–' : totalEstRevenueLabel() }}</div>
           <div class="kpi-lbl">Total Est. Revenue</div>
         </div>
       </div>
+      }
     </div>
 
     <!-- 2. MAIN DASHBOARD CONTENT (ROW 1) -->
@@ -354,80 +356,64 @@
         </div>
       </div> -->
 
-      <div class="grid md:grid-cols-2">
-        <!-- Technician To-Do Card -->
+      @if (me()) {
+      <!-- ceo/admin: การ์ดเดียว กรองตามทีม/คนได้ | role อื่น: My To-Do + Team To-Do (ดู cards ใน .ts) -->
+      <div class="grid" [class]="isManager() ? '' : 'md:grid-cols-2'">
+        @for (card of cards(); track card.key) {
         <div class="card">
-          <div class="card-header" style="cursor: pointer;" (click)="techCollapsed.set(!techCollapsed())">
-            <div class="flex items-center gap-2">
-              <i class="fa-regular fa-file-lines text-[18px]" style="color: var(--k-accent-blue);"></i>
-              <h2>Technician To-Do</h2>
-              <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
-                style="background: #e8f0fe; color: var(--k-accent-blue);">
-                {{ techTodos().length }}
-              </span>
-            </div>
-            <i class="fa-solid text-xs transition-transform duration-200" [class.fa-chevron-up]="!techCollapsed()"
-              [class.fa-chevron-down]="techCollapsed()" style="color: var(--k-mid-grey);"></i>
-          </div>
-
-          <div class="collapsible-content" [class.expanded]="!techCollapsed()">
-            <div class="collapsible-inner">
-              <div style="flex: 1;">
-                @for (todo of techTodos(); track todo.id) {
-                <div class="todo-item" [class.done]="todo.isDone">
-                  <input type="checkbox" class="todo-checkbox" [checked]="todo.isDone" (change)="toggleTechTask(todo.id)">
-                  <div class="todo-content">
-                    <div class="todo-title">{{ todo.title }}</div>
-                    @if (todo.description) {
-                    <div class="todo-details">{{ todo.description }}</div>
-                    }
-                    <div class="todo-meta">{{ todoMeta(todo) }}</div>
-                  </div>
-                  <button class="todo-delete" (click)="deleteTechTask(todo.id); $event.stopPropagation()"
-                    title="Delete task">✕</button>
-                </div>
-                }
-              </div>
-              <div class="add-todo-form" (click)="$event.stopPropagation()">
-                <input #techTitleInput type="text" class="add-todo-input" placeholder="+ Add task and press Enter..."
-                  (keyup.enter)="addTechTask(techTitleInput, techDescInput)">
-                <input #techDescInput type="text" class="add-todo-input" placeholder="Description (optional)"
-                  (keyup.enter)="addTechTask(techTitleInput, techDescInput)">
-                <div class="add-todo-row">
-                  <p-datepicker [(ngModel)]="techDueDate" appendTo="body" placeholder="Due date" class="add-todo-date" />
-                  <p-select [options]="assignees()" optionLabel="name" optionValue="id" [(ngModel)]="techAssignee"
-                    appendTo="body" placeholder="Unassigned" [filter]="true" filterBy="name" [showClear]="true"
-                    class="add-todo-assignee" />
-                  <button type="button" class="k-btn-sm k-btn-primary add-todo-confirm"
-                    (click)="addTechTask(techTitleInput, techDescInput)">Add</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Admin To-Do Card -->
-        <div class="card">
-          <div class="card-header" style="cursor: pointer;" (click)="adminCollapsed.set(!adminCollapsed())">
+          <div class="card-header" style="cursor: pointer;" (click)="toggleCollapsed(card.key)">
             <div class="flex items-center gap-2">
               <i class="fa-regular fa-file-lines text-[18px]" style="color: var(--k-red);"></i>
-              <h2>Admin To-Do</h2>
+              <h2>{{ card.title }}</h2>
               <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
                 style="background: #fde8ea; color: var(--k-red);">
-                {{ adminTodos().length }}
+                {{ card.todos.length }}
               </span>
             </div>
-            <i class="fa-solid text-xs transition-transform duration-200" [class.fa-chevron-up]="!adminCollapsed()"
-              [class.fa-chevron-down]="adminCollapsed()" style="color: var(--k-mid-grey);"></i>
+            <i class="fa-solid text-xs transition-transform duration-200"
+              [class.fa-chevron-up]="!collapsed()[card.key]" [class.fa-chevron-down]="collapsed()[card.key]"
+              style="color: var(--k-mid-grey);"></i>
           </div>
 
-          <div class="collapsible-content" [class.expanded]="!adminCollapsed()">
+          <div class="collapsible-content" [class.expanded]="!collapsed()[card.key]">
             <div class="collapsible-inner">
+              <div class="todo-filters" (click)="$event.stopPropagation()">
+                <span class="todo-filters-label"><i class="fa-solid fa-filter"></i>Filter</span>
+                <div class="todo-search">
+                  <i class="fa-solid fa-magnifying-glass todo-search-icon"></i>
+                  <input type="text" class="todo-search-input" placeholder="Search tasks..." autocomplete="off"
+                    [ngModel]="searchText()[card.key]" (ngModelChange)="setSearchText(card.key, $event)">
+                  @if (searchText()[card.key]) {
+                  <button type="button" class="todo-search-clear" title="Clear search"
+                    (click)="setSearchText(card.key, '')">✕</button>
+                  }
+                </div>
+                @if (card.showFilters) {
+                <p-select [options]="teamOptions" optionLabel="label" optionValue="role" [ngModel]="teamFilter()"
+                  (ngModelChange)="setTeamFilter($event)" appendTo="body" placeholder="All teams" [showClear]="true"
+                  class="todo-filter" />
+                <p-select [options]="personOptions()" optionLabel="label" optionValue="id" [ngModel]="personFilter()"
+                  (ngModelChange)="setPersonFilter($event)" appendTo="body" placeholder="All people" [filter]="true"
+                  filterBy="name" [showClear]="true" class="todo-filter" />
+                }
+              </div>
+
+              @if (card.todos.length > pageSizeOptions[0]) {
+              <div class="todo-page-size todo-page-size-top" (click)="$event.stopPropagation()">
+                <span class="todo-pager-label">Show</span>
+                @for (size of pageSizeOptions; track size) {
+                <button type="button" class="todo-pager-btn" [class.active]="pageSize()[card.key] === size"
+                  (click)="setPageSize(card.key, size)">{{ size }}</button>
+                }
+              </div>
+              }
+
               <div style="flex: 1;">
-                @for (todo of adminTodos(); track todo.id) {
+                @for (todo of card.visibleTodos; track todo.id) {
                 <div class="todo-item" [class.done]="todo.isDone">
-                  <input type="checkbox" class="todo-checkbox" [checked]="todo.isDone"
-                    (change)="toggleAdminTask(todo.id)">
+                  <input #todoCheckbox type="checkbox" class="todo-checkbox" [checked]="todo.isDone"
+                    [disabled]="!canModify(todo) || isTodoPending(todo.id)"
+                    (change)="toggleTask(todo, todoCheckbox)">
                   <div class="todo-content">
                     <div class="todo-title">{{ todo.title }}</div>
                     @if (todo.description) {
@@ -435,29 +421,72 @@
                     }
                     <div class="todo-meta">{{ todoMeta(todo) }}</div>
                   </div>
-                  <button class="todo-delete" (click)="deleteAdminTask(todo.id); $event.stopPropagation()"
-                    title="Delete task">✕</button>
+                  @if (canModify(todo)) {
+                  <button class="todo-delete" [disabled]="isTodoPending(todo.id)"
+                    (click)="deleteTask(todo.id); $event.stopPropagation()"
+                    title="Delete task">{{ isTodoPending(todo.id) ? '…' : '✕' }}</button>
+                  }
                 </div>
+                } @empty {
+                <div class="todo-empty">{{ searchText()[card.key].trim() ? 'No matching tasks' : 'No tasks' }}</div>
                 }
               </div>
-              <div class="add-todo-form" (click)="$event.stopPropagation()">
-                <input #adminTitleInput type="text" class="add-todo-input" placeholder="+ Add task and press Enter..."
-                  (keyup.enter)="addAdminTask(adminTitleInput, adminDescInput)">
-                <input #adminDescInput type="text" class="add-todo-input" placeholder="Description (optional)"
-                  (keyup.enter)="addAdminTask(adminTitleInput, adminDescInput)">
-                <div class="add-todo-row">
-                  <p-datepicker [(ngModel)]="adminDueDate" appendTo="body" placeholder="Due date" class="add-todo-date" />
-                  <p-select [options]="assignees()" optionLabel="name" optionValue="id" [(ngModel)]="adminAssignee"
-                    appendTo="body" placeholder="Unassigned" [filter]="true" filterBy="name" [showClear]="true"
-                    class="add-todo-assignee" />
-                  <button type="button" class="k-btn-sm k-btn-primary add-todo-confirm"
-                    (click)="addAdminTask(adminTitleInput, adminDescInput)">Add</button>
+
+              @if (card.todos.length > pageSizeOptions[0]) {
+              <div class="todo-pager" (click)="$event.stopPropagation()">
+                <div class="todo-page-size">
+                  <span class="todo-pager-label">Show</span>
+                  @for (size of pageSizeOptions; track size) {
+                  <button type="button" class="todo-pager-btn" [class.active]="pageSize()[card.key] === size"
+                    (click)="setPageSize(card.key, size)">{{ size }}</button>
+                  }
+                </div>
+                <div class="todo-page-nav">
+                  <button type="button" class="todo-pager-btn" title="Previous page" [disabled]="card.currentPage <= 1"
+                    (click)="setPage(card.key, card.currentPage - 1)">‹</button>
+                  <span class="todo-pager-label">{{ card.currentPage }} / {{ card.totalPages }}</span>
+                  <button type="button" class="todo-pager-btn" title="Next page"
+                    [disabled]="card.currentPage >= card.totalPages"
+                    (click)="setPage(card.key, card.currentPage + 1)">›</button>
                 </div>
               </div>
+              }
+
+              @if (card.showForm) {
+              <div class="add-todo-form" (click)="$event.stopPropagation()">
+                <div class="add-todo-heading">Add task</div>
+                <input #titleInput type="text" class="add-todo-input mb-2" placeholder="Task title"
+                  (keyup.enter)="addTask(titleInput, descInput)">
+                <textarea #descInput class="add-todo-input add-todo-textarea" rows="3"
+                  placeholder="Description (optional)"></textarea>
+                <div class="add-todo-row">
+                  <p-datepicker [(ngModel)]="newDueDate" appendTo="body" placeholder="Due date" class="add-todo-date" />
+                  <p-multiselect [options]="assigneeOptions()" optionLabel="label" optionValue="id"
+                    [(ngModel)]="newAssigneeIds" appendTo="body" placeholder="Assign to..." [filter]="true"
+                    filterBy="label" [maxSelectedLabels]="1" selectedItemsLabel="{0} people"
+                    class="add-todo-assignee" />
+                  <button type="button" class="k-btn-sm k-btn-primary add-todo-confirm" [disabled]="isSubmitting()"
+                    (click)="addTask(titleInput, descInput)">{{ isSubmitting() ? 'Adding…' : 'Add task' }}</button>
+                </div>
+              </div>
+              }
             </div>
           </div>
         </div>
+        }
       </div>
+      } @else if (todosLoading()) {
+      <div class="card">
+        <div class="todo-empty" role="status">Loading tasks…</div>
+      </div>
+      }
+
+      @if (todoError(); as error) {
+      <p class="todo-error" role="alert">{{ error }}</p>
+      }
+      @if (kpiError(); as error) {
+      <p class="todo-error" role="alert">{{ error }}</p>
+      }
     </div>
 
     <!-- 3. FULL WEEKLY CALENDAR -->
@@ -481,34 +510,28 @@
       <div class="card" style="height: 100%;">
         <div class="card-header">
           <h2>System Types Breakdown</h2>
-          <span style="font-size: 12px; color: var(--k-mid-grey); font-weight: bold;">YTD</span>
+          <span style="font-size: 12px; color: var(--k-mid-grey); font-weight: bold;">All time (excl. Rejected)</span>
         </div>
 
         <div class="donut-wrapper" style="flex: 1;">
-          <div class="donut-chart">
+          <div class="donut-chart" [style.background]="systemTypeGradient()">
             <div class="donut-hole">
-              <span style="font-size: 28px; font-weight: 700; color: var(--k-black);">45</span>
+              <span style="font-size: 28px; font-weight: 700; color: var(--k-black);">{{ kpiLoading() || kpiError() ? '–' : systemTypeTotal() }}</span>
               <span
                 style="font-size: 11px; font-weight: 700; color: var(--k-mid-grey); text-transform: uppercase;">Total</span>
             </div>
           </div>
 
           <div class="donut-legend">
+            @for (slice of systemTypeSlices(); track slice.label) {
             <div class="legend-item">
-              <div class="legend-color" style="background: var(--k-accent-blue);"></div>
-              Hybrid
-              <span class="legend-sub">55% (25)</span>
+              <div class="legend-color" [style.background]="slice.color"></div>
+              {{ slice.label }}
+              <span class="legend-sub">
+                {{ kpiLoading() || kpiError() ? '–' : (slice.percent | number:'1.0-0') + '% (' + slice.count + ')' }}
+              </span>
             </div>
-            <div class="legend-item">
-              <div class="legend-color" style="background: var(--k-accent-green);"></div>
-              On-Grid
-              <span class="legend-sub">30% (13)</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-color" style="background: var(--k-red);"></div>
-              Off-Grid
-              <span class="legend-sub">15% (7)</span>
-            </div>
+            }
           </div>
         </div>
       </div>

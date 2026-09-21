@@ -293,9 +293,17 @@ h3 {
   color: var(--k-mid-grey);
 }
 
-.todo-item.done .todo-title {
-  text-decoration: line-through;
-  color: var(--k-mid-grey);
+// task ที่เสร็จแล้วเป็นเทาทั้ง item (หัวข้อ/รายละเอียด/meta) โดยขีดฆ่าเฉพาะหัวข้อ
+.todo-item.done {
+  .todo-title,
+  .todo-details,
+  .todo-meta {
+    color: var(--k-mid-grey);
+  }
+
+  .todo-title {
+    text-decoration: line-through;
+  }
 }
 
 .todo-delete {
@@ -317,13 +325,171 @@ h3 {
   &:hover {
     color: var(--k-red);
   }
+
+  // กำลังลบ: คงปุ่มให้มองเห็นแม้เมาส์ออกจากแถว ไม่งั้นผู้ใช้ไม่เห็นว่ากำลังทำงานอยู่
+  &:disabled {
+    opacity: 1;
+    cursor: default;
+  }
+}
+
+.todo-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 4px;
+}
+
+// icon + label บอกว่าแถวนี้คือ filter/ค้นหา
+.todo-filters-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--k-mid-grey);
+}
+
+// ช่องค้นหา pill เหมือน filter ทีม/คน — icon อยู่ซ้าย ปุ่มล้างอยู่ขวา (ทับบน input จึงต้อง padding เผื่อ)
+.todo-search {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+
+.todo-search-input {
+  width: 100%;
+  padding: 10px 34px 10px 38px;
+  border: 1px solid var(--k-mid-grey);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  outline: none;
+
+  &:focus {
+    border-color: var(--k-red);
+  }
+}
+
+.todo-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--k-mid-grey);
+  pointer-events: none;
+}
+
+.todo-search-clear {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  padding: 4px 6px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  font-size: 12px;
+  color: var(--k-mid-grey);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--k-red);
+  }
+}
+
+// filter ทีม/คนของ ceo/admin — pill เหมือนช่องอื่นในการ์ด (ต้อง ::ng-deep เพราะ label อยู่ใน PrimeNG)
+.todo-filter {
+  min-width: 160px;
+  border-radius: var(--radius-pill);
+
+  ::ng-deep .p-select-label {
+    padding-inline: 16px;
+  }
+}
+
+// แถวเลือกจำนวนต่อหน้า + เปลี่ยนหน้า (อยู่ใต้รายการ เหนือฟอร์ม Add task)
+.todo-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--k-light-grey);
+}
+
+.todo-page-size,
+.todo-page-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+// ชุดปุ่ม Show ด้านบนรายการ (ชุดเดียวกับที่อยู่ใน pager ด้านล่าง)
+.todo-page-size-top {
+  margin-top: 12px;
+}
+
+.todo-pager-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--k-mid-grey);
+}
+
+.todo-pager-btn {
+  min-width: 32px;
+  padding: 4px 10px;
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-pill);
+  background: var(--card-bg);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--k-dark-grey);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    border-color: var(--k-red);
+    color: var(--k-red);
+  }
+
+  &.active {
+    border-color: var(--k-red);
+    background: var(--k-red);
+    color: var(--k-white);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.todo-empty {
+  padding: 16px 0;
+  font-size: 13px;
+  color: var(--k-mid-grey);
+}
+
+.todo-error {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--k-red);
+}
+
+.todo-checkbox:disabled {
+  cursor: not-allowed;
 }
 
 .add-todo-input {
   width: 100%;
   padding: 12px 16px;
   border: 1px solid var(--k-mid-grey);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   font-size: 13px;
   outline: none;
   margin-top: 12px;
@@ -333,19 +499,38 @@ h3 {
   border-color: var(--k-red);
 }
 
+// แยก form เพิ่มงานออกจากรายการงานด้วยเส้นคั่น + panel พื้นเทาอ่อน
 .add-todo-form {
-  margin-top: 16px;
+  margin-top: 20px;
+  padding: 16px;
+  border-top: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-sm);
+  background: var(--bg-color);
 
-  .add-todo-input:first-child {
+  .add-todo-input:first-of-type {
     margin-top: 0;
   }
+}
+
+.add-todo-heading {
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--k-mid-grey);
+}
+
+// radius มาจาก .add-todo-input (radius-sm) เหมือนช่องอื่นในฟอร์ม
+.add-todo-textarea {
+  font-family: inherit;
+  resize: vertical;
 }
 
 .add-todo-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 12px;
 
   .add-todo-input {
     flex: 1;
@@ -353,12 +538,25 @@ h3 {
     margin-top: 0;
   }
 
+  // PrimeNG ไม่รับ style จาก .add-todo-input จึงต้องตั้ง radius ให้เองผ่าน ::ng-deep
   .add-todo-date {
     width: 140px;
+
+    ::ng-deep .p-datepicker-input {
+      border-radius: var(--radius-sm);
+      padding-inline: 16px;
+    }
   }
 
   .add-todo-assignee {
     width: 160px;
+    border-radius: var(--radius-sm);
+
+    // p-select (filter ทีม/คน) และ p-multiselect (ผู้รับงาน) ใช้ class label คนละชื่อ
+    ::ng-deep .p-select-label,
+    ::ng-deep .p-multiselect-label {
+      padding-inline: 16px;
+    }
   }
 
   .add-todo-confirm {
@@ -434,6 +632,9 @@ h3 {
   color: var(--k-dark-grey);
   margin-bottom: 6px;
   line-height: 1.4;
+  // description เป็น textarea หลายบรรทัด ต้องคงการขึ้นบรรทัดใหม่ และกัน URL ยาวๆ ล้น
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 /* Donut Chart Setup */
@@ -450,8 +651,7 @@ h3 {
   width: 180px;
   height: 180px;
   border-radius: 50%;
-  /* 55% Hybrid, 30% On-Grid, 15% Off-Grid */
-  background: conic-gradient(var(--k-accent-blue) 0% 55%, var(--k-accent-green) 55% 85%, var(--k-red) 85% 100%);
+  /* background (conic-gradient) มาจาก [style.background] ใน template ตามสัดส่วนจริง */
   position: relative;
 }
 
