@@ -1,0 +1,68 @@
+// override เฉพาะ padding/shadow/hover ตาม design-system.md (global .card ให้แค่ bg/border-radius/border)
+.card {
+    padding: 24px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    transition: all .3s ease;
+}
+
+.card:hover {
+    border: 1.5px solid var(--k-red);
+}
+
+.card-header {
+    border-bottom: 2px solid var(--bg-color);
+    margin-bottom: 16px;
+}
+
+.survey-photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.survey-photo-item {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--k-light-grey);
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+}
+
+.survey-photo-remove {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background-color: rgba(0, 0, 0, 0.55);
+    color: #fff;
+
+    &:hover:not(:disabled) {
+        background-color: var(--k-red);
+        color: #fff;
+    }
+}
+
+// รูปที่เลือกไว้แต่ยังไม่ได้กด Save Photos — ใช้เส้นประกันสับสนกับรูปที่บันทึกแล้วจริงบน backend
+.survey-photo-item--pending {
+    border: 2px dashed var(--k-mid-grey);
+}
+
+.survey-photo-pending-badge {
+    position: absolute;
+    bottom: 6px;
+    left: 6px;
+    background-color: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+}
+

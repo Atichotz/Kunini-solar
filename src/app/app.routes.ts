@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { EstimatePageComponent } from './pages/estimate-page/estimate-page.component';
+import { SurveyPageComponent } from './pages/survey-page/survey-page.component';
 import { BatteryGuideComponent } from './pages/battery-guide/battery-guide.component';
 import { CalculatorsPageComponent } from './pages/calculators-page/calculators-page.component';
 import { DashboardComponent } from './pages/dashboard/dashboard.component';
@@ -26,6 +27,7 @@ export const routes: Routes = [
       { path: 'workflow', component: WorkflowPageComponent },
       { path: 'dashboard', component: DashboardComponent },
       { path: 'estimate', component: EstimatePageComponent },
+      { path: 'survey', component: SurveyPageComponent },
       { path: 'pdf-bos-preview', component: PdfBosPreviewComponent },
       { path: 'battery-guide', component: BatteryGuideComponent },
       { path: 'calculators', component: CalculatorsPageComponent },
