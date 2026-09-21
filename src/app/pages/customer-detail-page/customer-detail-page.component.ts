@@ -13,6 +13,7 @@ import { forkJoin, of } from 'rxjs';
 import { CustomerService } from '../../services/customer.service';
 import { EstimateService } from '../../services/estimate.service';
 import { SurveyService } from '../../services/survey.service';
+import { PermissionService } from '../../services/permission.service';
 import { KLoadingComponent } from '../../k-loading/k-loading.component';
 import type { CustomerDetail, ElectricBillDetail, NoteDetail, StatusOption, UpsertContactPayload } from '../../dto/customer.dto';
 import type { EstimateDetail, EstimateSummary } from '../../dto/estimate.dto';
@@ -76,7 +77,7 @@ interface EstimateHistoryRow {
   isDraft: boolean;
   dateIso: string;
   author: string;
-  grandTotal: number;
+  grandTotal: number | null;
 }
 
 interface SurveyHistoryRow {
@@ -121,6 +122,11 @@ export class CustomerDetailPageComponent implements OnInit {
   private readonly customerService = inject(CustomerService);
   private readonly estimateService = inject(EstimateService);
   private readonly surveyService = inject(SurveyService);
+  // ใช้ซ่อนปุ่ม/ข้อมูลตาม role เพื่อ UX เท่านั้น — สิทธิ์จริงบังคับที่ backend
+  private readonly permission = inject(PermissionService);
+  readonly canManage = this.permission.canManage;
+  readonly canCreateQuotation = this.permission.canCreateQuotation;
+  readonly canSeePrice = this.permission.canSeePrice;
   private readonly destroyRef = inject(DestroyRef);
 
   customer: CustomerDetail | null = null;
@@ -145,7 +151,7 @@ export class CustomerDetailPageComponent implements OnInit {
   get estimateHistoryRows(): EstimateHistoryRow[] {
     return this.estimates.map((e) => ({
       id: e.id,
-      title: e.status === 'final' ? `Estimate v${e.versionNo}` : 'Estimate (Draft)',
+      title: e.status === 'final' ? `Quotation v${e.versionNo}` : 'Quotation (Draft)',
       badgeLabel: e.status === 'final' ? 'Final' : 'Draft',
       isDraft: e.status === 'draft',
       dateIso: (e.status === 'final' ? e.finalizedAt : e.updatedAt) ?? e.createdAt,

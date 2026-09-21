@@ -9,6 +9,7 @@ import { TooltipModule } from 'primeng/tooltip';
 import { ButtonModule } from 'primeng/button';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
+import { PermissionService } from '../../services/permission.service';
 import { Router } from '@angular/router';
 import { NewCustomerPageComponent } from '../new-customer-page/new-customer-page.component';
 import { NewCustomerSuccessPopupComponent } from '../../popups/new-customer-success-popup/new-customer-success-popup.component';
@@ -105,6 +106,12 @@ export class WorkflowPageComponent implements OnInit, OnDestroy {
   private workflowService = inject(WorkflowService);
   private messageService = inject(MessageService);
   private ngZone = inject(NgZone);
+  private readonly permission = inject(PermissionService);
+
+  // ย้ายการ์ดข้าม column = เปลี่ยน status ซึ่งเฉพาะ ceo/admin (backend ตอบ 403 อยู่แล้ว) — role อื่นยังจัดลำดับใน column เดิมได้
+  // arrow function เพราะ CDK เรียก predicate โดยไม่ bind this
+  readonly canEnterColumn = (drag: CdkDrag, drop: CdkDropList): boolean =>
+    this.permission.canManage() || drag.dropContainer === drop;
 
   private sourceColumns = signal<WorkflowColumn[]>(
     COLUMN_DEFS.map(def => ({ ...def, cards: [] }))

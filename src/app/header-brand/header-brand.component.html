@@ -7,6 +7,17 @@
     </div>
   </div>
   <div class="brand-right">
+    @if (userName()) {
+    <div class="user-chip" [attr.title]="userName()">
+      @if (avatarUrl(); as url) {
+      <img class="user-avatar" [src]="url" alt="" referrerpolicy="no-referrer" (error)="onAvatarError()" />
+      } @else {
+      <span class="user-avatar user-avatar-fallback" aria-hidden="true">{{ userInitial() }}</span>
+      }
+      <span class="user-name">{{ userName() }}</span>
+    </div>
+    <span class="user-divider" aria-hidden="true"></span>
+    }
     <a class="solar-guide-link" [routerLink]="'/dashboard'">
       Dashboard
     </a>

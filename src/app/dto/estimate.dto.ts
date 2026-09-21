@@ -103,7 +103,8 @@ export interface EstimateSummary {
   id: string;
   status: 'draft' | 'final';
   versionNo: number | null;
-  grandTotal: number;
+  // null = backend ซ่อนราคาตาม role (technician)
+  grandTotal: number | null;
   totalKw: number;
   createdAt: string;
   updatedAt: string;

@@ -1574,9 +1574,11 @@
         <button class="k-btn k-btn-outline" [disabled]="saving() || !customerId" (click)="onSaveDraft()">
           @if (saving() && !finalizing()) { <i class="fas fa-spinner fa-spin"></i> }
           Save Draft</button>
+        @if (canFinalize()) {
         <button class="k-btn k-btn-primary" [disabled]="saving() || !customerId" (click)="onSave()">
           @if (saving() && finalizing()) { <i class="fas fa-spinner fa-spin"></i> }
           Save</button>
+        }
         <button class="k-btn k-btn-primary" (click)="onExportPdf()">Export to PDF</button>
       </div>
     </div>

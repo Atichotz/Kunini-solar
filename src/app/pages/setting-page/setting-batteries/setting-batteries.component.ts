@@ -79,7 +79,7 @@ export class SettingBatteriesComponent implements OnInit {
   private readonly messageService = inject(MessageService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly destroyRef = inject(DestroyRef);
-  readonly canManage = inject(PermissionService).canManage;
+  readonly canManage = inject(PermissionService).canManageProducts;
 
   rows: BatteryRow[] = [];
   accessoryRows: AccessoryRow[] = [];

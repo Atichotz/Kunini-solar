@@ -25,9 +25,11 @@
                     <button class="k-btn-sm k-btn-outline" [disabled]="isSavingName" (click)="cancelEditName()">Cancel</button>
                     } @else {
                     <div class="client-name">{{ customer.displayName }}</div>
+                    @if (canManage()) {
                     <button class="k-btn-sm k-btn-outline" [disabled]="!customer" (click)="startEditName()">
                         <i class="fa-solid fa-pen"></i> Edit
                     </button>
+                    }
                     }
                 </div>
                 @if (isEditingName && nameErrorMessage) {
@@ -37,8 +39,10 @@
             </div>
         </div>
         <div class="flex gap-2 header-buttons">
+            @if (canCreateQuotation()) {
             <button class="k-btn-sm k-btn-primary" [routerLink]="'/estimate'"
                 [queryParams]="{customerId: customer.id}">Quotation</button>
+            }
             <button class="k-btn-sm k-btn-primary" [routerLink]="'/survey'"
                 [queryParams]="{customerId: customer.id}">Survey</button>
             <button class="k-btn-sm k-btn-primary">Scope Of Work</button>
@@ -105,6 +109,7 @@
                             <td><span class="contact-type-badge" [class]="'type-' + contact.type.toLowerCase()">{{
                                     contact.type }}</span></td>
                             <td class="action-cell">
+                                @if (canManage()) {
                                 @if (contact.type !== 'Primary') {
                                 <button class="btn-icon btn-set-primary" [disabled]="contact.isSaving"
                                     (click)="setPrimaryContact(contact)" title="Set as Primary">
@@ -115,6 +120,7 @@
                                     [disabled]="contact.isDeleting || contact.type === 'Primary'"
                                     [title]="contact.type === 'Primary' ? 'Cannot remove the Primary contact' : 'Remove'"
                                     (click)="removeContact(contact.id)">{{ contact.isDeleting ? '…' : '✕' }}</button>
+                                }
                             </td>
                             }
                         </tr>
@@ -126,9 +132,11 @@
                 <div class="text-sm mt-2" style="color: var(--k-red);">{{ contactErrorMessage }}</div>
                 }
 
+                @if (canManage()) {
                 <div class="mt-4">
                     <button class="k-btn btn-text" (click)="addContact()">+ Add Another Contact</button>
                 </div>
+                }
 
                 <div class="divider"></div>
 
@@ -192,11 +200,13 @@
                         (click)="cancelEditInfo()">Cancel</button>
                 </div>
                 } @else {
+                @if (canManage()) {
                 <div class="flex justify-end mb-2">
                     <button type="button" class="k-btn-sm k-btn-outline" (click)="startEditInfo()">
                         <i class="fa-solid fa-pen"></i> Edit
                     </button>
                 </div>
+                }
 
                 <div class="info-group">
                     <span class="info-label">Address</span>
@@ -257,7 +267,7 @@
                     <h2>Status</h2>
                     <p-select [options]="statusList" class="status-select" [(ngModel)]="statusSelected"
                         optionLabel="status_name" optionValue="id" placeholder="Select a status"
-                        [disabled]="!customer || isSavingStatus" [loading]="isSavingStatus"
+                        [disabled]="!customer || isSavingStatus || !canManage()" [loading]="isSavingStatus"
                         (onChange)="onStatusChange($event.value)">
                     </p-select>
                 </div>
@@ -326,6 +336,7 @@
                             }
                         </span>
                     </div>
+                    @if (canSeePrice()) {
                     <div class="divider" style="margin: 8px 0;"></div>
 
                     <div class="flex justify-between items-center">
@@ -339,6 +350,7 @@
                             }
                         </span>
                     </div>
+                    }
                 </div>
                 }
             </div>
@@ -514,8 +526,10 @@
                         <span class="badge" [class.badge-final]="!row.isDraft">{{ row.badgeLabel }}</span>
                     </a>
                     <div class="item-meta" style="text-align: right;">
-                        {{ row.dateIso | date:'dd MMM yyyy' }} • by <strong>{{ row.author }}</strong> •
-                        ฿{{ row.grandTotal | number:'1.0-0' }}
+                        {{ row.dateIso | date:'dd MMM yyyy' }} • by <strong>{{ row.author }}</strong>
+                        @if (canSeePrice() && row.grandTotal !== null) {
+                        • ฿{{ row.grandTotal | number:'1.0-0' }}
+                        }
                     </div>
                     } @else {
                     <a [routerLink]="'/survey'" [queryParams]="{customerId: customer.id, surveyId: row.id}"

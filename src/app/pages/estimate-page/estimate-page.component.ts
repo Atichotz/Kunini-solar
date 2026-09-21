@@ -21,6 +21,7 @@ import { CustomerService } from '../../services/customer.service';
 import { EstimateService } from '../../services/estimate.service';
 import { QuotationPreviewService } from '../../services/quotation-preview.service';
 import { AuthService } from '../../services/auth.service';
+import { PermissionService } from '../../services/permission.service';
 import { salesRepNameOf, splitRemarkLines } from '../../quotation-snapshot.util';
 import { QUOTATION_HARDCODE } from '../pdf-bos-preview/quotation-hardcode';
 import type { QuotationLineRow, QuotationSnapshot } from '../../dto/quotation.dto';
@@ -103,6 +104,8 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly customerService = inject(CustomerService);
   private readonly quotationPreview = inject(QuotationPreviewService);
   private readonly authService = inject(AuthService);
+  // technician บันทึกได้แค่ draft — ซ่อนปุ่ม Save (finalize) เพื่อ UX, backend บังคับ 403 อยู่แล้ว
+  readonly canFinalize = inject(PermissionService).canCreateQuotation;
   private readonly destroyRef = inject(DestroyRef);
 
   // customer id ที่มาจากหน้า Customer Detail (ผ่าน query param) — ใช้พาผู้ใช้กลับไปหน้าลูกค้าคนเดิมตอนกด X / Save Draft
@@ -622,7 +625,9 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
           console.error('[API] Failed to save estimate:', err);
           const detail = err?.status === 409
             ? 'This estimate was already finalized elsewhere. Please reopen the page'
-            : 'Please try again';
+            : err?.status === 403
+              ? 'Your role can only edit an existing draft'
+              : 'Please try again';
           this.messageService.add({ severity: 'error', summary: 'Save Failed', detail, life: 4000 });
         },
       });

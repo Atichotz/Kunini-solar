@@ -62,7 +62,7 @@ export class SettingBOSComponent implements OnInit {
   private readonly messageService = inject(MessageService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly destroyRef = inject(DestroyRef);
-  readonly canManage = inject(PermissionService).canManage;
+  readonly canManage = inject(PermissionService).canManageProducts;
 
   private readonly categoryApi: Record<BosCategory, CategoryApi> = {
     cables: {

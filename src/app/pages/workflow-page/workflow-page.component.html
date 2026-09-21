@@ -45,7 +45,7 @@
       </div>
 
       <div class="card-list" cdkDropList cdkScrollable [id]="col.id.toString()" [cdkDropListData]="col.cards"
-        [cdkDropListConnectedTo]="columnIds" (cdkDropListDropped)="drop($event, col.id)">
+        [cdkDropListConnectedTo]="columnIds" [cdkDropListEnterPredicate]="canEnterColumn" (cdkDropListDropped)="drop($event, col.id)">
         @for (card of col.cards; track card.id) {
         <div class="card" cdkDrag (click)="openDetail(card)">
           <div class="card-drag-preview" *cdkDragPreview>
