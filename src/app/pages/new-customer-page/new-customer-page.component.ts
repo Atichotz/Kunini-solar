@@ -73,6 +73,8 @@ export class NewCustomerPageComponent implements OnInit {
   }
 
   onSave(): void {
+    if (this.isSaving) return;
+
     this.touched = true;
     if (!this.isValid) return;
 

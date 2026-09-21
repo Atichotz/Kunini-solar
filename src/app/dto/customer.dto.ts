@@ -24,6 +24,47 @@ export interface ElectricBillDetail {
   fileUrl: string | null;
 }
 
+export interface UpsertContactPayload {
+  firstname: string;
+  lastname?: string;
+  tel?: string;
+  email?: string;
+  isPrimary?: boolean;
+}
+
+export interface NoteDetail {
+  id: string;
+  text: string;
+  createdAt: string;
+  createdBy: string;
+  // backend คำนวณให้ (เจ้าของโน้ต หรือ ceo/admin) — ใช้ซ่อนปุ่มลบเท่านั้น สิทธิ์จริงบังคับที่ backend
+  canDelete: boolean;
+}
+
+export interface CreateNotePayload {
+  text: string;
+}
+
+export interface UpdateCustomerNamePayload {
+  displayName: string;
+}
+
+export interface UpdateCustomerDetailsPayload {
+  fullAddress: string;
+  googleMapsLink: string | null;
+  projectLocationName: string;
+  typeOfCustomerName: string;
+  typeOfSystemName: string;
+}
+
+export interface CustomerDetailsResult {
+  fullAddress: string | null;
+  googleMapsLink: string | null;
+  projectLocationName: string | null;
+  typeOfCustomerName: string | null;
+  typeOfSystemName: string | null;
+}
+
 export interface SaveElectricBillPayload {
   billName?: string;
   billAmount?: number;
@@ -41,6 +82,8 @@ export interface CustomerDetail {
   typeOfSystemName: string | null;
   statusId: number | null;
   createdAt: string;
+  fullAddress: string | null;
+  googleMapsLink: string | null;
   contacts: ContactDetail[];
   electricBill: ElectricBillDetail | null;
 }

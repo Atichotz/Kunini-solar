@@ -1,4 +1,5 @@
 <div class="workflow-wrapper">
+  <p-toast></p-toast>
   @if(!isLoading()) {
   <nav class="wf-nav-bar"  >
     <div class="wf-nav-main">
@@ -25,6 +26,13 @@
   @if (isLoading()) {
   <app-k-loading></app-k-loading>
   <!-- <div class="loading-state">Loading customers…</div> -->
+  } @else if (loadError()) {
+  <div class="flex flex-col items-center gap-3 p-8" role="alert">
+    <p class="text-sm" style="color: var(--k-red);">{{ loadError() }}</p>
+    <button class="k-btn k-btn-outline" type="button" (click)="retryLoad()">
+      <i class="fa-solid fa-rotate-right"></i>&nbsp; Retry
+    </button>
+  </div>
   } @else {
   <div class="board" cdkDropListGroup>
     @for (col of columns(); track col.id) {
@@ -52,8 +60,10 @@
             </span>
           </div>
           <div class="flex flex-wrap items-center justify-between">
+            @if (card.price !== null) {
             <div class="card-price">{{ formatPrice(card.price) }}</div>
-            <span class="card-date">{{ card.date }}</span>
+            }
+            <span class="card-date ml-auto">{{ card.date }}</span>
           </div>
           <div class="card-footer">
             <div class="card-tags">

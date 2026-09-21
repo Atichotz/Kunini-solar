@@ -7,15 +7,27 @@ import { AuthService } from './auth.service';
 export interface Customer {
   id: string;
   name: string;
-  price: number;
+  price: number | null; // ผลรวม estimate final ทุกใบ — null ถ้า role ไม่ใช่ ceo/admin
   systemSize: string;
   date: string;
   statusId: number;
+  installedAt: string | null;
   tagsLocation: string[];
   tagsCustomer: string[];
   tagsSystem: string[];
   tagsTotal: string[];
 }
+
+// ตรงกับ status.id ในตาราง status ของ DB — ใช้ร่วมกันระหว่าง workflow-page และ dashboard
+export const WORKFLOW_STATUS = {
+  NEED_ANALYSIS: 1,
+  PROPOSED: 2,
+  ON_GOING: 3,
+  ON_HOLD_REVIEW: 4,
+  TO_BE_INSTALLED: 5,
+  INSTALLED: 6,
+  REJECTED: 7,
+} as const;
 
 export interface CustomerStatusUpdate {
   id: string;

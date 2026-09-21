@@ -1,32 +1,36 @@
 import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ConfirmationService } from 'primeng/api';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { CustomerService } from '../../services/customer.service';
 import { EstimateService } from '../../services/estimate.service';
-import type { CustomerDetail, ElectricBillDetail, StatusOption } from '../../dto/customer.dto';
+import { SurveyService } from '../../services/survey.service';
+import { KLoadingComponent } from '../../k-loading/k-loading.component';
+import type { CustomerDetail, ElectricBillDetail, NoteDetail, StatusOption, UpsertContactPayload } from '../../dto/customer.dto';
 import type { EstimateDetail, EstimateSummary } from '../../dto/estimate.dto';
+import type { SurveyHistoryItem } from '../../dto/survey.dto';
 
 interface Contact {
   id: string;
-  name: string;
+  firstname: string;
+  lastname: string;
   phone: string;
   email: string;
   type: 'Primary' | 'Secondary' | 'Other';
   isEditing: boolean;
+  isSaving?: boolean;
+  isDeleting?: boolean;
 }
 
-interface Note {
-  id: number;
-  text: string;
-  date: Date;
-  author: string;
-}
+type Note = NoteDetail;
 
 interface SelectOption {
   label: string;
@@ -42,6 +46,26 @@ interface ElectricBillForm {
   kwhPerMonth: number | null;
 }
 
+// ต้องตรงกับ NOTE_MAX_LENGTH / CUSTOMER_NAME_MAX_LENGTH ใน backend (dto/note.dto.ts, dto/update-customer-name.dto.ts)
+const NOTE_MAX_LENGTH = 2000;
+const CUSTOMER_NAME_MAX_LENGTH = 100;
+const CUSTOMER_ADDRESS_MAX_LENGTH = 500;
+const GOOGLE_MAPS_LINK_MAX_LENGTH = 2000;
+
+// ค่าชุดเดียวกับที่ backend (UpdateCustomerDetailsDto) อนุญาต
+const LOCATION_OPTIONS = ['Pattaya', 'Huahin', 'Bangkok', 'Up Country'] as const;
+const PROJECT_TYPE_OPTIONS = ['Residential', 'Commercial', 'Upgrade'] as const;
+const SYSTEM_TYPE_OPTIONS = ['On-Grid', 'Off-Grid', 'Hybrid'] as const;
+
+// draft ของ Client Information — ฟิลด์ tag เป็น null ได้ (ลูกค้าเก่าที่ยังไม่เคยมีค่า) แต่ต้องเลือกก่อนบันทึก
+interface CustomerInfoDraft {
+  fullAddress: string;
+  googleMapsLink: string;
+  projectLocationName: string | null;
+  typeOfCustomerName: string | null;
+  typeOfSystemName: string | null;
+}
+
 const ELECTRIC_BILL_ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 const ELECTRIC_BILL_MAX_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -55,6 +79,26 @@ interface EstimateHistoryRow {
   grandTotal: number;
 }
 
+interface SurveyHistoryRow {
+  id: string;
+  dateIso: string;
+  author: string;
+  photoCount: number;
+  noteCount: number;
+  wasUpdated: boolean;
+}
+
+// เพิ่ม field `kind` ให้ template แยกประเภทด้วย @if ได้โดยไม่ต้อง cast
+type HistoryTimelineRow =
+  | ({ kind: 'estimate' } & EstimateHistoryRow)
+  | ({ kind: 'survey' } & SurveyHistoryRow);
+
+// in: ISO date string → out: epoch ms (parse ไม่ได้คืน 0 เพราะ NaN ทำให้ sort ได้ลำดับไม่คงที่)
+function toTimestamp(iso: string): number {
+  const timestamp = Date.parse(iso);
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
 // สรุปตัวเลข "ระบบ" ของ estimate ใบเดียว หรือผลรวมของหลายใบ (0 → null เพื่อให้ template โชว์ "—" แทน "0 kWh")
 interface SystemFigures {
   kwp: number | null;
@@ -66,18 +110,28 @@ interface SystemFigures {
 
 @Component({
   selector: 'app-customer-detail-page',
-  imports: [CommonModule, FormsModule, FloatLabelModule, InputTextModule, SelectModule, RouterLink],
+  imports: [CommonModule, FormsModule, FloatLabelModule, InputTextModule, SelectModule, ConfirmDialogModule, RouterLink, KLoadingComponent],
+  providers: [ConfirmationService],
   templateUrl: './customer-detail-page.component.html',
   styleUrl: './customer-detail-page.component.scss'
 })
 export class CustomerDetailPageComponent implements OnInit {
+  private readonly confirmationService = inject(ConfirmationService);
   private readonly route = inject(ActivatedRoute);
   private readonly customerService = inject(CustomerService);
   private readonly estimateService = inject(EstimateService);
+  private readonly surveyService = inject(SurveyService);
   private readonly destroyRef = inject(DestroyRef);
 
   customer: CustomerDetail | null = null;
+  // true จนกว่า customer หลักโหลดเสร็จ — ทั้งหน้า (contacts, ฟอร์มค่าไฟ, ปุ่ม) พึ่งข้อมูลนี้ จึงยังไม่ render ระหว่างรอ
   isLoading = true;
+  customerLoadError = '';
+
+  // list ย่อยโหลดแยกกันและเสร็จไม่พร้อมกัน — ใช้แสดง Loading… แทนข้อความ "No … yet" ที่จะโผล่ผิดจังหวะ
+  isLoadingEstimates = true;
+  isLoadingSurveys = true;
+  isLoadingNotes = true;
 
   estimates: EstimateSummary[] = [];
 
@@ -100,16 +154,67 @@ export class CustomerDetailPageComponent implements OnInit {
     }));
   }
 
+  surveys: SurveyHistoryItem[] = [];
+  surveyHistoryErrorMessage = '';
+
+  get surveyHistoryRows(): SurveyHistoryRow[] {
+    return this.surveys.map((s) => ({
+      id: s.id,
+      dateIso: s.updatedAt !== s.createdAt ? s.updatedAt : s.createdAt,
+      author: s.createdBy ?? '—',
+      photoCount: s.photoCount,
+      noteCount: s.noteCount,
+      wasUpdated: s.updatedAt !== s.createdAt,
+    }));
+  }
+
+  // รวม estimate + survey เป็น timeline เดียว เรียงใหม่→เก่า (in: estimateHistoryRows, surveyHistoryRows / out: HistoryTimelineRow[])
+  get historyTimelineRows(): HistoryTimelineRow[] {
+    const estimateRows = this.estimateHistoryRows.map((row) => ({ kind: 'estimate' as const, ...row }));
+    const surveyRows = this.surveyHistoryRows.map((row) => ({ kind: 'survey' as const, ...row }));
+    return [...estimateRows, ...surveyRows].sort((a, b) => toTimestamp(b.dateIso) - toTimestamp(a.dateIso));
+  }
+
+  get isLoadingHistory(): boolean {
+    return this.isLoadingEstimates || this.isLoadingSurveys;
+  }
+
   contacts: Contact[] = [];
+  contactErrorMessage = '';
   statusList: StatusOption[] = [];
   statusSelected: number | null = null;
+  // ค่าที่ backend บันทึกล่าสุด — ใช้ rollback dropdown ถ้าบันทึกไม่สำเร็จ
+  private savedStatusId: number | null = null;
+  isSavingStatus = false;
+  statusErrorMessage = '';
 
   private nextTempId = 0;
-  private nextNoteId = 1;
+
+  readonly noteMaxLength = NOTE_MAX_LENGTH;
+  readonly customerNameMaxLength = CUSTOMER_NAME_MAX_LENGTH;
 
   notes: Note[] = [];
   showNoteForm = false;
   newNoteText = '';
+  isSavingNote = false;
+  deletingNoteId: string | null = null;
+  noteErrorMessage = '';
+
+  isEditingName = false;
+  isSavingName = false;
+  nameDraft = '';
+  nameErrorMessage = '';
+
+  readonly customerAddressMaxLength = CUSTOMER_ADDRESS_MAX_LENGTH;
+  readonly googleMapsLinkMaxLength = GOOGLE_MAPS_LINK_MAX_LENGTH;
+  readonly locationOptions = LOCATION_OPTIONS;
+  readonly projectTypeOptions = PROJECT_TYPE_OPTIONS;
+  readonly systemTypeOptions = SYSTEM_TYPE_OPTIONS;
+
+  isEditingInfo = false;
+  isSavingInfo = false;
+  infoDraft: CustomerInfoDraft = this.createEmptyInfoDraft();
+  infoErrorMessage = '';
 
   readonly electricityOptions: SelectOption[] = [
     { label: 'Residential (TOU)', value: 'residential-tou' },
@@ -140,7 +245,11 @@ export class CustomerDetailPageComponent implements OnInit {
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
-    if (!id) return;
+    if (!id) {
+      this.customerLoadError = 'Customer not found';
+      this.isLoading = false;
+      return;
+    }
 
     this.customerService.getStatuses().subscribe({
       next: (statuses) => { this.statusList = statuses; },
@@ -150,11 +259,37 @@ export class CustomerDetailPageComponent implements OnInit {
     this.estimateService.listByCustomer(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (estimates) => {
         this.estimates = estimates;
+        this.isLoadingEstimates = false;
         this.loadSystemDetails(estimates);
       },
       error: (err) => {
         console.error('[API] Failed to load estimate history:', err);
+        this.isLoadingEstimates = false;
         this.isLoadingSystem = false;
+      },
+    });
+
+    this.surveyService.listByCustomer(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (surveys) => {
+        this.surveys = surveys;
+        this.isLoadingSurveys = false;
+      },
+      error: (err) => {
+        console.error('[API] Failed to load survey history:', err);
+        this.isLoadingSurveys = false;
+        this.surveyHistoryErrorMessage = 'Failed to load survey history';
+      },
+    });
+
+    this.customerService.listNotes(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (notes) => {
+        this.notes = notes;
+        this.isLoadingNotes = false;
+      },
+      error: (err) => {
+        console.error('[API] Failed to load notes:', err);
+        this.isLoadingNotes = false;
+        this.noteErrorMessage = 'Failed to load notes';
       },
     });
 
@@ -162,9 +297,11 @@ export class CustomerDetailPageComponent implements OnInit {
       next: (data) => {
         this.customer = data;
         this.statusSelected = data.statusId;
+        this.savedStatusId = data.statusId;
         this.contacts = data.contacts.map(c => ({
           id: c.id,
-          name: `${c.firstname ?? ''} ${c.lastname ?? ''}`.trim(),
+          firstname: c.firstname ?? '',
+          lastname: c.lastname ?? '',
           phone: c.tel ?? '',
           email: c.email ?? '',
           type: c.isPrimary ? 'Primary' : 'Secondary',
@@ -173,8 +310,9 @@ export class CustomerDetailPageComponent implements OnInit {
         this.applyElectricBill(data.electricBill);
         this.isLoading = false;
       },
-      error: (err) => {
+      error: (err: HttpErrorResponse) => {
         console.error('[API] Failed to load customer:', err);
+        this.customerLoadError = err.status === 404 ? 'Customer not found' : 'Failed to load customer. Please try again';
         this.isLoading = false;
       },
     });
@@ -218,7 +356,7 @@ export class CustomerDetailPageComponent implements OnInit {
         },
         error: (err) => {
           console.error('[API] Failed to load system details:', err);
-          this.systemErrorMessage = 'โหลดข้อมูล System Details ไม่สำเร็จ';
+          this.systemErrorMessage = 'Failed to load system details';
           this.isLoadingSystem = false;
         },
       });
@@ -235,7 +373,8 @@ export class CustomerDetailPageComponent implements OnInit {
     const batteryKwh = sumMainKw(detail.batteryItems);
 
     return {
-      kwp: detail.totalKw > 0 ? detail.totalKw : null,
+      // estimates.total_kw = ผลรวม W ของ panel (panels.kw เก็บเป็น W) → หาร 1000 เป็น kWp
+      kwp: detail.totalKw > 0 ? detail.totalKw / 1000 : null,
       inverterKw: inverterKw > 0 ? inverterKw : null,
       batteryKwh: batteryKwh > 0 ? batteryKwh : null,
       systemPrice: detail.grandTotal > 0 ? detail.grandTotal : null,
@@ -261,10 +400,36 @@ export class CustomerDetailPageComponent implements OnInit {
     };
   }
 
+  // input: status id ที่ผู้ใช้เลือกใน dropdown — output: ไม่มี, บันทึกลง backend; ถ้าพลาดคืนค่า dropdown กลับเป็นค่าที่บันทึกไว้
+  onStatusChange(newStatusId: number | null): void {
+    if (!this.customer || newStatusId === null || this.isSavingStatus) return;
+    if (newStatusId === this.savedStatusId) return;
+
+    this.isSavingStatus = true;
+    this.statusErrorMessage = '';
+
+    this.customerService.updateStatus(this.customer.id, newStatusId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.savedStatusId = newStatusId;
+          this.isSavingStatus = false;
+        },
+        error: (err: HttpErrorResponse) => {
+          console.error('[API] Failed to update status:', err);
+          this.statusSelected = this.savedStatusId;
+          this.isSavingStatus = false;
+          this.statusErrorMessage = 'Failed to update status. Please try again';
+        },
+      });
+  }
+
   addContact(): void {
+    this.contactErrorMessage = '';
     this.contacts.push({
       id: `new-${this.nextTempId++}`,
-      name: '',
+      firstname: '',
+      lastname: '',
       phone: '',
       email: '',
       type: 'Other',
@@ -272,38 +437,342 @@ export class CustomerDetailPageComponent implements OnInit {
     });
   }
 
+  // input: contact ที่กำลังแก้ (แถวใหม่จาก addContact() เท่านั้น — ยังไม่รองรับแก้ contact ที่ save แล้ว)
+  // output: ไม่มี — เรียก API สร้าง contact จริง, ถ้าสำเร็จเอา id จริงมาแทน temp id
   saveContact(contact: Contact): void {
-    contact.isEditing = false;
+    if (!this.customer || contact.isSaving) return;
+
+    const firstname = contact.firstname.trim();
+    if (!firstname) {
+      this.contactErrorMessage = 'Please enter a name';
+      return;
+    }
+
+    const payload: UpsertContactPayload = {
+      firstname,
+      lastname: contact.lastname.trim() || undefined,
+      tel: contact.phone.trim() || undefined,
+      email: contact.email.trim() || undefined,
+      isPrimary: contact.type === 'Primary',
+    };
+
+    this.contactErrorMessage = '';
+    contact.isSaving = true;
+
+    this.customerService.addContact(this.customer.id, payload).subscribe({
+      next: (saved) => {
+        contact.id = saved.id;
+        contact.isSaving = false;
+        contact.isEditing = false;
+        // ถ้า contact นี้ถูกตั้งเป็น Primary ต้องเคลียร์ primary ของตัวอื่นในหน้าจอด้วย (backend เคลียร์ให้แล้ว แต่ local state ยังไม่รู้)
+        if (saved.isPrimary) {
+          this.contacts.forEach(c => { if (c.id !== contact.id) c.type = c.type === 'Primary' ? 'Secondary' : c.type; });
+        }
+      },
+      error: (err) => {
+        console.error('[API] Failed to save contact:', err);
+        contact.isSaving = false;
+        this.contactErrorMessage = 'Failed to save contact. Please try again';
+      },
+    });
   }
 
+  // input: contact id (temp id ถ้ายังไม่เคย save, หรือ UUID จริงถ้า save แล้ว)
+  // output: ไม่มี — ถ้ายังไม่เคย save แค่ตัดออกจาก local array, ถ้า save แล้วเรียก API ลบจริง
   removeContact(id: string): void {
-    this.contacts = this.contacts.filter(c => c.id !== id);
+    const contact = this.contacts.find(c => c.id === id);
+    if (!contact || contact.isDeleting) return;
+
+    if (id.startsWith('new-')) {
+      this.contacts = this.contacts.filter(c => c.id !== id);
+      return;
+    }
+
+    if (contact.type === 'Primary') {
+      this.contactErrorMessage = 'Cannot delete the Primary contact. Set another contact as Primary first';
+      return;
+    }
+
+    if (!this.customer) return;
+    if (this.contacts.length <= 1) {
+      this.contactErrorMessage = 'At least one contact is required and cannot be deleted';
+      return;
+    }
+
+    const contactName = [contact.firstname, contact.lastname].filter(Boolean).join(' ').trim() || 'this contact';
+    this.confirmationService.confirm({
+      header: 'Confirm Delete',
+      message: `Remove ${contactName} from contacts?`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => this.deleteContact(id),
+    });
+  }
+
+  // ทำไมหา contact ใหม่: ระหว่างรอผู้ใช้กดยืนยัน list อาจเปลี่ยนแล้ว (เช่น กำลังลบอยู่ หรือถูกลบไปแล้ว) — อ้างด้วย id ไม่ใช้ตัวแปรเดิม
+  private deleteContact(id: string): void {
+    const contact = this.contacts.find(c => c.id === id);
+    if (!this.customer || !contact || contact.isDeleting) return;
+
+    this.contactErrorMessage = '';
+    contact.isDeleting = true;
+
+    this.customerService.deleteContact(this.customer.id, id).subscribe({
+      next: () => {
+        this.contacts = this.contacts.filter(c => c.id !== id);
+      },
+      error: (err) => {
+        console.error('[API] Failed to delete contact:', err);
+        contact.isDeleting = false;
+        this.contactErrorMessage = 'Failed to delete contact. Please try again';
+      },
+    });
+  }
+
+  // input: contact ที่ save แล้ว (มี UUID จริง) และยังไม่ใช่ Primary
+  // output: ไม่มี — เรียก API ตั้งเป็น Primary, ส่ง field เดิมของ contact นี้ไปด้วยทั้งหมดกันข้อมูล tel/email ถูกเขียนทับเป็น null
+  setPrimaryContact(contact: Contact): void {
+    if (!this.customer || contact.type === 'Primary' || contact.isSaving) return;
+
+    this.contactErrorMessage = '';
+    contact.isSaving = true;
+
+    const payload: UpsertContactPayload = {
+      firstname: contact.firstname,
+      lastname: contact.lastname || undefined,
+      tel: contact.phone || undefined,
+      email: contact.email || undefined,
+      isPrimary: true,
+    };
+
+    this.customerService.updateContact(this.customer.id, contact.id, payload).subscribe({
+      next: () => {
+        this.contacts.forEach(c => {
+          c.type = c.id === contact.id ? 'Primary' : (c.type === 'Primary' ? 'Secondary' : c.type);
+        });
+        contact.isSaving = false;
+      },
+      error: (err) => {
+        console.error('[API] Failed to set primary contact:', err);
+        contact.isSaving = false;
+        this.contactErrorMessage = 'Failed to set as Primary. Please try again';
+      },
+    });
   }
 
   toggleNoteForm(): void {
+    if (this.isSavingNote) return;
     this.showNoteForm = !this.showNoteForm;
+    this.noteErrorMessage = '';
     if (!this.showNoteForm) {
       this.newNoteText = '';
     }
   }
 
+  // input: this.newNoteText — output: ไม่มี, เพิ่มโน้ตที่ backend คืนมาไว้บนสุดของ list
+  // ไม่ล้างข้อความจนกว่า API จะสำเร็จ เพื่อไม่ให้ข้อความที่พิมพ์หายเมื่อ network หลุด
   saveNote(): void {
     const trimmed = this.newNoteText.trim();
-    if (!trimmed) return;
+    if (!this.customer || !trimmed || this.isSavingNote) return;
 
-    this.notes.unshift({
-      id: this.nextNoteId++,
-      text: trimmed,
-      date: new Date(),
-      author: 'Staff_You',
+    this.noteErrorMessage = '';
+    this.isSavingNote = true;
+
+    this.customerService.addNote(this.customer.id, { text: trimmed }).subscribe({
+      next: (saved) => {
+        this.notes = [saved, ...this.notes];
+        this.newNoteText = '';
+        this.showNoteForm = false;
+        this.isSavingNote = false;
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('[API] Failed to save note:', err);
+        this.isSavingNote = false;
+        this.noteErrorMessage = 'Failed to save note. Please try again';
+      },
     });
-
-    this.newNoteText = '';
-    this.showNoteForm = false;
   }
 
-  removeNote(id: number): void {
-    this.notes = this.notes.filter(n => n.id !== id);
+  // input: note id — output: ไม่มี
+  // 404 = ถูกลบไปแล้ว (เช่น จากอีก tab) ถือว่าสำเร็จ, 403 = ไม่ใช่เจ้าของ/admin/ceo
+  removeNote(id: string): void {
+    if (!this.customer || this.deletingNoteId) return;
+
+    this.confirmationService.confirm({
+      header: 'Confirm Delete',
+      message: 'Remove this note?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => this.deleteNote(id),
+    });
+  }
+
+  private deleteNote(id: string): void {
+    if (!this.customer || this.deletingNoteId) return;
+
+    this.noteErrorMessage = '';
+    this.deletingNoteId = id;
+
+    this.customerService.deleteNote(this.customer.id, id).subscribe({
+      next: () => {
+        this.notes = this.notes.filter(n => n.id !== id);
+        this.deletingNoteId = null;
+      },
+      error: (err: HttpErrorResponse) => {
+        this.deletingNoteId = null;
+        if (err.status === 404) {
+          this.notes = this.notes.filter(n => n.id !== id);
+          return;
+        }
+        console.error('[API] Failed to delete note:', err);
+        this.noteErrorMessage = err.status === 403
+          ? 'Only the note owner, admin or ceo can delete this note'
+          : 'Failed to delete note. Please try again';
+      },
+    });
+  }
+
+  startEditName(): void {
+    if (!this.customer) return;
+    this.nameDraft = this.customer.displayName;
+    this.nameErrorMessage = '';
+    this.isEditingName = true;
+  }
+
+  cancelEditName(): void {
+    if (this.isSavingName) return;
+    this.isEditingName = false;
+    this.nameErrorMessage = '';
+  }
+
+  // input: this.nameDraft — output: ไม่มี, อัปเดต customer.displayName ด้วยชื่อที่ backend บันทึกแล้ว
+  saveName(): void {
+    if (!this.customer || this.isSavingName) return;
+
+    const trimmed = this.nameDraft.trim();
+    if (!trimmed) {
+      this.nameErrorMessage = 'Please enter a name';
+      return;
+    }
+    if (trimmed === this.customer.displayName) {
+      this.isEditingName = false;
+      return;
+    }
+
+    this.nameErrorMessage = '';
+    this.isSavingName = true;
+
+    this.customerService.updateName(this.customer.id, { displayName: trimmed }).subscribe({
+      next: ({ displayName }) => {
+        if (this.customer) this.customer = { ...this.customer, displayName };
+        this.isSavingName = false;
+        this.isEditingName = false;
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('[API] Failed to update customer name:', err);
+        this.isSavingName = false;
+        this.nameErrorMessage = 'Failed to update name. Please try again';
+      },
+    });
+  }
+
+  private createEmptyInfoDraft(): CustomerInfoDraft {
+    return { fullAddress: '', googleMapsLink: '', projectLocationName: null, typeOfCustomerName: null, typeOfSystemName: null };
+  }
+
+  startEditInfo(): void {
+    if (!this.customer) return;
+    this.infoDraft = {
+      fullAddress: this.customer.fullAddress ?? '',
+      googleMapsLink: this.customer.googleMapsLink ?? '',
+      projectLocationName: this.customer.projectLocationName,
+      typeOfCustomerName: this.customer.typeOfCustomerName,
+      typeOfSystemName: this.customer.typeOfSystemName,
+    };
+    this.infoErrorMessage = '';
+    this.isEditingInfo = true;
+  }
+
+  cancelEditInfo(): void {
+    if (this.isSavingInfo) return;
+    this.isEditingInfo = false;
+    this.infoErrorMessage = '';
+  }
+
+  // คลิก tag ที่เลือกอยู่แล้วไม่ทำอะไร (ทั้ง 3 กลุ่มต้องมีค่า จึงไม่มีการ toggle ออก)
+  selectInfoTag(field: 'projectLocationName' | 'typeOfCustomerName' | 'typeOfSystemName', value: string): void {
+    if (this.isSavingInfo) return;
+    this.infoDraft = { ...this.infoDraft, [field]: value };
+  }
+
+  // input: this.infoDraft — output: ไม่มี, อัปเดต customer ด้วยค่าที่ backend บันทึกแล้ว
+  saveInfo(): void {
+    if (!this.customer || this.isSavingInfo) return;
+
+    const fullAddress = this.infoDraft.fullAddress.trim();
+    const googleMapsLink = this.infoDraft.googleMapsLink.trim();
+    const { projectLocationName, typeOfCustomerName, typeOfSystemName } = this.infoDraft;
+
+    if (!fullAddress) {
+      this.infoErrorMessage = 'Please enter an address';
+      return;
+    }
+    if (googleMapsLink && !this.isHttpUrl(googleMapsLink)) {
+      this.infoErrorMessage = 'Google Maps link must start with http:// or https://';
+      return;
+    }
+    if (!projectLocationName || !typeOfCustomerName || !typeOfSystemName) {
+      this.infoErrorMessage = 'Please select Location, Project Type and Type of System';
+      return;
+    }
+
+    const isUnchanged =
+      fullAddress === (this.customer.fullAddress ?? '') &&
+      googleMapsLink === (this.customer.googleMapsLink ?? '') &&
+      projectLocationName === this.customer.projectLocationName &&
+      typeOfCustomerName === this.customer.typeOfCustomerName &&
+      typeOfSystemName === this.customer.typeOfSystemName;
+    if (isUnchanged) {
+      this.isEditingInfo = false;
+      return;
+    }
+
+    this.infoErrorMessage = '';
+    this.isSavingInfo = true;
+
+    this.customerService
+      .updateDetails(this.customer.id, {
+        fullAddress,
+        googleMapsLink: googleMapsLink || null,
+        projectLocationName,
+        typeOfCustomerName,
+        typeOfSystemName,
+      })
+      .subscribe({
+        next: (saved) => {
+          if (this.customer) this.customer = { ...this.customer, ...saved };
+          this.isSavingInfo = false;
+          this.isEditingInfo = false;
+        },
+        error: (err: HttpErrorResponse) => {
+          console.error('[API] Failed to update customer details:', err);
+          this.isSavingInfo = false;
+          this.infoErrorMessage = err.status === 404
+            ? 'Customer not found. Please refresh the page'
+            : 'Failed to update client information. Please try again';
+        },
+      });
+  }
+
+  private isHttpUrl(value: string): boolean {
+    try {
+      const { protocol } = new URL(value);
+      return protocol === 'http:' || protocol === 'https:';
+    } catch {
+      return false;
+    }
   }
 
   // input: electric bill จาก API (null ถ้ายังไม่เคยบันทึก)
@@ -357,7 +826,7 @@ export class CustomerDetailPageComponent implements OnInit {
       },
       error: (err) => {
         console.error('[API] Failed to save electric bill:', err);
-        this.billErrorMessage = 'บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
+        this.billErrorMessage = 'Failed to save. Please try again';
         this.isSavingBill = false;
       },
     });
@@ -393,11 +862,11 @@ export class CustomerDetailPageComponent implements OnInit {
     if (!this.customer || !this.isEditingBill || this.isUploadingBill) return;
 
     if (!ELECTRIC_BILL_ACCEPTED_TYPES.includes(file.type)) {
-      this.billErrorMessage = 'รองรับเฉพาะไฟล์ PDF, JPEG, หรือ PNG เท่านั้น';
+      this.billErrorMessage = 'Only PDF, JPEG, or PNG files are supported';
       return;
     }
     if (file.size > ELECTRIC_BILL_MAX_SIZE_BYTES) {
-      this.billErrorMessage = 'ไฟล์ต้องมีขนาดไม่เกิน 10MB';
+      this.billErrorMessage = 'File must not exceed 10MB';
       return;
     }
 
@@ -417,13 +886,27 @@ export class CustomerDetailPageComponent implements OnInit {
         },
         error: (err) => {
           console.error('[API] Failed to upload electric bill file:', err);
-          this.billErrorMessage = 'อัปโหลดไฟล์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
+          this.billErrorMessage = 'Failed to upload file. Please try again';
           this.isUploadingBill = false;
         },
       });
   }
 
   removeBillFile(): void {
+    if (!this.customer || !this.isEditingBill || this.isUploadingBill) return;
+
+    this.confirmationService.confirm({
+      header: 'Confirm Delete',
+      message: `Remove ${this.electricBillFile?.name ?? 'this file'}?`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => this.deleteBillFile(),
+    });
+  }
+
+  // ทำไมเช็ก guard ซ้ำ: ระหว่างรอยืนยัน อาจเริ่มอัปโหลด/ออกจากโหมดแก้ไขไปแล้ว
+  private deleteBillFile(): void {
     if (!this.customer || !this.isEditingBill || this.isUploadingBill) return;
 
     this.isUploadingBill = true;
@@ -438,7 +921,7 @@ export class CustomerDetailPageComponent implements OnInit {
         },
         error: (err) => {
           console.error('[API] Failed to remove electric bill file:', err);
-          this.billErrorMessage = 'ลบไฟล์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
+          this.billErrorMessage = 'Failed to delete file. Please try again';
           this.isUploadingBill = false;
         },
       });
