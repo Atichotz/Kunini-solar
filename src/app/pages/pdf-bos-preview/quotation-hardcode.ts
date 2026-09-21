@@ -16,11 +16,10 @@ export const QUOTATION_HARDCODE = {
   },
 
   // ---- ⚠️ HARDCODE: Description มาตรฐานของ 3 แถวที่ไม่ได้ดึงจาก data ----
-  // (BOS = ถ้า join รายการจริงจะยาวเกิน / Installation = labour เป็น free-text ที่พิมพ์เอง / Documentation = ยังไม่มี data)
+  // (BOS = ถ้า join รายการจริงจะยาวเกิน / Installation = labour เป็น free-text ที่พิมพ์เอง / Documentation ไม่ใช่ข้อความมาตรฐานแล้ว — ใช้ชื่อ type จาก section 7)
   rowDescription: {
     bos: 'Solar BOS - UV Sun resistant PV Solar cable, MC4 connectors, Solar Combiner Box; DC Fuses, DC Surge Protection, AC Surge Protection, AC disconnect. 3P ATS Switch + Cabinet, AC cable, Conduit and fittings.',
     installation: 'System Installation, Testing, Commissioning + Maintenance + Shipping',
-    documentation: 'Registration of Solar PV System with utility*',
   },
 
   // ---- ⚠️ HARDCODE: หน่วยของแต่ละแถว ----
@@ -34,9 +33,6 @@ export const QUOTATION_HARDCODE = {
     installation: 'LOT',
     documentation: 'SET',
   },
-
-  // ---- ⚠️ HARDCODE: มูลค่า Documentation (section 7 ใน estimate-page ยังเป็น markup ตายตัว) ----
-  documentationTotal: 15000,
 
   // ---- ⚠️ HARDCODE: ภาษีมูลค่าเพิ่ม ----
   vatRate: 0.07,

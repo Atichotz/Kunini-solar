@@ -36,15 +36,12 @@
             <td class="q-cell" colspan="2">Contact Person : <strong>{{ snap.contactPersonName }}</strong></td>
           </tr>
           <tr>
-            <!-- ⚠️ HARDCODE (เว้นว่าง): CustomerDetail ไม่มี field address -->
-            <td class="q-cell" rowspan="3">Address :</td>
+            <td class="q-cell" rowspan="3">Address : <strong>{{ snap.customerAddress }}</strong></td>
             <td class="q-cell">Date : {{ snap.issuedDateIso | date: 'dd/MM/yyyy' }}</td>
-            <!-- ⚠️ HARDCODE (เว้นว่าง): ยังไม่มีข้อมูล Sales Rep -->
-            <td class="q-cell">Sales Rep :</td>
+            <td class="q-cell">Sales Rep : <strong>{{ snap.salesRepName }}</strong></td>
           </tr>
           <tr>
-            <!-- ⚠️ HARDCODE (เว้นว่าง): Location -->
-            <td class="q-cell">Location :</td>
+            <td class="q-cell">Location : <strong>{{ snap.projectLocation }}</strong></td>
             <!-- ⚠️ HARDCODE (เว้นว่าง): Customer # -->
             <td class="q-cell">Customer # :</td>
           </tr>
@@ -92,14 +89,17 @@
             <td class="c-total q-underline">THB{{ snap.solarPvKitTotal | number: '1.2-2' }}</td>
           </tr>
 
-          <!-- ⚠️ HARDCODE: แถว Documentation — description/หน่วยจาก quotation-hardcode.ts, มูลค่า = snapshot.documentationTotal (ยัง hardcode) -->
-          <tr>
-            <td class="c-item">DOCUMENTATION</td>
-            <td class="c-desc">{{ hc.rowDescription.documentation }}</td>
-            <td class="c-unit">{{ hc.unit.documentation }}</td>
-            <td class="c-qty">1</td>
-            <td class="c-total q-underline">THB{{ snap.documentationTotal | number: '1.2-2' }}</td>
-          </tr>
+          <!-- แถว Documentation: description = ชื่อ type ที่เลือกใน section 7, มูลค่า = snapshot.documentationTotal, หน่วยจาก quotation-hardcode.ts
+               ไม่ได้เลือกรายการเลย → ไม่แสดงแถว -->
+          @if (snap.documentationDescription) {
+            <tr>
+              <td class="c-item">DOCUMENTATION</td>
+              <td class="c-desc">{{ snap.documentationDescription }}</td>
+              <td class="c-unit">{{ hc.unit.documentation }}</td>
+              <td class="c-qty">1</td>
+              <td class="c-total q-underline">THB{{ snap.documentationTotal | number: '1.2-2' }}</td>
+            </tr>
+          }
 
           <tr class="q-subrow">
             <td class="c-item"></td>
@@ -114,8 +114,8 @@
       <!-- ===== Remarks + Summary ===== -->
       <div class="q-remarks-block">
         <div class="q-remarks">
-          <div class="q-remarks-head">Remarks หมายเหตุ</div>
-          <!-- ⚠️ HARDCODE: ข้อความ Remarks — quotation-hardcode.ts › remarks (ข้อ 1 เติมยี่ห้อแผงอัตโนมัติ) -->
+          <div class="q-remarks-head">Remarks หมายเหตุ : </div>
+          <!-- หมายเหตุที่ผู้ใช้กรอกในหน้า estimate (1 บรรทัด = 1 ข้อ) -->
           <ol class="q-remarks-list">
             @for (line of remarks(); track $index) {
               <li>{{ line }}</li>
@@ -202,9 +202,9 @@
     </div>
   } @else {
     <div class="q-empty no-print">
-      <p>ไม่มีข้อมูลใบเสนอราคา (อาจเปิดหน้านี้โดยตรงหรือรีเฟรชหน้า)</p>
-      <p class="q-empty-hint">กรุณากลับไปหน้า Price Estimation แล้วกดปุ่ม <strong>Export to PDF</strong> อีกครั้ง</p>
-      <a class="k-btn k-btn-outline" routerLink="/dashboard">กลับ Dashboard</a>
+      <p>No quotation data (the page may have been opened directly or refreshed)</p>
+      <p class="q-empty-hint">Please go back to the Price Estimation page and click <strong>Export to PDF</strong> again</p>
+      <a class="k-btn k-btn-outline" routerLink="/dashboard">Back to Dashboard</a>
     </div>
   }
 </div>

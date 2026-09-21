@@ -4,7 +4,10 @@ export interface EstimateHeadPayload {
   customer_display_name: string | null;
   contact_reference: string | null;
   project_location_name: string | null;
+  project_google_maps_link: string | null;
   type_of_system_name: string | null;
+  pdf_remarks: string | null;
+  sales_rep_name: string | null;
 }
 
 export interface EstimatePanelItemPayload {
@@ -47,6 +50,7 @@ export interface EstimateBosItemPayload {
   description: string;
   size: string;
   cost_price: number;
+  sale_price: number;
   quantity: number;
   sort_order: number;
 }
@@ -59,6 +63,16 @@ export interface EstimateLabourItemPayload {
   sort_order: number;
 }
 
+// snapshot ชื่อ + rate ของ documentation type ณ วันที่ save
+export interface EstimateDocumentationItemPayload {
+  source_table: string | null;
+  source_id: number | null;
+  documentation_type_name: string;
+  unit_rate: number;
+  quantity: number;
+  sort_order: number;
+}
+
 export interface EstimateItemsPayload {
   panel: EstimatePanelItemPayload[];
   inverter: EstimateInverterItemPayload[];
@@ -66,6 +80,7 @@ export interface EstimateItemsPayload {
   racking: EstimateRackingItemPayload[];
   bos: EstimateBosItemPayload[];
   labour: EstimateLabourItemPayload[];
+  documentation: EstimateDocumentationItemPayload[];
 }
 
 export interface SaveEstimatePayload {
@@ -137,6 +152,7 @@ export interface EstimateBosItemView {
   description: string;
   size: string;
   costPrice: number;
+  salePrice: number;
   quantity: number;
   total: number;
 }
@@ -149,6 +165,15 @@ export interface EstimateLabourItemView {
   total: number;
 }
 
+export interface EstimateDocumentationItemView {
+  sourceTable: string | null;
+  sourceId: number | null;
+  documentationTypeName: string;
+  unitRate: number;
+  quantity: number;
+  total: number;
+}
+
 export interface EstimateDetail {
   id: string;
   customerId: string;
@@ -158,7 +183,12 @@ export interface EstimateDetail {
   customerDisplayName: string | null;
   contactReference: string | null;
   projectLocationName: string | null;
+  projectGoogleMapsLink: string | null;
   typeOfSystemName: string | null;
+  /** หมายเหตุสำหรับ PDF (1 บรรทัด = 1 ข้อ) — null = estimate เก่า/ไม่ได้กรอก */
+  pdfRemarks: string | null;
+  /** ชื่อ Sales Rep ที่ผู้ใช้กรอก — null = estimate เก่า/ไม่ได้กรอก */
+  salesRepName: string | null;
 
   totalKw: number;
   panelTotal: number;
@@ -167,6 +197,7 @@ export interface EstimateDetail {
   rackingTotal: number;
   bosTotal: number;
   installationTotal: number;
+  documentationTotal: number;
   grandTotal: number;
 
   createdBy: string | null;
@@ -182,4 +213,5 @@ export interface EstimateDetail {
   rackingItems: EstimateRackingItemView[];
   bosItems: EstimateBosItemView[];
   labourItems: EstimateLabourItemView[];
+  documentationItems: EstimateDocumentationItemView[];
 }

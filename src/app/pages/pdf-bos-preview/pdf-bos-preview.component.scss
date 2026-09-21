@@ -92,6 +92,7 @@
 .q-items {
   margin-bottom: 0;
   border: 1px solid var(--k-black);
+  table-layout: fixed; // ให้ browser ใช้ % ที่กำหนดตรงๆ ไม่ขยับตามความยาวเนื้อหา
 }
 
 .q-items th,
@@ -115,20 +116,21 @@
   width: 15%;
   font-weight: 700;
 }
+/* item + desc = 66.667% เพื่อให้เส้น desc|unit ตรงกับเส้นคอลัมน์ที่ 3 ของ .q-customer และขอบซ้ายของ .q-summary */
 .q-items .c-desc {
-  width: 55%;
+  width: 51.667%;
 }
 .q-items .c-unit {
-  width: 8%;
+  width: 9%;
   text-align: center;
   white-space: nowrap;
 }
 .q-items .c-qty {
-  width: 10%;
+  width: 11%;
   text-align: center;
 }
 .q-items .c-total {
-  width: 12%;
+  width: 13.333%;
   text-align: right;
   white-space: nowrap;
 }
@@ -163,7 +165,6 @@
 
 .q-remarks-list {
   margin: 0;
-  padding-left: 18px;
 }
 
 .q-remarks-list li {
@@ -171,7 +172,7 @@
 }
 
 .q-summary {
-  flex: 0 0 34%;
+  flex: 0 0 33.2%;
 }
 
 .q-summary td {
@@ -225,7 +226,8 @@
 .q-sign-line {
   border-top: 1px solid var(--k-black);
   margin-bottom: 4px;
-  height: 40px;
+  margin-top: 20px;
+  // height: 40px;
 }
 
 .q-sign-label {

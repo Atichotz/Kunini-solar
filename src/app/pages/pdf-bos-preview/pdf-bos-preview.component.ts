@@ -38,11 +38,8 @@ export class PdfBosPreviewComponent {
     return customerId ? ['/detail', customerId] : ['/dashboard'];
   });
 
-  /** Remarks: เติมยี่ห้อแผงจริงลงใน placeholder {panelBrand} */
-  readonly remarks = computed<string[]>(() => {
-    const brand = this.snapshot()?.panelBrand?.trim() || 'the specified';
-    return this.hc.remarks.map((line) => line.replace('{panelBrand}', brand));
-  });
+  /** Remarks: ใช้เฉพาะหมายเหตุที่ผู้ใช้กรอก (แทนที่ข้อความมาตรฐานใน quotation-hardcode.ts) */
+  readonly remarks = computed<string[]>(() => this.snapshot()?.remarkLines ?? []);
 
   /** เงื่อนไขชำระเงิน: คิดจำนวนเงินจาก grandTotal ตามสัดส่วนใน quotation-hardcode.ts */
   readonly paymentTerms = computed<PaymentTermRow[]>(() => {
