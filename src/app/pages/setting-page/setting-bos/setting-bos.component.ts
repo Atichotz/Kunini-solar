@@ -14,6 +14,7 @@ import {
   UpdateBOSItemPayload,
 } from '../../../services/equipment.service';
 import { PermissionService } from '../../../services/permission.service';
+import { SaveOpts, SaveTask, runSaveAllBatch } from '../save-all-batch.util';
 
 type BosCategory = 'cables' | 'switch_gears' | 'solar_equipment' | 'conduit_junction_boxes';
 
@@ -163,10 +164,13 @@ export class SettingBOSComponent implements OnInit {
     this.rows.push({ id: null, item: null, description: '', size: '', costPrice: null, saving: false });
   }
 
-  saveRow(row: BOSRow): void {
+  saveRow(row: BOSRow, opts?: SaveOpts): void {
     if (!this.canManage()) return;
     if (row.item === null || !row.description.trim()) {
-      this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Please fill in Item and Description before saving' });
+      if (!opts?.silent) {
+        this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Please fill in Item and Description before saving' });
+      }
+      opts?.onDone?.(false);
       return;
     }
 
@@ -179,13 +183,36 @@ export class SettingBOSComponent implements OnInit {
     request$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (saved) => {
         Object.assign(row, toBOSRow(saved));
-        this.messageService.add({ severity: 'success', summary: 'Saved', detail: `Item ${saved.item} saved successfully`, life: 2000 });
+        if (!opts?.silent) {
+          this.messageService.add({ severity: 'success', summary: 'Saved', detail: `Item ${saved.item} saved successfully`, life: 2000 });
+        }
+        opts?.onDone?.(true);
       },
       error: () => {
         row.saving = false;
-        this.messageService.add({ severity: 'error', summary: 'Save Failed', detail: 'Failed to save. Please try again' });
+        if (!opts?.silent) {
+          this.messageService.add({ severity: 'error', summary: 'Save Failed', detail: 'Failed to save. Please try again' });
+        }
+        opts?.onDone?.(false);
       },
     });
+  }
+
+  // เซฟทุกแถวพร้อมกัน — เฉพาะ category ที่เลือกอยู่ + accessory, ยิงแบบ silent แล้วรอครบทุกแถวค่อยขึ้น toast สรุปครั้งเดียว
+  saveAllRows(): void {
+    if (!this.canManage()) return;
+    const tasks: SaveTask[] = [];
+    for (const row of this.rows) {
+      if (row.saving || row.deleting) continue;
+      if (row.id === null && row.item === null && !row.description.trim()) continue;
+      tasks.push((onDone) => this.saveRow(row, { silent: true, onDone }));
+    }
+    for (const row of this.accessoryRows) {
+      if (row.saving || row.deleting) continue;
+      if (row.id === null && row.item === null && !row.description.trim()) continue;
+      tasks.push((onDone) => this.saveAccessoryRow(row, { silent: true, onDone }));
+    }
+    runSaveAllBatch(tasks, this.messageService);
   }
 
   // input: แถวที่กด Remove — จำหมวดตอนกด (ไม่ใช่ตอน response กลับ) เพราะผู้ใช้อาจสลับหมวดระหว่างรอ ไม่งั้นจะลบ/splice ผิดหมวด
@@ -227,10 +254,13 @@ export class SettingBOSComponent implements OnInit {
     this.accessoryRows.push({ id: null, item: null, description: '', size: '', costPrice: null, saving: false });
   }
 
-  saveAccessoryRow(row: BOSRow): void {
+  saveAccessoryRow(row: BOSRow, opts?: SaveOpts): void {
     if (!this.canManage()) return;
     if (row.item === null || !row.description.trim()) {
-      this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Please fill in Item and Description before saving' });
+      if (!opts?.silent) {
+        this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Please fill in Item and Description before saving' });
+      }
+      opts?.onDone?.(false);
       return;
     }
 
@@ -242,11 +272,17 @@ export class SettingBOSComponent implements OnInit {
     request$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (saved) => {
         Object.assign(row, toBOSRow(saved));
-        this.messageService.add({ severity: 'success', summary: 'Saved', detail: `Item ${saved.item} saved successfully`, life: 2000 });
+        if (!opts?.silent) {
+          this.messageService.add({ severity: 'success', summary: 'Saved', detail: `Item ${saved.item} saved successfully`, life: 2000 });
+        }
+        opts?.onDone?.(true);
       },
       error: () => {
         row.saving = false;
-        this.messageService.add({ severity: 'error', summary: 'Save Failed', detail: 'Failed to save. Please try again' });
+        if (!opts?.silent) {
+          this.messageService.add({ severity: 'error', summary: 'Save Failed', detail: 'Failed to save. Please try again' });
+        }
+        opts?.onDone?.(false);
       },
     });
   }

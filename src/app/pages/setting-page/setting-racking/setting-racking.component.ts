@@ -16,6 +16,7 @@ import {
   UpdateRackingPayload,
 } from '../../../services/equipment.service';
 import { PermissionService } from '../../../services/permission.service';
+import { SaveOpts, SaveTask, runSaveAllBatch } from '../save-all-batch.util';
 
 interface RackingRow {
   id: number | null;
@@ -183,10 +184,13 @@ export class SettingRackingComponent implements OnInit {
     this.rows.push({ id: null, roofTypeId: null, part: '', description: '', costPrice: null, salePrice: null, saving: false });
   }
 
-  saveRow(row: RackingRow): void {
+  saveRow(row: RackingRow, opts?: SaveOpts): void {
     if (!this.canManage()) return;
     if (row.roofTypeId === null || !row.part.trim() || !row.description.trim()) {
-      this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Please select a Roof Type and fill in Part and Description before saving' });
+      if (!opts?.silent) {
+        this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Please select a Roof Type and fill in Part and Description before saving' });
+      }
+      opts?.onDone?.(false);
       return;
     }
 
@@ -198,13 +202,31 @@ export class SettingRackingComponent implements OnInit {
     request$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (saved) => {
         Object.assign(row, toRackingRow(saved));
-        this.messageService.add({ severity: 'success', summary: 'Saved', detail: `${saved.part} saved successfully`, life: 2000 });
+        if (!opts?.silent) {
+          this.messageService.add({ severity: 'success', summary: 'Saved', detail: `${saved.part} saved successfully`, life: 2000 });
+        }
+        opts?.onDone?.(true);
       },
       error: () => {
         row.saving = false;
-        this.messageService.add({ severity: 'error', summary: 'Save Failed', detail: 'Failed to save. Please try again' });
+        if (!opts?.silent) {
+          this.messageService.add({ severity: 'error', summary: 'Save Failed', detail: 'Failed to save. Please try again' });
+        }
+        opts?.onDone?.(false);
       },
     });
+  }
+
+  // เซฟทุกแถวพร้อมกัน — ยิงแบบ silent แล้วรอครบทุกแถวค่อยขึ้น toast สรุปครั้งเดียว
+  saveAllRows(): void {
+    if (!this.canManage()) return;
+    const tasks: SaveTask[] = [];
+    for (const row of this.rows) {
+      if (row.saving || row.deleting) continue;
+      if (row.id === null && row.roofTypeId === null && !row.part.trim() && !row.description.trim()) continue;
+      tasks.push((onDone) => this.saveRow(row, { silent: true, onDone }));
+    }
+    runSaveAllBatch(tasks, this.messageService);
   }
 
   removeRow(row: RackingRow): void {

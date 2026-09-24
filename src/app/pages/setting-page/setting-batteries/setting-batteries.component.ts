@@ -14,6 +14,7 @@ import {
   CreateAccessoryPayload,
 } from '../../../services/equipment.service';
 import { PermissionService } from '../../../services/permission.service';
+import { SaveOpts, SaveTask, runSaveAllBatch } from '../save-all-batch.util';
 
 interface BatteryRow {
   id: number | null;
@@ -124,10 +125,13 @@ export class SettingBatteriesComponent implements OnInit {
     this.rows.push({ id: null, brand: '', kw: null, description: '', costPrice: null, shipping: null, salePrice: null, notes: '', saving: false });
   }
 
-  saveRow(row: BatteryRow): void {
+  saveRow(row: BatteryRow, opts?: SaveOpts): void {
     if (!this.canManage()) return;
     if (!row.brand || !row.description.trim()) {
-      this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Please fill in Brand and Description before saving' });
+      if (!opts?.silent) {
+        this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Please fill in Brand and Description before saving' });
+      }
+      opts?.onDone?.(false);
       return;
     }
 
@@ -139,13 +143,36 @@ export class SettingBatteriesComponent implements OnInit {
     request$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (saved) => {
         Object.assign(row, toBatteryRow(saved));
-        this.messageService.add({ severity: 'success', summary: 'Saved', detail: `${saved.brand} saved successfully`, life: 2000 });
+        if (!opts?.silent) {
+          this.messageService.add({ severity: 'success', summary: 'Saved', detail: `${saved.brand} saved successfully`, life: 2000 });
+        }
+        opts?.onDone?.(true);
       },
       error: () => {
         row.saving = false;
-        this.messageService.add({ severity: 'error', summary: 'Save Failed', detail: 'Failed to save. Please try again' });
+        if (!opts?.silent) {
+          this.messageService.add({ severity: 'error', summary: 'Save Failed', detail: 'Failed to save. Please try again' });
+        }
+        opts?.onDone?.(false);
       },
     });
+  }
+
+  // เซฟทุกแถว (battery + accessory) พร้อมกัน — ยิงแบบ silent แล้วรอครบทุกแถวค่อยขึ้น toast สรุปครั้งเดียว
+  saveAllRows(): void {
+    if (!this.canManage()) return;
+    const tasks: SaveTask[] = [];
+    for (const row of this.rows) {
+      if (row.saving || row.deleting) continue;
+      if (row.id === null && !row.brand.trim() && !row.description.trim()) continue;
+      tasks.push((onDone) => this.saveRow(row, { silent: true, onDone }));
+    }
+    for (const row of this.accessoryRows) {
+      if (row.saving || row.deleting) continue;
+      if (row.id === null && !row.brand.trim() && !row.description.trim()) continue;
+      tasks.push((onDone) => this.saveAccessoryRow(row, { silent: true, onDone }));
+    }
+    runSaveAllBatch(tasks, this.messageService);
   }
 
   removeRow(row: BatteryRow): void {
@@ -193,10 +220,13 @@ export class SettingBatteriesComponent implements OnInit {
     this.accessoryRows.push({ id: null, brand: '', description: '', costPrice: null, shipping: null, salePrice: null, notes: '', saving: false });
   }
 
-  saveAccessoryRow(row: AccessoryRow): void {
+  saveAccessoryRow(row: AccessoryRow, opts?: SaveOpts): void {
     if (!this.canManage()) return;
     if (!row.brand || !row.description.trim()) {
-      this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Please fill in Brand and Description before saving' });
+      if (!opts?.silent) {
+        this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Please fill in Brand and Description before saving' });
+      }
+      opts?.onDone?.(false);
       return;
     }
 
@@ -208,11 +238,17 @@ export class SettingBatteriesComponent implements OnInit {
     request$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (saved) => {
         Object.assign(row, toAccessoryRow(saved));
-        this.messageService.add({ severity: 'success', summary: 'Saved', detail: `${saved.brand} saved successfully`, life: 2000 });
+        if (!opts?.silent) {
+          this.messageService.add({ severity: 'success', summary: 'Saved', detail: `${saved.brand} saved successfully`, life: 2000 });
+        }
+        opts?.onDone?.(true);
       },
       error: () => {
         row.saving = false;
-        this.messageService.add({ severity: 'error', summary: 'Save Failed', detail: 'Failed to save. Please try again' });
+        if (!opts?.silent) {
+          this.messageService.add({ severity: 'error', summary: 'Save Failed', detail: 'Failed to save. Please try again' });
+        }
+        opts?.onDone?.(false);
       },
     });
   }

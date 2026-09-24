@@ -2,8 +2,15 @@
 
   <div class="card content-card">
     <div class="content-header">
-      <h2>Products</h2>
-      <p>Manage data and pricing</p>
+      <div>
+        <h2>Products</h2>
+        <p>Manage data and pricing</p>
+      </div>
+      @if (canManage()) {
+        <button class="k-btn k-btn-primary" type="button" (click)="saveAllInActiveTab()">
+          <i class="fas fa-save"></i> Save All
+        </button>
+      }
     </div>
 
     <!-- Tab Bar -->
