@@ -6,9 +6,12 @@ import type {
   StatusOption,
   CreateCustomerPayload,
   CustomerDetail,
+  CustomerListItem,
   ContactDetail,
   CreateNotePayload,
   NoteDetail,
+  CreateNoteCommentPayload,
+  NoteCommentDetail,
   UpdateCustomerNamePayload,
   UpdateCustomerNumberPayload,
   UpdateCustomerDetailsPayload,
@@ -37,6 +40,11 @@ export class CustomerService {
   // output: customer detail พร้อม contacts
   getOne(id: string): Observable<CustomerDetail> {
     return this.http.get<CustomerDetail>(`${this.baseUrl}/${id}`);
+  }
+
+  // output: customers ทั้งหมดเรียงตามชื่อ พร้อม primary contact — ใช้กับ "Customer List" panel
+  listView(): Observable<CustomerListItem[]> {
+    return this.http.get<CustomerListItem[]>(`${this.baseUrl}/list-view`);
   }
 
   // input: CreateCustomerPayload (created_by แนบโดย backend จาก JWT)
@@ -117,5 +125,23 @@ export class CustomerService {
   // output: void — 403 ถ้าไม่ใช่เจ้าของ/admin/ceo, 404 ถ้าถูกลบไปแล้ว
   deleteNote(customerId: string, noteId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${customerId}/notes/${noteId}`);
+  }
+
+  // input: customer UUID + note UUID
+  // output: comment ของโน้ตนี้ เรียงเก่า→ใหม่
+  listNoteComments(customerId: string, noteId: string): Observable<NoteCommentDetail[]> {
+    return this.http.get<NoteCommentDetail[]>(`${this.baseUrl}/${customerId}/notes/${noteId}/comments`);
+  }
+
+  // input: customer UUID + note UUID + ข้อความ comment (author แนบโดย backend จาก JWT)
+  // output: comment ที่สร้างแล้ว
+  addNoteComment(customerId: string, noteId: string, payload: CreateNoteCommentPayload): Observable<NoteCommentDetail> {
+    return this.http.post<NoteCommentDetail>(`${this.baseUrl}/${customerId}/notes/${noteId}/comments`, payload);
+  }
+
+  // input: customer UUID + note UUID + comment UUID
+  // output: void — 404 ถ้าถูกลบไปแล้ว
+  deleteNoteComment(customerId: string, noteId: string, commentId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${customerId}/notes/${noteId}/comments/${commentId}`);
   }
 }

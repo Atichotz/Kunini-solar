@@ -9,7 +9,7 @@ import { SelectModule } from 'primeng/select';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService } from 'primeng/api';
 import { RouterLink, ActivatedRoute } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
+import { forkJoin, of, map, distinctUntilChanged, takeUntil, skip } from 'rxjs';
 import { CustomerService } from '../../services/customer.service';
 import { EstimateService } from '../../services/estimate.service';
 import { SurveyService } from '../../services/survey.service';
@@ -17,7 +17,8 @@ import { PermissionService } from '../../services/permission.service';
 import { KLoadingComponent } from '../../k-loading/k-loading.component';
 import { TodoBoardComponent } from '../../todo-board/todo-board.component';
 import { ScrollToTopComponent } from '../../scroll-to-top/scroll-to-top.component';
-import type { CustomerDetail, ElectricBillDetail, NoteDetail, StatusOption, UpsertContactPayload } from '../../dto/customer.dto';
+import { LinkifyPipe } from '../../pipes/linkify.pipe';
+import type { CustomerDetail, ElectricBillDetail, NoteDetail, NoteCommentDetail, StatusOption, UpsertContactPayload } from '../../dto/customer.dto';
 import type { EstimateDetail, EstimateSummary } from '../../dto/estimate.dto';
 import type { SurveyHistoryItem } from '../../dto/survey.dto';
 
@@ -31,6 +32,7 @@ interface Contact {
   isEditing: boolean;
   isSaving?: boolean;
   isDeleting?: boolean;
+  editSnapshot?: { firstname: string; lastname: string; phone: string; email: string };
 }
 
 type Note = NoteDetail;
@@ -51,6 +53,8 @@ interface ElectricBillForm {
 
 // ต้องตรงกับ NOTE_MAX_LENGTH / CUSTOMER_NAME_MAX_LENGTH ใน backend (dto/note.dto.ts, dto/update-customer-name.dto.ts)
 const NOTE_MAX_LENGTH = 2000;
+// ต้องตรงกับ NOTE_COMMENT_MAX_LENGTH ใน backend (dto/note-comment.dto.ts)
+const NOTE_COMMENT_MAX_LENGTH = 2000;
 const CUSTOMER_NAME_MAX_LENGTH = 100;
 const CUSTOMER_NUMBER_MAX_LENGTH = 50;
 const CUSTOMER_ADDRESS_MAX_LENGTH = 500;
@@ -114,7 +118,7 @@ interface SystemFigures {
 
 @Component({
   selector: 'app-customer-detail-page',
-  imports: [CommonModule, FormsModule, FloatLabelModule, InputTextModule, SelectModule, ConfirmDialogModule, RouterLink, KLoadingComponent, TodoBoardComponent, ScrollToTopComponent],
+  imports: [CommonModule, FormsModule, FloatLabelModule, InputTextModule, SelectModule, ConfirmDialogModule, RouterLink, KLoadingComponent, TodoBoardComponent, ScrollToTopComponent, LinkifyPipe],
   providers: [ConfirmationService],
   templateUrl: './customer-detail-page.component.html',
   styleUrl: './customer-detail-page.component.scss'
@@ -132,6 +136,18 @@ export class CustomerDetailPageComponent implements OnInit {
   readonly canSeePrice = this.permission.canSeePrice;
   readonly isCeo = this.permission.isCeo;
   private readonly destroyRef = inject(DestroyRef);
+
+  // emit ทุกครั้งที่ id ใน route เปลี่ยน (รวมถึงตอน Angular reuse component instance เดิมข้ามหน้า detail คนละคน)
+  // ใช้เป็นทั้ง trigger โหลดข้อมูลใหม่ และ cancel-signal (takeUntil) ให้ request ของ id เก่าที่ยังค้างอยู่ไม่มาเขียนทับข้อมูลของ id ใหม่
+  private readonly customerId$ = this.route.paramMap.pipe(
+    map((params) => params.get('id')),
+    distinctUntilChanged(),
+  );
+
+  // customerId$ replay ค่าปัจจุบันทันทีทุกครั้งที่ subscribe ใหม่ (route.paramMap เป็น BehaviorSubject)
+  // ถ้าเอา customerId$ ไปใช้เป็น takeUntil ตรงๆ จะโดน cancel ตัวเองทันทีตั้งแต่ subscribe เพราะเห็น replay เป็น "id เปลี่ยน"
+  // ต้อง skip(1) ค่า replay นั้นทิ้งก่อน ให้เหลือแต่ emission ตอน id เปลี่ยนจริงในอนาคต
+  private readonly customerIdChanged$ = this.customerId$.pipe(skip(1));
 
   customer: CustomerDetail | null = null;
   // true จนกว่า customer หลักโหลดเสร็จ — ทั้งหน้า (contacts, ฟอร์มค่าไฟ, ปุ่ม) พึ่งข้อมูลนี้ จึงยังไม่ render ระหว่างรอ
@@ -214,6 +230,15 @@ export class CustomerDetailPageComponent implements OnInit {
   deletingNoteId: string | null = null;
   noteErrorMessage = '';
 
+  readonly noteCommentMaxLength = NOTE_COMMENT_MAX_LENGTH;
+  expandedNoteCommentIds = new Set<string>();
+  commentsByNoteId: Partial<Record<string, NoteCommentDetail[]>> = {};
+  isLoadingCommentsForNoteId: Partial<Record<string, boolean>> = {};
+  commentDraftByNoteId: Partial<Record<string, string>> = {};
+  isSavingCommentForNoteId: Partial<Record<string, boolean>> = {};
+  deletingCommentId: string | null = null;
+  commentErrorByNoteId: Partial<Record<string, string>> = {};
+
   isEditingName = false;
   isSavingName = false;
   nameDraft = '';
@@ -264,19 +289,65 @@ export class CustomerDetailPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    const id = this.route.snapshot.paramMap.get('id');
-    if (!id) {
-      this.customerLoadError = 'Customer not found';
-      this.isLoading = false;
-      return;
-    }
+    this.customerId$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((id) => {
+      if (!id) {
+        this.customerLoadError = 'Customer not found';
+        this.isLoading = false;
+        return;
+      }
+      this.loadCustomerData(id);
+    });
+  }
 
-    this.customerService.getStatuses().subscribe({
+  // input: id ของลูกค้าจาก route param — output: ไม่มี, reset state เดิมทั้งหมดแล้วโหลดข้อมูลลูกค้าคนใหม่
+  // ทุก request ผูก takeUntil(customerId$) ไว้ด้วย กัน request ของ id เก่ามาถึงทีหลังแล้วเขียนทับ state ของ id ใหม่
+  private loadCustomerData(id: string): void {
+    this.isLoading = true;
+    this.customer = null;
+    this.customerLoadError = '';
+
+    this.isLoadingEstimates = true;
+    this.isLoadingSurveys = true;
+    this.isLoadingNotes = true;
+    this.estimates = [];
+    this.surveys = [];
+    this.notes = [];
+    this.surveyHistoryErrorMessage = '';
+    this.noteErrorMessage = '';
+
+    this.currentSystem = null;
+    this.pendingSystem = null;
+    this.finalizedEstimateCount = 0;
+    this.isLoadingSystem = true;
+    this.systemErrorMessage = '';
+    this.finalizingEstimateId = null;
+    this.estimateActionErrorMessage = '';
+
+    this.contacts = [];
+    this.contactErrorMessage = '';
+    this.statusSelected = null;
+    this.savedStatusId = null;
+    this.statusErrorMessage = '';
+
+    this.expandedNoteCommentIds = new Set<string>();
+    this.commentsByNoteId = {};
+    this.isLoadingCommentsForNoteId = {};
+    this.commentDraftByNoteId = {};
+    this.isSavingCommentForNoteId = {};
+    this.commentErrorByNoteId = {};
+
+    this.isEditingName = false;
+    this.isEditingCustomerNumber = false;
+    this.isEditingInfo = false;
+    this.showNoteForm = false;
+    this.newNoteText = '';
+
+    this.customerService.getStatuses().pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (statuses) => { this.statusList = statuses; },
       error: (err) => console.error('[API] Failed to load statuses:', err),
     });
 
-    this.estimateService.listByCustomer(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.estimateService.listByCustomer(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (estimates) => {
         this.estimates = estimates;
         this.isLoadingEstimates = false;
@@ -289,7 +360,7 @@ export class CustomerDetailPageComponent implements OnInit {
       },
     });
 
-    this.surveyService.listByCustomer(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.surveyService.listByCustomer(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (surveys) => {
         this.surveys = surveys;
         this.isLoadingSurveys = false;
@@ -301,7 +372,7 @@ export class CustomerDetailPageComponent implements OnInit {
       },
     });
 
-    this.customerService.listNotes(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.customerService.listNotes(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (notes) => {
         this.notes = notes;
         this.isLoadingNotes = false;
@@ -313,7 +384,7 @@ export class CustomerDetailPageComponent implements OnInit {
       },
     });
 
-    this.customerService.getOne(id).subscribe({
+    this.customerService.getOne(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data) => {
         this.customer = data;
         this.statusSelected = data.statusId;
@@ -361,7 +432,7 @@ export class CustomerDetailPageComponent implements OnInit {
       : of([] as EstimateDetail[]);
 
     forkJoin({ finals: finals$, drafts: drafts$ })
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: ({ finals, drafts }) => {
           this.currentSystem = this.sumFigures(finals.map((d) => this.toFigures(d)));
@@ -544,8 +615,37 @@ export class CustomerDetailPageComponent implements OnInit {
     });
   }
 
-  // input: contact ที่กำลังแก้ (แถวใหม่จาก addContact() เท่านั้น — ยังไม่รองรับแก้ contact ที่ save แล้ว)
-  // output: ไม่มี — เรียก API สร้าง contact จริง, ถ้าสำเร็จเอา id จริงมาแทน temp id
+  // input: contact ที่ save แล้ว (มี UUID จริง) ที่ต้องการแก้ไข — ปัจจุบันใช้กับ Primary contact เท่านั้น
+  // output: ไม่มี — เก็บค่าเดิมไว้ก่อนเข้าโหมด edit เผื่อกด Cancel แล้วต้อง revert
+  startEditContact(contact: Contact): void {
+    if (contact.isSaving) return;
+    contact.editSnapshot = {
+      firstname: contact.firstname,
+      lastname: contact.lastname,
+      phone: contact.phone,
+      email: contact.email,
+    };
+    this.contactErrorMessage = '';
+    contact.isEditing = true;
+  }
+
+  // input: contact ที่กำลัง edit อยู่ (save แล้วเท่านั้น — แถวใหม่ใช้ removeContact ลบทิ้งแทน)
+  // output: ไม่มี — revert ค่ากลับเป็นก่อนกด edit แล้วออกจากโหมด edit
+  cancelEditContact(contact: Contact): void {
+    if (contact.isSaving) return;
+    if (contact.editSnapshot) {
+      contact.firstname = contact.editSnapshot.firstname;
+      contact.lastname = contact.editSnapshot.lastname;
+      contact.phone = contact.editSnapshot.phone;
+      contact.email = contact.editSnapshot.email;
+      contact.editSnapshot = undefined;
+    }
+    this.contactErrorMessage = '';
+    contact.isEditing = false;
+  }
+
+  // input: contact ที่กำลังแก้ (แถวใหม่จาก addContact() → สร้างใหม่, แถว save แล้ว → อัปเดตของเดิม)
+  // output: ไม่มี — เรียก API ที่เหมาะสม, ถ้าสำเร็จเอาค่าจาก backend มาซิงค์กลับ
   saveContact(contact: Contact): void {
     if (!this.customer || contact.isSaving) return;
 
@@ -566,20 +666,26 @@ export class CustomerDetailPageComponent implements OnInit {
     this.contactErrorMessage = '';
     contact.isSaving = true;
 
-    this.customerService.addContact(this.customer.id, payload).subscribe({
+    const isNew = contact.id.startsWith('new-');
+    const request$ = isNew
+      ? this.customerService.addContact(this.customer.id, payload)
+      : this.customerService.updateContact(this.customer.id, contact.id, payload);
+
+    request$.subscribe({
       next: (saved) => {
         contact.id = saved.id;
         contact.isSaving = false;
         contact.isEditing = false;
+        contact.editSnapshot = undefined;
         // ถ้า contact นี้ถูกตั้งเป็น Primary ต้องเคลียร์ primary ของตัวอื่นในหน้าจอด้วย (backend เคลียร์ให้แล้ว แต่ local state ยังไม่รู้)
         if (saved.isPrimary) {
           this.contacts.forEach(c => { if (c.id !== contact.id) c.type = c.type === 'Primary' ? 'Secondary' : c.type; });
         }
       },
       error: (err) => {
-        console.error('[API] Failed to save contact:', err);
+        console.error(`[API] Failed to ${isNew ? 'save' : 'update'} contact:`, err);
         contact.isSaving = false;
-        this.contactErrorMessage = 'Failed to save contact. Please try again';
+        this.contactErrorMessage = `Failed to ${isNew ? 'save' : 'update'} contact. Please try again`;
       },
     });
   }
@@ -737,6 +843,100 @@ export class CustomerDetailPageComponent implements OnInit {
         this.noteErrorMessage = err.status === 403
           ? 'Only the note owner, admin or ceo can delete this note'
           : 'Failed to delete note. Please try again';
+      },
+    });
+  }
+
+  // input: note id — output: ไม่มี, ขยาย/ย่อ comment list — โหลด comment ครั้งแรกที่ขยายเท่านั้น (cache ไว้ใน commentsByNoteId)
+  toggleNoteComments(noteId: string): void {
+    if (this.expandedNoteCommentIds.has(noteId)) {
+      this.expandedNoteCommentIds.delete(noteId);
+      return;
+    }
+    this.expandedNoteCommentIds.add(noteId);
+    if (!this.commentsByNoteId[noteId]) {
+      this.loadNoteComments(noteId);
+    }
+  }
+
+  private loadNoteComments(noteId: string): void {
+    if (!this.customer) return;
+
+    this.commentErrorByNoteId[noteId] = '';
+    this.isLoadingCommentsForNoteId[noteId] = true;
+
+    this.customerService.listNoteComments(this.customer.id, noteId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (comments) => {
+        this.commentsByNoteId[noteId] = comments;
+        this.isLoadingCommentsForNoteId[noteId] = false;
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('[API] Failed to load note comments:', err);
+        this.isLoadingCommentsForNoteId[noteId] = false;
+        this.commentErrorByNoteId[noteId] = 'Failed to load comments';
+      },
+    });
+  }
+
+  // input: this.commentDraftByNoteId[noteId] — output: ไม่มี, เพิ่ม comment ที่ backend คืนมาไว้ท้าย list และ +1 commentCount บนโน้ต
+  saveNoteComment(noteId: string): void {
+    const trimmed = (this.commentDraftByNoteId[noteId] ?? '').trim();
+    if (!this.customer || !trimmed || this.isSavingCommentForNoteId[noteId]) return;
+
+    this.commentErrorByNoteId[noteId] = '';
+    this.isSavingCommentForNoteId[noteId] = true;
+
+    this.customerService.addNoteComment(this.customer.id, noteId, { text: trimmed }).subscribe({
+      next: (saved) => {
+        this.commentsByNoteId[noteId] = [...(this.commentsByNoteId[noteId] ?? []), saved];
+        this.commentDraftByNoteId[noteId] = '';
+        this.isSavingCommentForNoteId[noteId] = false;
+        const note = this.notes.find(n => n.id === noteId);
+        if (note) note.commentCount += 1;
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('[API] Failed to save comment:', err);
+        this.isSavingCommentForNoteId[noteId] = false;
+        this.commentErrorByNoteId[noteId] = 'Failed to save comment. Please try again';
+      },
+    });
+  }
+
+  // input: note id + comment id — output: ไม่มี
+  removeNoteComment(noteId: string, commentId: string): void {
+    if (!this.customer || this.deletingCommentId) return;
+
+    this.confirmationService.confirm({
+      header: 'Confirm Delete',
+      message: 'Remove this comment?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => this.deleteNoteComment(noteId, commentId),
+    });
+  }
+
+  private deleteNoteComment(noteId: string, commentId: string): void {
+    if (!this.customer || this.deletingCommentId) return;
+
+    this.commentErrorByNoteId[noteId] = '';
+    this.deletingCommentId = commentId;
+
+    this.customerService.deleteNoteComment(this.customer.id, noteId, commentId).subscribe({
+      next: () => {
+        this.commentsByNoteId[noteId] = (this.commentsByNoteId[noteId] ?? []).filter(c => c.id !== commentId);
+        this.deletingCommentId = null;
+        const note = this.notes.find(n => n.id === noteId);
+        if (note) note.commentCount = Math.max(0, note.commentCount - 1);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.deletingCommentId = null;
+        if (err.status === 404) {
+          this.commentsByNoteId[noteId] = (this.commentsByNoteId[noteId] ?? []).filter(c => c.id !== commentId);
+          return;
+        }
+        console.error('[API] Failed to delete comment:', err);
+        this.commentErrorByNoteId[noteId] = 'Failed to delete comment. Please try again';
       },
     });
   }

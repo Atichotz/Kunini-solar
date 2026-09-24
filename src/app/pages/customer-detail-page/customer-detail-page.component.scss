@@ -97,41 +97,6 @@ a:hover {
     text-decoration: underline;
 }
 
-.dropdown {
-    position: relative;
-    display: inline-block;
-}
-
-.dropdown-content {
-    display: none;
-    position: absolute;
-    right: 0;
-    background-color: var(--card-bg);
-    min-width: 160px;
-    box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.1);
-    border: 1px solid var(--k-light-grey);
-    border-radius: var(--radius-sm);
-    z-index: 1;
-    margin-top: 4px;
-}
-
-.dropdown-content a {
-    color: var(--k-dark-grey);
-    padding: 10px 16px;
-    display: block;
-    font-size: 13px;
-}
-
-.dropdown-content a:hover {
-    background-color: var(--bg-color);
-    color: var(--k-red);
-    text-decoration: none;
-}
-
-.dropdown:hover .dropdown-content {
-    display: block;
-}
-
 /* Badges / Tags */
 .badge-project-type {
     background-color: var(--k-black);
@@ -505,6 +470,71 @@ button.tag-item {
 
     50% {
         opacity: 0.4;
+    }
+}
+
+/* Note Comments — badge toggle เหมือน .todo-comment-toggle ของ todo-board แต่ scope เฉพาะหน้านี้ */
+.note-comment-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    padding: 2px 8px;
+    border: 1px solid var(--k-light-grey);
+    border-radius: var(--radius-pill);
+    background: none;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--k-mid-grey);
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+
+    &:hover {
+        border-color: var(--k-accent-blue);
+        color: var(--k-accent-blue);
+    }
+}
+
+.note-comments {
+    margin-top: 12px;
+    padding-left: 12px;
+    border-left: 2px solid var(--k-light-grey);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.note-comment-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.note-comment-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.note-comment-delete-btn {
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.note-comment-item:hover .note-comment-delete-btn {
+    opacity: 1;
+}
+
+.note-comment-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+
+    // base border/padding/radius มาจาก global .form-textarea — override แค่ความสูงให้เหมาะกับ reply สั้น ๆ
+    textarea {
+        min-height: 48px;
     }
 }
 

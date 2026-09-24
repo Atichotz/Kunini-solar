@@ -71,14 +71,8 @@
             <button class="k-btn-sm k-btn-primary" [routerLink]="'/sow'" [queryParams]="{customerId: customer.id}">Scope
                 Of Work</button>
 
-            <div class="dropdown">
-                <button class="k-btn-sm k-btn-primary">Report <i class="fa-solid fa-angle-down"></i></button>
-                <div class="dropdown-content">
-                    <a href="#">Maintenance</a>
-                    <a href="#">System Cleaning</a>
-                    <a href="#">Upgrade</a>
-                </div>
-            </div>
+            <button class="k-btn-sm k-btn-primary" [routerLink]="'/report'"
+                [queryParams]="{customerId: customer.id}">Report</button>
         </div>
     </div>
 
@@ -112,7 +106,11 @@
                             <td><input class="table-input" [(ngModel)]="contact.email"
                                     placeholder="email@example.com" /></td>
                             <td>
-                                <select class="table-select" [(ngModel)]="contact.type">
+                                <select class="table-select" [(ngModel)]="contact.type"
+                                    [disabled]="contact.type === 'Primary'">
+                                    @if (contact.type === 'Primary') {
+                                    <option value="Primary">Primary</option>
+                                    }
                                     <option value="Secondary">Secondary</option>
                                     <option value="Other">Other</option>
                                 </select>
@@ -122,9 +120,15 @@
                                     (click)="saveContact(contact)" title="Save">
                                     <i class="fas" [ngClass]="contact.isSaving ? 'fa-spinner fa-spin' : 'fa-check'"></i>
                                 </button>
+                                @if (contact.id.startsWith('new-')) {
                                 <button class="btn-icon btn-remove" [disabled]="contact.isSaving"
                                     (click)="removeContact(contact.id)" title="Remove"><i
                                         class="fa-solid fa-trash"></i></button>
+                                } @else {
+                                <button class="btn-icon btn-remove" [disabled]="contact.isSaving"
+                                    (click)="cancelEditContact(contact)" title="Cancel"><i
+                                        class="fa-solid fa-xmark"></i></button>
+                                }
                             </td>
                             } @else {
                             <td><strong>{{ contact.firstname }} {{ contact.lastname }}</strong></td>
@@ -138,6 +142,11 @@
                                 <button class="btn-icon btn-set-primary" [disabled]="contact.isSaving"
                                     (click)="setPrimaryContact(contact)" title="Set as Primary">
                                     <i class="fas" [ngClass]="contact.isSaving ? 'fa-spinner fa-spin' : 'fa-star'"></i>
+                                </button>
+                                } @else {
+                                <button class="btn-icon btn-edit" [disabled]="contact.isSaving"
+                                    (click)="startEditContact(contact)" title="Edit">
+                                    <i class="fa-solid fa-pen"></i>
                                 </button>
                                 }
                                 <button class="btn-icon btn-remove"
@@ -575,10 +584,58 @@
             @for (note of notes; track note.id) {
             <div class="note-item">
                 <div class="note-item-body">
-                    <div class="text-sm mb-2 w-full note-text">{{ note.text }}</div>
+                    <div class="text-sm mb-2 w-full note-text" [innerHTML]="note.text | linkify"></div>
                     <div class="item-meta">{{ note.createdAt | date:'dd MMM yyyy' }} • by <strong>{{ note.createdBy
                             }}</strong>
                     </div>
+
+                    <button type="button" class="note-comment-toggle" (click)="toggleNoteComments(note.id)">
+                        <i class="fa-regular fa-comment"></i> {{ note.commentCount }}
+                    </button>
+
+                    @if (expandedNoteCommentIds.has(note.id)) {
+                    <div class="note-comments">
+                        @if (isLoadingCommentsForNoteId[note.id]) {
+                        <div class="note-empty">Loading…</div>
+                        } @else {
+                        @for (comment of commentsByNoteId[note.id] ?? []; track comment.id) {
+                        <div class="note-comment-item">
+                            <div class="note-comment-body">
+                                <div class="text-sm note-text" [innerHTML]="comment.text | linkify"></div>
+                                <div class="item-meta">{{ comment.createdAt | date:'dd MMM yyyy, HH:mm' }} • by
+                                    <strong>{{ comment.createdBy }}</strong>
+                                </div>
+                            </div>
+                            @if (comment.canDelete) {
+                            <button class="btn-icon btn-remove note-comment-delete-btn"
+                                [disabled]="deletingCommentId === comment.id"
+                                (click)="removeNoteComment(note.id, comment.id)" title="Remove comment">{{
+                                deletingCommentId === comment.id ? '…' : '✕' }}</button>
+                            }
+                        </div>
+                        }
+                        @if ((commentsByNoteId[note.id] ?? []).length === 0) {
+                        <div class="note-empty">No comments yet.</div>
+                        }
+                        }
+
+                        @if (commentErrorByNoteId[note.id]) {
+                        <div class="text-sm" style="color: var(--k-red);">{{ commentErrorByNoteId[note.id] }}</div>
+                        }
+
+                        <div class="note-comment-form">
+                            <textarea class="form-textarea" rows="2" placeholder="Write a comment..."
+                                [maxlength]="noteCommentMaxLength" [ngModel]="commentDraftByNoteId[note.id]"
+                                (ngModelChange)="commentDraftByNoteId[note.id] = $event"
+                                [disabled]="!!isSavingCommentForNoteId[note.id]"></textarea>
+                            <button type="button" class="k-btn-sm k-btn-primary"
+                                [disabled]="!(commentDraftByNoteId[note.id] ?? '').trim() || !!isSavingCommentForNoteId[note.id]"
+                                (click)="saveNoteComment(note.id)">
+                                {{ isSavingCommentForNoteId[note.id] ? 'Saving...' : 'Reply' }}
+                            </button>
+                        </div>
+                    </div>
+                    }
                 </div>
                 @if (note.canDelete) {
                 <button class="btn-icon btn-remove note-delete-btn" [disabled]="deletingNoteId === note.id"

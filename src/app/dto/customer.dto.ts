@@ -39,9 +39,23 @@ export interface NoteDetail {
   createdBy: string;
   // backend คำนวณให้ (เจ้าของโน้ต หรือ ceo/admin) — ใช้ซ่อนปุ่มลบเท่านั้น สิทธิ์จริงบังคับที่ backend
   canDelete: boolean;
+  commentCount: number;
 }
 
 export interface CreateNotePayload {
+  text: string;
+}
+
+export interface NoteCommentDetail {
+  id: string;
+  noteId: string;
+  text: string;
+  createdAt: string;
+  createdBy: string;
+  canDelete: boolean;
+}
+
+export interface CreateNoteCommentPayload {
   text: string;
 }
 
@@ -91,6 +105,22 @@ export interface CustomerDetail {
   googleMapsLink: string | null;
   contacts: ContactDetail[];
   electricBill: ElectricBillDetail | null;
+}
+
+export interface CustomerListContact {
+  firstname: string | null;
+  lastname: string | null;
+  tel: string | null;
+  email: string | null;
+}
+
+export interface CustomerListItem {
+  id: string;
+  displayName: string;
+  customerNumber: string | null;
+  fullAddress: string | null;
+  googleMapsLink: string | null;
+  contact: CustomerListContact | null;
 }
 
 export interface CreateCustomerPayload {
