@@ -1,0 +1,4 @@
+<button type="button" class="scroll-to-top-btn" [class.show]="isVisible()" [attr.aria-hidden]="!isVisible()"
+    [tabindex]="isVisible() ? 0 : -1" (click)="scrollToTop()" title="Back to top" aria-label="Back to top">
+    <i class="fa-solid fa-arrow-up"></i>
+</button>
