@@ -24,6 +24,44 @@
           <button type="button" class="k-btn k-btn-outline k-btn-sm" (click)="loadUsers()">Retry</button>
         </div>
       } @else {
+        <div class="user-filters">
+          <div class="user-search">
+            <i class="fas fa-magnifying-glass user-search-icon"></i>
+            <input
+              type="text"
+              class="user-search-input"
+              placeholder="Search name, username, email..."
+              autocomplete="off"
+              [(ngModel)]="searchQuery"
+            />
+            @if (searchQuery) {
+              <button type="button" class="user-search-clear" title="Clear search" (click)="searchQuery = ''">
+                <i class="fas fa-times"></i>
+              </button>
+            }
+          </div>
+          <p-select
+            [(ngModel)]="roleFilter"
+            [options]="roleOptions"
+            optionLabel="label"
+            optionValue="value"
+            appendTo="body"
+            placeholder="All roles"
+            [showClear]="true"
+            class="user-filter-select"
+          />
+          <p-select
+            [(ngModel)]="statusFilter"
+            [options]="statusFilterOptions"
+            optionLabel="label"
+            optionValue="value"
+            appendTo="body"
+            placeholder="All statuses"
+            [showClear]="true"
+            class="user-filter-select"
+          />
+        </div>
+
         <div class="user-table-wrap">
           <table class="user-table">
             <thead>
@@ -35,7 +73,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (user of users; track (user.userId ?? $index)) {
+              @for (user of filteredUsers(); track (user.userId ?? $index)) {
                 <tr>
                   <!-- Name (inline edit) -->
                   <td class="name-cell">
@@ -92,6 +130,11 @@
                       <span class="google-email">
                         <i class="fab fa-google"></i> {{ user.email || '—' }}
                       </span>
+                      @if (user.status === 'pending') {
+                        <span class="badge" pTooltip="Not yet logged in with Google — access starts after the first login" tooltipPosition="top">
+                          Pending first login
+                        </span>
+                      }
                     } @else {
                       <span class="username-text">{{ user.username }}</span>
                     }
@@ -103,7 +146,7 @@
                       <span class="role-badge role-{{ user.role }}">
                         {{ roleLabels[user.role] }}
                       </span>
-                      @if (isCeo() && user.role !== 'ceo') {
+                      @if (isCeo() && user.role !== 'ceo' && user.status !== 'pending') {
                         <button
                           class="icon-btn edit-btn"
                           (click)="openRoleDialog(user)"
@@ -135,6 +178,17 @@
                       >
                         <i class="fas fa-trash"></i>
                       </button>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="4" class="user-empty">
+                    @if (users.length === 0) {
+                      No users yet.
+                    } @else {
+                      No matching users.
+                      <button type="button" class="k-btn-text" (click)="clearFilters()">Clear filters</button>
                     }
                   </td>
                 </tr>
@@ -289,12 +343,19 @@
         </span>
       </p>
 
-      <p class="role-hint">
-        <i class="fas fa-info-circle"></i>
-        This account will be disabled and removed from the list. Task history is kept.
-        Adding the same {{ deleteTarget.loginType === 'google' ? 'email' : 'username' }}
-        again will restore it.
-      </p>
+      @if (deleteTarget.status === 'pending') {
+        <p class="role-hint">
+          <i class="fas fa-info-circle"></i>
+          This will cancel the invite. The email will need to be added again to grant access.
+        </p>
+      } @else {
+        <p class="role-hint">
+          <i class="fas fa-info-circle"></i>
+          This account will be disabled and removed from the list. Task history is kept.
+          Adding the same {{ deleteTarget.loginType === 'google' ? 'email' : 'username' }}
+          again will restore it.
+        </p>
+      }
 
       @if (deleteError) {
         <p class="dialog-error">{{ deleteError }}</p>

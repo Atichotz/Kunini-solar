@@ -10,6 +10,8 @@ export interface UserListItem {
   email: string;
   username: string | null;
   loginType: 'google' | 'username';
+  // pending = pre-authorize ไว้แล้วแต่ยังไม่เคย login ด้วย Google ครั้งแรก
+  status: 'active' | 'pending';
 }
 
 export interface CreateUserPayload {

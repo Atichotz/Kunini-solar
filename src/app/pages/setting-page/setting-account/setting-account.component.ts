@@ -45,6 +45,16 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
   // โหลดรายชื่อไม่สำเร็จ — แยกจาก "ไม่มีผู้ใช้" ให้ผู้ใช้เห็นว่าพังและกด Retry ได้
   usersLoadError = '';
 
+  // --- Search / Filter ---
+  searchQuery = '';
+  roleFilter: UserListItem['role'] | null = null;
+  statusFilter: UserListItem['status'] | null = null;
+
+  readonly statusFilterOptions: { label: string; value: UserListItem['status'] }[] = [
+    { label: 'Active', value: 'active' },
+    { label: 'Pending first login', value: 'pending' },
+  ];
+
   // --- Reset Password Dialog ---
   showResetDialog = false;
   resetTarget: UserListItem | null = null;
@@ -121,6 +131,27 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
         this.usersLoadError = err.error?.message ?? 'Failed to load users. Please try again';
       },
     });
+  }
+
+  // output: users ที่ผ่าน search text (name/username/email) + role/status filter แล้ว — ใช้ render ตารางแทน users ตรงๆ
+  filteredUsers(): UserListItem[] {
+    const query = this.searchQuery.trim().toLowerCase();
+    return this.users.filter((u) => {
+      if (this.roleFilter && u.role !== this.roleFilter) return false;
+      if (this.statusFilter && u.status !== this.statusFilter) return false;
+      if (!query) return true;
+      return (
+        u.name.toLowerCase().includes(query) ||
+        (u.username ?? '').toLowerCase().includes(query) ||
+        u.email.toLowerCase().includes(query)
+      );
+    });
+  }
+
+  clearFilters(): void {
+    this.searchQuery = '';
+    this.roleFilter = null;
+    this.statusFilter = null;
   }
 
   // ===== Reset Password =====
