@@ -1,0 +1,320 @@
+// override เฉพาะ padding/shadow/hover ตาม design-system.md (global .card ให้แค่ bg/border-radius/border)
+.card {
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  transition: all .3s ease;
+}
+
+.card:hover {
+  border: 1.5px solid var(--k-red);
+}
+
+.card-header {
+  border-bottom: 3px solid var(--k-red);
+  margin-bottom: 16px;
+
+  h2 {
+    font-size: 18px;
+    font-weight: 700;
+  }
+}
+
+/* =========================================
+   Layout helpers unique to this page
+   ========================================= */
+.sow-section-label {
+  color: var(--k-accent-blue);
+}
+
+.sow-header-hint {
+  color: var(--k-mid-grey);
+  font-weight: normal;
+}
+
+.sow-add-task {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.sow-bottom-actions {
+  padding-top: 24px;
+  border-top: 1px solid var(--k-light-grey);
+}
+
+/* =========================================
+   Day Block (Execution Plan)
+   ========================================= */
+.day-block {
+  background: var(--bg-color);
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-sm);
+  padding: 24px;
+  margin-bottom: 24px;
+  page-break-inside: avoid;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.day-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--k-light-grey);
+}
+
+.day-block-title {
+  margin: 0;
+  font-size: 16px;
+}
+
+.day-date-input {
+  width: 140px;
+
+  ::ng-deep .p-datepicker-input {
+    padding: 6px 10px;
+  }
+}
+
+.day-status-select {
+  width: auto;
+  padding: 6px 10px;
+  font-weight: 600;
+  background-color: var(--card-bg);
+}
+
+/* EOD report blocks reuse .day-block but sit on a plain background */
+.sow-eod-block {
+  background: transparent;
+  border-color: var(--k-light-grey);
+}
+
+.sow-eod-header {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.sow-eod-title {
+  margin: 0;
+  font-size: 14px;
+  color: var(--k-black);
+}
+
+/* =========================================
+   Machinery checkbox grid
+   ========================================= */
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--k-black);
+  cursor: pointer;
+
+  input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--k-red);
+    cursor: pointer;
+  }
+}
+
+/* =========================================
+   Weather selector
+   ========================================= */
+.weather-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.weather-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--k-mid-grey);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--card-bg);
+  color: var(--k-dark-grey);
+  cursor: pointer;
+
+  &.active {
+    background: var(--k-dark-grey);
+    color: var(--k-white);
+    border-color: var(--k-dark-grey);
+  }
+}
+
+/* =========================================
+   Photo upload (local preview only)
+   ========================================= */
+.photo-box {
+  border: 2px dashed var(--k-mid-grey);
+  border-radius: var(--radius-sm);
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--k-mid-grey);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--bg-color);
+  text-align: center;
+  padding: 16px;
+  margin-top: 8px;
+}
+
+.sow-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.sow-photo-item {
+  position: relative;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--k-light-grey);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.sow-photo-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+}
+
+/* =========================================
+   Task list row
+   ========================================= */
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+
+  input {
+    flex: 1;
+  }
+}
+
+/* =========================================
+   PDF print styles
+   ========================================= */
+.print-header,
+.print-footer {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 25mm 15mm;
+  }
+
+  .print-header {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--k-red);
+  }
+
+  .print-header-brand {
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--k-black);
+  }
+
+  .print-header-brand-sub {
+    font-weight: 400;
+  }
+
+  .print-header-sub {
+    font-size: 12px;
+    color: var(--k-dark-grey);
+  }
+
+  .print-footer {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 10px;
+    color: var(--k-mid-grey);
+    padding-top: 10px;
+    border-top: 1px solid var(--k-light-grey);
+  }
+
+  .max-w-container {
+    width: 100%;
+    max-width: 100%;
+    margin-top: 20px;
+  }
+
+  .day-block {
+    background: transparent;
+    border-color: var(--k-light-grey);
+    padding: 16px;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  input,
+  select,
+  textarea {
+    border: none;
+    border-bottom: 1px solid var(--k-light-grey);
+    border-radius: 0;
+    padding: 4px 0;
+    background: transparent;
+    resize: none;
+  }
+
+  // p-datepicker renders its input deep inside its own component template — global
+  // encapsulation means the plain "input" rule above can't reach it, so target it explicitly
+  ::ng-deep .p-datepicker-input {
+    border: none;
+    border-bottom: 1px solid var(--k-light-grey);
+    border-radius: 0;
+    padding: 4px 0;
+    background: transparent;
+  }
+
+  ::ng-deep .p-datepicker-dropdown {
+    display: none;
+  }
+}

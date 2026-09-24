@@ -1,0 +1,269 @@
+<div class="max-w-container p-[24px]">
+
+  <!-- Page Header (hidden on print) -->
+  <div class="flex justify-between items-start no-print !mb-2 flex-wrap">
+    <div>
+      <h1 class="k-header mb-1">Scope of Work (SOW)</h1>
+      @if (!loadErrorMessage) {
+      <div class="item-meta">Draft only — data is not saved to the database yet and will be lost on reload</div>
+      }
+    </div>
+    <div class="flex gap-2 items-center">
+      @if (hasSavedLocally) {
+      <span class="text-sm" style="color: var(--k-accent-green);">Saved locally</span>
+      }
+      <p-button [routerLink]="backLink" [rounded]="true" variant="outlined" severity="danger">
+        <i class="fa-solid fa-xmark"></i>
+      </p-button>
+    </div>
+  </div>
+
+  @if (loadErrorMessage) {
+  <div class="card" style="color: var(--k-red);">{{ loadErrorMessage }}</div>
+  } @else {
+
+  <div class="flex-col gap-6">
+
+    <p-tabs value="1">
+      <p-tablist>
+        <p-tab value="1">1-3. Overview &amp; Plan</p-tab>
+        <p-tab value="2">4-5. Progress &amp; Reports</p-tab>
+      </p-tablist>
+      <p-tabpanels>
+        <p-tabpanel value="1">
+
+          <!-- 1. Project Overview -->
+          <div class="card mb-6">
+            <div class="card-header">
+              <h2>1. Project Overview</h2>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="input-group">
+                <label class="input-label" for="sowCustomerName">Customer / Site Name</label>
+                <input id="sowCustomerName" type="text" [(ngModel)]="customerName" disabled readonly
+                  placeholder="Customer / site name">
+              </div>
+              <div class="input-group">
+                <label class="input-label" for="sowLocation">Location</label>
+                <input id="sowLocation" type="text" [(ngModel)]="location" disabled readonly placeholder="Site address">
+              </div>
+              <div class="input-group">
+                <label class="input-label" for="sowStartDate">Planned Start Date</label>
+                <p-datepicker inputId="sowStartDate" [(ngModel)]="startDate" appendTo="body" [showIcon]="true"
+                  [fluid]="true" placeholder="Select date" />
+              </div>
+              <div class="input-group">
+                <label class="input-label" for="sowEndDate">Est. Completion Date</label>
+                <p-datepicker inputId="sowEndDate" [(ngModel)]="endDate" appendTo="body" [showIcon]="true"
+                  [fluid]="true" placeholder="Select date" />
+              </div>
+            </div>
+            @if (startAfterEnd) {
+            <div class="text-sm mt-2" style="color: var(--k-red);">Planned start date is after the completion date</div>
+            }
+          </div>
+
+          <!-- 2. Customer Notes & Concerns -->
+          <div class="card mb-6">
+            <div class="card-header">
+              <h2>2. Customer Notes &amp; Concerns</h2>
+            </div>
+            <div class="input-group">
+              <textarea class="form-textarea" [(ngModel)]="customerNotes" rows="3"
+                placeholder="Note any specific customer requests, concerns, or access restrictions (e.g., 'Do not block driveway between 2-4 PM', 'Beware of dog', etc.)."></textarea>
+            </div>
+          </div>
+
+          <!-- 3. Execution Plan & Resource Allocation -->
+          <div class="card mb-6">
+            <div class="card-header">
+              <h2>3. Execution Plan &amp; Resource Allocation</h2>
+              <button type="button" class="k-btn-text no-print" (click)="addDay()">+ Add Day</button>
+            </div>
+
+            @for (day of days; track day.id; let i = $index) {
+            <div class="day-block">
+              <div class="day-block-header">
+                <div class="flex items-center gap-4">
+                  <h3 class="day-block-title">{{ dayLabel(i) }}</h3>
+                  <p-datepicker [(ngModel)]="day.date" appendTo="body" styleClass="day-date-input" placeholder="Date" />
+                </div>
+                <div class="flex items-center gap-2">
+                  <select [(ngModel)]="day.status" class="day-status-select">
+                    <option>Pending</option>
+                    <option>In Progress</option>
+                    <option>Completed</option>
+                    <option>Delayed</option>
+                  </select>
+                  <button type="button" class="icon-btn no-print" title="Remove day" (click)="removeDay(day)">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Resources -->
+              <div class="grid grid-cols-2 gap-8 mb-6">
+                <div class="flex flex-col gap-3">
+                  <span class="input-label sow-section-label">Team &amp; Personnel</span>
+                  <div class="grid grid-cols-2 gap-3">
+                    <input type="number" min="0" placeholder="Total Headcount" title="Total Headcount"
+                      [(ngModel)]="day.headcount" (ngModelChange)="clampHeadcount(day)">
+                    <input type="text" placeholder="Lead Tech" title="Lead Technician" [(ngModel)]="day.leadTech">
+                  </div>
+                  <input type="text" placeholder="Subcontractors / Notes (e.g., external roofers)"
+                    [(ngModel)]="day.subcontractorNotes">
+                </div>
+
+                <div class="flex flex-col gap-3">
+                  <span class="input-label sow-section-label">Machinery &amp; Equipment</span>
+                  <div class="checkbox-grid">
+                    <label class="checkbox-label">
+                      <input type="checkbox" [(ngModel)]="day.machinery.scaffolding"> Scaffolding
+                    </label>
+                    <label class="checkbox-label">
+                      <input type="checkbox" [(ngModel)]="day.machinery.mobileCrane"> Mobile Crane
+                    </label>
+                    <label class="checkbox-label">
+                      <input type="checkbox" [(ngModel)]="day.machinery.boomLift"> Boom Lift
+                    </label>
+                    <label class="checkbox-label">
+                      <input type="checkbox" [(ngModel)]="day.machinery.fallProtection"> Fall Protection
+                    </label>
+                    <label class="checkbox-label">
+                      <input type="checkbox" [(ngModel)]="day.machinery.generator"> Generator
+                    </label>
+                  </div>
+                  <input type="text" placeholder="Other machinery notes (e.g. Crane rental 09:00-12:00)"
+                    [(ngModel)]="day.machineryNotes">
+                </div>
+              </div>
+
+              <!-- Planned Tasks -->
+              <div class="flex flex-col gap-2">
+                <span class="input-label sow-section-label">Planned Tasks</span>
+                @for (task of day.tasks; track task.id) {
+                <div class="task-row">
+                  <input type="text" [(ngModel)]="task.text" placeholder="Task description">
+                  <button type="button" class="icon-btn no-print" title="Remove task" (click)="removeTask(day, task)">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+                }
+                @if (day.tasks.length === 0) {
+                <div class="note-empty">No tasks yet</div>
+                }
+                <button type="button" class="k-btn-text no-print sow-add-task" (click)="addTask(day)">+ Add
+                  Task</button>
+              </div>
+            </div>
+            }
+
+            @if (days.length === 0) {
+            <div class="note-empty">No days planned yet. Click "+ Add Day" to get started.</div>
+            }
+          </div>
+
+        </p-tabpanel>
+
+        <p-tabpanel value="2">
+
+          <!-- 4. Daily EOD Summaries -->
+          <div class="card mb-6">
+            <div class="card-header">
+              <div class="flex items-center gap-2">
+                <h2>4. Daily EOD Summaries</h2>
+                <span class="text-sm sow-header-hint">(Filled by Lead Tech)</span>
+              </div>
+              <button type="button" class="k-btn-text no-print" (click)="addEodReport()">+ Add Day Report</button>
+            </div>
+
+            @for (report of eodReports; track report.id) {
+            <div class="day-block sow-eod-block">
+              <div class="day-block-header sow-eod-header">
+                <h3 class="sow-eod-title">{{ report.dayLabel }}</h3>
+                <button type="button" class="icon-btn no-print" title="Remove report" (click)="removeEodReport(report)">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4 mb-5">
+                <div class="input-group">
+                  <label class="input-label">Date of Report</label>
+                  <p-datepicker [(ngModel)]="report.date" appendTo="body" [showIcon]="true" [fluid]="true"
+                    placeholder="Select date" />
+                </div>
+                <div class="input-group">
+                  <span class="input-label">Weather Conditions</span>
+                  <div class="weather-group">
+                    <button type="button" class="weather-btn" [class.active]="report.weather === 'clear'"
+                      (click)="setWeather(report, 'clear')"><i class="fa-solid fa-sun"></i> Clear / Sunny</button>
+                    <button type="button" class="weather-btn" [class.active]="report.weather === 'overcast'"
+                      (click)="setWeather(report, 'overcast')"><i class="fa-solid fa-cloud"></i> Overcast</button>
+                    <button type="button" class="weather-btn" [class.active]="report.weather === 'rain'"
+                      (click)="setWeather(report, 'rain')"><i class="fa-solid fa-cloud-showers-heavy"></i> Rain (Delayed)</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="input-group mb-4">
+                <span class="input-label">Daily Progress &amp; Issues</span>
+                <textarea class="form-textarea" rows="3" [(ngModel)]="report.progressNotes"
+                  placeholder="Summarize today's progress. Note any issues, missing materials, or delays encountered on site."></textarea>
+              </div>
+
+              <div class="input-group">
+                <span class="input-label">EOD Site Photos</span>
+
+                @if (report.photos.length > 0) {
+                <div class="sow-photo-grid">
+                  @for (photo of report.photos; track photo.id) {
+                  <div class="sow-photo-item">
+                    <img [src]="photo.previewUrl" [alt]="photo.file.name">
+                    <button type="button" class="icon-btn no-print sow-photo-remove" title="Remove photo"
+                      (click)="removePhoto(report, photo)">
+                      <i class="fa-solid fa-times"></i>
+                    </button>
+                  </div>
+                  }
+                </div>
+                }
+
+                <div class="photo-box no-print" (dragover)="$event.preventDefault()"
+                  (drop)="onPhotoDrop(report, $event)" (click)="reportPhotoInput.click()">
+                  + Upload Progress Photos
+                </div>
+                <input #reportPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
+                  (change)="onPhotoFilesSelected(report, $event)">
+              </div>
+            </div>
+            }
+
+            @if (eodReports.length === 0) {
+            <div class="note-empty">No EOD reports yet. Click "+ Add Day Report" to get started.</div>
+            }
+          </div>
+
+          <!-- 5. Final Project Notes -->
+          <div class="card mb-6">
+            <div class="card-header">
+              <h2>5. Final Project Notes &amp; Remarks</h2>
+            </div>
+            <div class="input-group">
+              <textarea class="form-textarea" rows="4" [(ngModel)]="finalNotes"
+                placeholder="Enter any general remarks, overall project feedback, pending items, or final handover notes here..."></textarea>
+            </div>
+          </div>
+
+        </p-tabpanel>
+      </p-tabpanels>
+    </p-tabs>
+
+    <!-- Bottom Actions -->
+    <div class="flex justify-end gap-2 no-print sow-bottom-actions">
+      <button type="button" class="k-btn k-btn-outline" (click)="saveDraft()">Save (local only)</button>
+      <button type="button" class="k-btn k-btn-primary" (click)="exportToPdf()">Export to PDF</button>
+    </div>
+
+  </div>
+  }
+</div>

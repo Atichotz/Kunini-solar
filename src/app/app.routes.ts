@@ -14,6 +14,7 @@ import { authGuard } from './guards/auth.guard';
 import { NewCustomerSuccessPopupComponent } from './popups/new-customer-success-popup/new-customer-success-popup.component';
 import { SettingPageComponent } from './pages/setting-page/setting-page.component';
 import { PdfBosPreviewComponent } from './pages/pdf-bos-preview/pdf-bos-preview.component';
+import { SowPageComponent } from './pages/sow-page/sow-page.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -28,6 +29,7 @@ export const routes: Routes = [
       { path: 'dashboard', component: DashboardComponent },
       { path: 'estimate', component: EstimatePageComponent },
       { path: 'survey', component: SurveyPageComponent },
+      { path: 'sow', component: SowPageComponent },
       { path: 'pdf-bos-preview', component: PdfBosPreviewComponent },
       { path: 'battery-guide', component: BatteryGuideComponent },
       { path: 'calculators', component: CalculatorsPageComponent },
