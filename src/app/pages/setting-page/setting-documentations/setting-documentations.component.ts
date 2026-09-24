@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, Input, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgClass } from '@angular/common';
 import { finalize } from 'rxjs';
@@ -35,9 +35,17 @@ export class SettingDocumentationsComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   readonly canManage = inject(PermissionService).canManageProducts;
 
+  @Input() searchQuery = '';
+
   rows: DocumentationRow[] = [];
 
   isLoadingRows = true;
+
+  get filteredRows(): DocumentationRow[] {
+    const q = this.searchQuery.trim().toLowerCase();
+    if (!q) return this.rows;
+    return this.rows.filter((r) => r.name.toLowerCase().includes(q));
+  }
 
   ngOnInit(): void {
     this.equipmentService.getDocumentationTypes()

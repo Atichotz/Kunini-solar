@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, Input, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -64,6 +64,8 @@ export class SettingBOSComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   readonly canManage = inject(PermissionService).canManageProducts;
 
+  @Input() searchQuery = '';
+
   private readonly categoryApi: Record<BosCategory, CategoryApi> = {
     cables: {
       get: () => this.equipmentService.getCables(),
@@ -122,6 +124,20 @@ export class SettingBOSComponent implements OnInit {
 
   get rows(): BOSRow[] {
     return this.rowsByCategory[this.selectedCategory];
+  }
+
+  get filteredRows(): BOSRow[] {
+    return this.rows.filter((r) => this.matchesSearch(r.description, r.size));
+  }
+
+  get filteredAccessoryRows(): BOSRow[] {
+    return this.accessoryRows.filter((r) => this.matchesSearch(r.description, r.size));
+  }
+
+  private matchesSearch(...values: (string | null | undefined)[]): boolean {
+    const q = this.searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return values.some((v) => (v ?? '').toLowerCase().includes(q));
   }
 
   ngOnInit(): void {

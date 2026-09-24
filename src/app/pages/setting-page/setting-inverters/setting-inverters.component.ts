@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, Input, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgClass } from '@angular/common';
 import { finalize } from 'rxjs';
@@ -83,11 +83,27 @@ export class SettingInvertersComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   readonly canManage = inject(PermissionService).canManageProducts;
 
+  @Input() searchQuery = '';
+
   rows: InverterRow[] = [];
   accessoryRows: AccessoryRow[] = [];
 
   isLoadingAccessories = true;
   isLoadingRows = true;
+
+  get filteredRows(): InverterRow[] {
+    return this.rows.filter((r) => this.matchesSearch(r.brand, r.description));
+  }
+
+  get filteredAccessoryRows(): AccessoryRow[] {
+    return this.accessoryRows.filter((r) => this.matchesSearch(r.brand, r.description));
+  }
+
+  private matchesSearch(...values: (string | null | undefined)[]): boolean {
+    const q = this.searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return values.some((v) => (v ?? '').toLowerCase().includes(q));
+  }
 
   ngOnInit(): void {
     this.equipmentService.getInverters()

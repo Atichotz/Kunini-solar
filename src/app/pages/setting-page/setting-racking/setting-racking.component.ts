@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, Input, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgClass } from '@angular/common';
 import { finalize } from 'rxjs';
@@ -59,6 +59,8 @@ export class SettingRackingComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   readonly canManage = inject(PermissionService).canManageProducts;
 
+  @Input() searchQuery = '';
+
   rows: RackingRow[] = [];
   roofTypeOptions: RoofTypeOption[] = [];
   newRoofTypeName = '';
@@ -74,6 +76,12 @@ export class SettingRackingComponent implements OnInit {
   // Add Row ต้องรอทั้งรายการ racking และ roof type (ใช้เป็นตัวเลือกใน dropdown ของแต่ละแถว)
   get isLoading(): boolean {
     return this.isLoadingRows || this.isLoadingRoofTypes;
+  }
+
+  get filteredRows(): RackingRow[] {
+    const q = this.searchQuery.trim().toLowerCase();
+    if (!q) return this.rows;
+    return this.rows.filter((r) => r.part.toLowerCase().includes(q) || r.description.toLowerCase().includes(q));
   }
 
   ngOnInit(): void {

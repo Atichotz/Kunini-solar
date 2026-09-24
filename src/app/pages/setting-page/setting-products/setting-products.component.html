@@ -8,49 +8,66 @@
 
     <!-- Tab Bar -->
     <div class="tab-bar">
-      <button class="tab-btn" [class.active]="activeTab === 'panels'" (click)="activeTab = 'panels'" type="button">
+      <button class="tab-btn" [class.active]="activeTab === 'panels'" (click)="selectTab('panels')" type="button">
         <i class="fas fa-solar-panel"></i>
         <span>Panels</span>
       </button>
-      <button class="tab-btn" [class.active]="activeTab === 'inverters'" (click)="activeTab = 'inverters'"
+      <button class="tab-btn" [class.active]="activeTab === 'inverters'" (click)="selectTab('inverters')"
         type="button">
         <i class="fas fa-bolt"></i>
         <span>Inverters</span>
       </button>
-      <button class="tab-btn" [class.active]="activeTab === 'batteries'" (click)="activeTab = 'batteries'"
+      <button class="tab-btn" [class.active]="activeTab === 'batteries'" (click)="selectTab('batteries')"
         type="button">
         <i class="fas fa-battery-full"></i>
         <span>Batteries</span>
       </button>
-      <button class="tab-btn" [class.active]="activeTab === 'racking'" (click)="activeTab = 'racking'" type="button">
+      <button class="tab-btn" [class.active]="activeTab === 'racking'" (click)="selectTab('racking')" type="button">
         <i class="fas fa-th-large"></i>
         <span>Solar Racking</span>
       </button>
-      <button class="tab-btn" [class.active]="activeTab === 'bos'" (click)="activeTab = 'bos'" type="button">
+      <button class="tab-btn" [class.active]="activeTab === 'bos'" (click)="selectTab('bos')" type="button">
         <i class="fas fa-plug"></i>
         <span>Solar BOS</span>
       </button>
-      <button class="tab-btn" [class.active]="activeTab === 'documentation'" (click)="activeTab = 'documentation'"
+      <button class="tab-btn" [class.active]="activeTab === 'documentation'" (click)="selectTab('documentation')"
         type="button">
         <i class="fas fa-file-alt"></i>
         <span>Documentation</span>
       </button>
     </div>
 
+    <!-- Search / Filter -->
+    <div class="k-search-box">
+      <i class="fas fa-magnifying-glass k-search-icon"></i>
+      <input
+        type="text"
+        class="k-search-input"
+        placeholder="Search brand, description..."
+        autocomplete="off"
+        [(ngModel)]="searchQuery"
+      />
+      @if (searchQuery) {
+        <button type="button" class="k-search-clear" title="Clear search" (click)="searchQuery = ''">
+          <i class="fas fa-times"></i>
+        </button>
+      }
+    </div>
+
     <!-- Tab Content -->
     <div class="tab-content">
       @if (activeTab === 'panels') {
-      <app-setting-panels />
+      <app-setting-panels [searchQuery]="searchQuery" />
       } @else if (activeTab === 'inverters') {
-      <app-setting-inverters />
+      <app-setting-inverters [searchQuery]="searchQuery" />
       } @else if (activeTab === 'batteries') {
-      <app-setting-batteries />
+      <app-setting-batteries [searchQuery]="searchQuery" />
       } @else if (activeTab === 'racking') {
-      <app-setting-racking />
+      <app-setting-racking [searchQuery]="searchQuery" />
       } @else if (activeTab === 'bos') {
-      <app-setting-bos />
+      <app-setting-bos [searchQuery]="searchQuery" />
       } @else if (activeTab === 'documentation') {
-      <app-setting-documentations />
+      <app-setting-documentations [searchQuery]="searchQuery" />
       }
     </div>
   </div>

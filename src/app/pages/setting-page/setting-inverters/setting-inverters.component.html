@@ -25,8 +25,12 @@
           <i class="fas fa-spinner fa-spin"></i> Loading…
         </td>
       </tr>
+      } @else if (filteredRows.length === 0 && rows.length > 0) {
+      <tr>
+        <td class="k-setting-loading" [attr.colspan]="canManage() ? 9 : 8">No matching inverters found</td>
+      </tr>
       }
-      @for (row of rows; track row) {
+      @for (row of filteredRows; track row) {
       <tr>
         <td><input type="text" [disabled]="!canManage()" [(ngModel)]="row.brand" placeholder="Brand" /></td>
         <td><input type="text" [disabled]="!canManage()" [(ngModel)]="row.phase" placeholder="Phase" /></td>
@@ -83,8 +87,12 @@
           <i class="fas fa-spinner fa-spin"></i> Loading…
         </td>
       </tr>
+      } @else if (filteredAccessoryRows.length === 0 && accessoryRows.length > 0) {
+      <tr>
+        <td class="k-setting-loading" [attr.colspan]="canManage() ? 7 : 6">No matching accessories found</td>
+      </tr>
       }
-      @for (row of accessoryRows; track row) {
+      @for (row of filteredAccessoryRows; track row) {
       <tr>
         <td><input type="text" [disabled]="!canManage()" [(ngModel)]="row.brand" placeholder="Brand" /></td>
         <td><input type="text" [disabled]="!canManage()" [(ngModel)]="row.description" /></td>
