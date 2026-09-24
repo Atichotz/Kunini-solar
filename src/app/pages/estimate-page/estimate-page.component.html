@@ -60,6 +60,9 @@
         <li class="nav-item" [class.active]="activeSection === 'sec-13'" (click)="scrollTo('sec-13')">
           <span class="nav-num">11</span>Energy Demand
         </li>
+        <li class="nav-item" [class.active]="activeSection === 'sec-14'" (click)="scrollTo('sec-14')">
+          <span class="nav-num">12</span>Cost Summary
+        </li>
       </ul>
     </nav>
     <div class="container-content">
@@ -1569,20 +1572,37 @@
         </div>
       </div>
 
+      <!-- 12. Cost Summary — รวม Cost/Sale/Profit ของทุกอย่างที่เลือกไว้ในทุก section -->
+      <div class="card" id="sec-14">
+        <div class="card-header">
+          <h2 class="font-bold">12. Cost Summary</h2>
+        </div>
+        <div class="grid grid-cols-3">
+          <div class="metric-box">
+            <div class="metric-lbl">Total Cost Price</div>
+            <div class="metric-val" style="color: var(--k-black);">฿ {{ grandTotalCost | number:'1.2-2' }}</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-lbl">Total Sale Price</div>
+            <div class="metric-val" style="color: var(--k-black);">฿ {{ grandTotalSale | number:'1.2-2' }}</div>
+          </div>
+          <div class="metric-box" style="border-color: var(--k-accent-green);">
+            <div class="metric-lbl">Total Profit</div>
+            <div class="metric-val" style="color: var(--k-accent-green);">฿ {{ grandTotalProfit | number:'1.2-2' }}</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Bottom Actions (Hidden on Print) -->
       <div class="no-print" style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 16px;">
         <button class="k-btn k-btn-outline" [disabled]="saving() || !customerId" (click)="onSaveDraft()">
-          @if (saving() && !finalizing()) { <i class="fas fa-spinner fa-spin"></i> }
+          @if (saving()) { <i class="fas fa-spinner fa-spin"></i> }
           Save Draft</button>
-        @if (canFinalize()) {
-        <button class="k-btn k-btn-primary" [disabled]="saving() || !customerId" (click)="onSave()">
-          @if (saving() && finalizing()) { <i class="fas fa-spinner fa-spin"></i> }
-          Save</button>
-        }
         <button class="k-btn k-btn-primary" (click)="onExportPdf()">Export to PDF</button>
       </div>
     </div>
   </div>
+  <app-scroll-to-top />
   }
 </div>
 

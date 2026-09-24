@@ -189,6 +189,7 @@ export function buildQuotationSnapshot(
     customerAddress: extras.customerAddress,
     projectLocation: extras.projectLocation,
     salesRepName: extras.salesRepName,
+    quotationNo: detail.quotationNo,
     rows,
     solarPvKitTotal,
     documentationTotal,

@@ -33,6 +33,8 @@ export interface QuotationSnapshot {
   projectLocation: string;
   /** ชื่อผู้กด Export (Sales Rep) — '' ถ้าหา profile ไม่เจอ */
   salesRepName: string;
+  /** เลขที่ใบเสนอราคา (ออกตอน finalize เท่านั้น) — null = ยังเป็น draft */
+  quotationNo: string | null;
 
   // ---- ตารางรายการ ----
   rows: QuotationLineRow[];

@@ -16,12 +16,12 @@ import { forkJoin, of, Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { SolarBOSDialogComponent } from './solar-bos-dialog/solar-bos-dialog.component';
 import { KLoadingComponent } from '../../k-loading/k-loading.component';
+import { ScrollToTopComponent } from '../../scroll-to-top/scroll-to-top.component';
 import { EquipmentService, PanelItem, InverterItem, BatteryItem, AccessoryItem, RoofTypeItem, SolarRackingItem, BOSItem, DocumentationTypeItem } from '../../services/equipment.service';
 import { CustomerService } from '../../services/customer.service';
 import { EstimateService } from '../../services/estimate.service';
 import { QuotationPreviewService } from '../../services/quotation-preview.service';
 import { AuthService } from '../../services/auth.service';
-import { PermissionService } from '../../services/permission.service';
 import { salesRepNameOf, splitRemarkLines } from '../../quotation-snapshot.util';
 import { QUOTATION_HARDCODE } from '../pdf-bos-preview/quotation-hardcode';
 import type { QuotationLineRow, QuotationSnapshot } from '../../dto/quotation.dto';
@@ -32,7 +32,6 @@ import type {
   EstimateItemsPayload,
   EstimateLabourItemView,
   SaveEstimatePayload,
-  SaveEstimateResult,
 } from '../../dto/estimate.dto';
 
 interface SelectOption {
@@ -89,7 +88,7 @@ interface CatalogBundle {
 
 @Component({
   selector: 'app-estimate-page',
-  imports: [FormsModule, SelectModule, SelectButtonModule, ButtonModule, NgClass, NgFor, NgIf, DecimalPipe, Tooltip, AccordionModule, ToastModule, ConfirmDialogModule, SolarBOSDialogComponent, KLoadingComponent],
+  imports: [FormsModule, SelectModule, SelectButtonModule, ButtonModule, NgClass, NgFor, NgIf, DecimalPipe, Tooltip, AccordionModule, ToastModule, ConfirmDialogModule, SolarBOSDialogComponent, KLoadingComponent, ScrollToTopComponent],
   templateUrl: './estimate-page.component.html',
   styleUrl: './estimate-page.component.scss',
   providers: [MessageService, ConfirmationService]
@@ -104,8 +103,6 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly customerService = inject(CustomerService);
   private readonly quotationPreview = inject(QuotationPreviewService);
   private readonly authService = inject(AuthService);
-  // technician บันทึกได้แค่ draft — ซ่อนปุ่ม Save (finalize) เพื่อ UX, backend บังคับ 403 อยู่แล้ว
-  readonly canFinalize = inject(PermissionService).canCreateQuotation;
   private readonly destroyRef = inject(DestroyRef);
 
   // customer id ที่มาจากหน้า Customer Detail (ผ่าน query param) — ใช้พาผู้ใช้กลับไปหน้าลูกค้าคนเดิมตอนกด X / Save Draft
@@ -115,8 +112,6 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
   // estimate id — มีตอนเปิด draft เดิมกลับมาแก้ (?estimateId=) หรือหลังจากเจอ draft ค้างของลูกค้าตอนเปิดหน้าเปล่าๆ
   estimateId: string | null = null;
   saving = signal(false);
-  // กำลัง save แบบ finalize (ปุ่ม Save) หรือ draft — ใช้ให้ spinner ขึ้นที่ปุ่มที่ผู้ใช้กดจริง
-  finalizing = signal(false);
   // true จนกว่า catalog ทั้ง 14 เส้น (และ draft ที่ต้อง prefill ถ้ามี) จะโหลดเสร็จ
   pageLoading = signal(true);
 
@@ -572,10 +567,10 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     return { panel, inverter, battery, racking, bos, labour, documentation };
   }
 
-  private buildPayload(finalize: boolean): SaveEstimatePayload {
+  private buildPayload(): SaveEstimatePayload {
     return {
       customer_id: this.customerId!,
-      finalize,
+      estimate_id: this.estimateId,
       head: {
         customer_display_name: this.customer?.displayName ?? null,
         contact_reference: this.primaryContact ? this.contactReference : null,
@@ -590,8 +585,9 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     };
   }
 
-  // input: finalize flag + callback ตอนสำเร็จ — output: void, จัดการ validate/error/navigate ให้ทั้ง Save Draft และ Save
-  private trySave(finalize: boolean, onSuccess: (result: SaveEstimateResult) => void): void {
+  // output: void — save draft (ใหม่ถ้าไม่มี estimateId, ทับของเดิมถ้ามี), จัดการ validate/error/navigate
+  // finalize แยกไปกดที่ปุ่ม Final ในหน้า History ของ Customer Detail แทน ไม่มีในหน้านี้แล้ว
+  onSaveDraft(): void {
     if (!this.customerId) {
       this.warnIncompleteSelection('Open this page from a customer page before saving');
       return;
@@ -599,7 +595,7 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.saving()) return;
     if (!this.ensureLabourRowsHaveDescription()) return;
 
-    const payload = this.buildPayload(finalize);
+    const payload = this.buildPayload();
     const hasAnyItem = payload.items.panel.length || payload.items.inverter.length || payload.items.battery.length
       || payload.items.racking.length || payload.items.bos.length || payload.items.labour.length
       || payload.items.documentation.length;
@@ -609,19 +605,16 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.saving.set(true);
-    this.finalizing.set(finalize);
     this.estimateService.save(payload)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (result) => {
+        next: () => {
           this.saving.set(false);
-          this.finalizing.set(false);
-          onSuccess(result);
+          this.messageService.add({ severity: 'success', summary: 'Draft Saved', life: 2000 });
           this.router.navigate(this.backLink);
         },
         error: (err) => {
           this.saving.set(false);
-          this.finalizing.set(false);
           console.error('[API] Failed to save estimate:', err);
           const detail = err?.status === 409
             ? 'This estimate was already finalized elsewhere. Please reopen the page'
@@ -631,27 +624,6 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
           this.messageService.add({ severity: 'error', summary: 'Save Failed', detail, life: 4000 });
         },
       });
-  }
-
-  onSaveDraft(): void {
-    this.trySave(false, () =>
-      this.messageService.add({ severity: 'success', summary: 'Draft Saved', life: 2000 }));
-  }
-
-  onSave(): void {
-    if (!this.customerId) {
-      this.warnIncompleteSelection('Open this page from a customer page before saving');
-      return;
-    }
-    this.confirmationService.confirm({
-      header: 'Finalize Estimate',
-      message: 'Once finalized, this estimate can no longer be edited. Continue?',
-      icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'Finalize',
-      rejectLabel: 'Cancel',
-      accept: () => this.trySave(true, () =>
-        this.messageService.add({ severity: 'success', summary: 'Estimate Finalized', life: 2000 })),
-    });
   }
 
   // ===== Export to PDF — รวมยอดทุก section เป็น snapshot แล้วส่งต่อหน้า preview =====
@@ -821,6 +793,8 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
       customerAddress: this.customer?.fullAddress ?? '',
       projectLocation: this.customer?.projectLocationName ?? '',
       salesRepName: this.salesRepName.trim(),
+      // หน้านี้ export ได้เฉพาะ draft (finalize แยกไปกดที่ History) — เลข quotation ยังไม่ออกจนกว่าจะ finalize
+      quotationNo: null,
       rows,
       solarPvKitTotal,
       documentationTotal,
@@ -842,7 +816,7 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
   showSolarBOSDialog = signal(false);
 
   private readonly scrollSpy = new ScrollSpy(
-    ['sec-1', 'sec-3', 'sec-4', 'sec-5', 'sec-6', 'sec-7', 'sec-8', 'sec-9', 'sec-10', 'sec-11', 'sec-12', 'sec-13'],
+    ['sec-1', 'sec-3', 'sec-4', 'sec-5', 'sec-6', 'sec-7', 'sec-8', 'sec-9', 'sec-10', 'sec-11', 'sec-12', 'sec-13', 'sec-14'],
     (id) => (this.activeSection = id)
   );
 
@@ -1448,5 +1422,25 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
 
   get documentationSectionTotal(): number {
     return this.documentationRows.reduce((sum, row) => sum + this.documentationRowTotal(row), 0);
+  }
+
+  // ===== การ์ดสรุปล่างสุด — รวม Cost/Sale/Profit ของทุก section ที่เลือกไว้ =====
+  // Installation กับ Documentation ไม่มี markup (catalog ไม่มี cost/sale แยก) จึงถือ cost = sale เหมือนกับ installationSummaryRows
+  get grandTotalCost(): number {
+    const panelCost = this.panelSummaryRows[0]?.totalCost ?? 0;
+    const inverterCost = this.inverterSummaryRows[0]?.totalCost ?? 0;
+    const batteryCost = this.batterySummaryRows[0]?.totalCost ?? 0;
+    const rackingCost = this.roofTypeTotals.reduce((sum, r) => sum + r.totalCost, 0);
+    return panelCost + inverterCost + batteryCost + rackingCost
+      + this.bosSectionTotal + this.installationSectionTotal + this.documentationSectionTotal;
+  }
+
+  get grandTotalSale(): number {
+    return this.panelSectionTotal + this.inverterSectionTotal + this.batterySectionTotal
+      + this.rackingSectionTotal + this.bosSummaryTotal + this.installationSectionTotal + this.documentationSectionTotal;
+  }
+
+  get grandTotalProfit(): number {
+    return this.grandTotalSale - this.grandTotalCost;
   }
 }

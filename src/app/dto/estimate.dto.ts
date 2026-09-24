@@ -85,7 +85,8 @@ export interface EstimateItemsPayload {
 
 export interface SaveEstimatePayload {
   customer_id: string;
-  finalize: boolean;
+  // มีค่า = แก้ draft เดิมของ id นี้, null = สร้าง draft ใหม่
+  estimate_id: string | null;
   head: EstimateHeadPayload;
   items: EstimateItemsPayload;
 }
@@ -95,6 +96,12 @@ export interface SaveEstimateResult {
   status: 'draft' | 'final';
   versionNo: number | null;
   updatedAt: string;
+}
+
+export interface FinalizeEstimateResult extends SaveEstimateResult {
+  quotationNo: string | null;
+  finalizedAt: string | null;
+  finalizedBy: string | null;
 }
 
 // ===== response จาก GET (camelCase ตรงกับ convention เดิมของ CustomerDetail) =====
@@ -180,6 +187,8 @@ export interface EstimateDetail {
   customerId: string;
   status: 'draft' | 'final';
   versionNo: number | null;
+  /** เลขที่ใบเสนอราคา รันต่อเนื่องทั้งบริษัท ฟอร์แมต QT-YYYY-#### — null จนกว่าจะ finalize */
+  quotationNo: string | null;
 
   customerDisplayName: string | null;
   contactReference: string | null;

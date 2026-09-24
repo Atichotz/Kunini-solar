@@ -46,18 +46,7 @@
   width: 148px;
   flex-shrink: 0;
   overflow: hidden;
-  transition: width 0.25s ease;
   margin-top: 4.1rem;
-
-  &.collapsed {
-    width: 34px;
-
-    .nav-title,
-    .nav-list {
-      opacity: 0;
-      pointer-events: none;
-    }
-  }
 
   @media (max-width: 768px) {
     position: fixed;
@@ -79,18 +68,11 @@
     &.mobile-open {
       transform: translateX(0);
     }
+  }
 
-    &.collapsed {
-      width: 42%;
-      min-width: 220px;
-      transform: translateX(-100%);
-
-      .nav-title,
-      .nav-list {
-        opacity: 1;
-        pointer-events: auto;
-      }
-    }
+  // tablet: ซ่อน sidebar ทั้งอัน (เดิมมีปุ่ม "<" ที่ลูกค้าสับสนว่าเป็นปุ่มย้อนกลับ)
+  @media (min-width: 769px) and (max-width: 1024px) {
+    display: none;
   }
 }
 
@@ -159,14 +141,6 @@
   border-bottom: 1px solid var(--k-light-grey);
   margin-bottom: 4px;
 
-}
-
-.nav-toggle {
-  flex-shrink: 0;
-
-  @media (max-width: 768px) {
-    display: none;
-  }
 }
 
 .nav-title {

@@ -5,6 +5,7 @@ import { environment } from '../../environments/environment';
 import type {
   EstimateDetail,
   EstimateSummary,
+  FinalizeEstimateResult,
   SaveEstimatePayload,
   SaveEstimateResult,
 } from '../dto/estimate.dto';
@@ -14,20 +15,25 @@ export class EstimateService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiUrl}/estimates`;
 
-  // input: payload snapshot ของทุก section + finalize flag
-  // output: { id, status, versionNo, updatedAt } ของ estimate ที่เพิ่ง save
+  // input: payload snapshot ของทุก section (draft เสมอ — finalize แยกไปเรียก finalize() ต่างหาก)
+  // output: { id, status, versionNo, updatedAt } ของ draft ที่เพิ่ง save
   save(payload: SaveEstimatePayload): Observable<SaveEstimateResult> {
     return this.http.post<SaveEstimateResult>(this.baseUrl, payload);
+  }
+
+  // input: estimate UUID ของ draft — output: estimate ที่ finalize แล้ว, throw ถ้าไม่ใช่ draft หรือไม่มีสิทธิ์
+  finalize(id: string): Observable<FinalizeEstimateResult> {
+    return this.http.patch<FinalizeEstimateResult>(`${this.baseUrl}/${id}/finalize`, {});
+  }
+
+  // input: estimate UUID ของใบที่ finalize แล้ว — output: estimate ที่ย้อนกลับเป็น draft, throw ถ้าไม่ใช่ ceo หรือยังไม่ final
+  unfinalize(id: string): Observable<FinalizeEstimateResult> {
+    return this.http.patch<FinalizeEstimateResult>(`${this.baseUrl}/${id}/unfinalize`, {});
   }
 
   // output: estimate ทั้งหมดของลูกค้า (draft + final) ใหม่สุดก่อน — สำหรับ History list
   listByCustomer(customerId: string): Observable<EstimateSummary[]> {
     return this.http.get<EstimateSummary[]>(this.baseUrl, { params: { customerId } });
-  }
-
-  // output: draft ที่ค้างอยู่ของลูกค้า หรือ null ถ้าไม่มี
-  getDraft(customerId: string): Observable<EstimateDetail | null> {
-    return this.http.get<EstimateDetail | null>(`${this.baseUrl}/draft`, { params: { customerId } });
   }
 
   // input: estimate UUID

@@ -46,8 +46,8 @@
             <td class="q-cell">Customer # :</td>
           </tr>
           <tr>
-            <!-- ⚠️ HARDCODE (เว้นว่าง): Quotation # -->
-            <td class="q-cell">Quotation # :</td>
+            <!-- ออกเลขตอน finalize เท่านั้น (ดู quotation-snapshot.util.ts) — draft ยังไม่มีเลขจึงโชว์ค่าว่าง -->
+            <td class="q-cell">Quotation # : <strong>{{ snap.quotationNo ?? '—' }}</strong></td>
             <!-- ⚠️ HARDCODE (เว้นว่าง): Validity -->
             <td class="q-cell">Validity :</td>
           </tr>

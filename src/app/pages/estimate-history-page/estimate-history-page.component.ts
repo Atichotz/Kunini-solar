@@ -9,6 +9,7 @@ import { MessageService } from 'primeng/api';
 import { of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { ScrollSpy } from '../../scroll-spy.util';
+import { ScrollToTopComponent } from '../../scroll-to-top/scroll-to-top.component';
 import { buildQuotationSnapshot, salesRepNameOf } from '../../quotation-snapshot.util';
 import { EstimateService } from '../../services/estimate.service';
 import { CustomerService } from '../../services/customer.service';
@@ -57,7 +58,7 @@ const LABOUR_CATEGORY_LABELS: Record<string, string> = {
 
 @Component({
   selector: 'app-estimate-history-page',
-  imports: [CommonModule, RouterLink, ButtonModule, Tooltip, ToastModule],
+  imports: [CommonModule, RouterLink, ButtonModule, Tooltip, ToastModule, ScrollToTopComponent],
   templateUrl: './estimate-history-page.component.html',
   styleUrl: './estimate-history-page.component.scss',
   providers: [MessageService],
@@ -87,13 +88,12 @@ export class EstimateHistoryPageComponent implements OnInit, AfterViewInit, OnDe
   // ===== Section nav (เหมือน estimate-page) =====
   navItems: NavItem[] = [];
   activeSection = 'sec-3';
-  navOpen = true;
   mobileNavOpen = false;
 
   // ScrollSpy ข้าม id ที่ไม่มีใน DOM ได้ — section ที่ไม่มี item จะไม่ถูก render จึงไม่ต้องกรอง id ตรงนี้
   // ใส่ sec-1 ไว้ด้วยเพื่อให้บนสุดของหน้า (Customer Information) ไม่ไป highlight "Panels"
   private readonly scrollSpy = new ScrollSpy(
-    ['sec-1', 'sec-3', 'sec-4', 'sec-5', 'sec-6', 'sec-7', 'sec-8', 'sec-9', 'sec-10', 'sec-11', 'sec-12', 'sec-13'],
+    ['sec-1', 'sec-3', 'sec-4', 'sec-5', 'sec-6', 'sec-7', 'sec-8', 'sec-9', 'sec-10', 'sec-11', 'sec-12', 'sec-13', 'sec-14'],
     (id) => (this.activeSection = id)
   );
 
@@ -294,6 +294,31 @@ export class EstimateHistoryPageComponent implements OnInit, AfterViewInit, OnDe
     return [...byRoofType.values()];
   }
 
+  // ===== การ์ดสรุปล่างสุด — รวม Cost/Sale/Profit ของทุก section (สูตรเดียวกับ grandTotal* ใน estimate-page) =====
+  // Installation กับ Documentation ไม่มี markup (cost = sale) จึงใช้ sectionTotal(detail.xxxItems) ตรงๆ ทั้งสองฝั่ง
+  get grandTotalCost(): number {
+    if (!this.detail) return 0;
+    const panelCost = this.panelSummaryRows[0]?.totalCost ?? 0;
+    const inverterCost = this.inverterSummaryRows[0]?.totalCost ?? 0;
+    const batteryCost = this.batterySummaryRows[0]?.totalCost ?? 0;
+    const rackingCost = this.rackingRoofTypeTotals.reduce((sum, r) => sum + r.totalCost, 0);
+    // BOS: sectionTotal(detail.bosItems) = cost×qty ล้วน (ไม่มี markup) ตรงกับ bosSectionTotal ใน estimate-page
+    return panelCost + inverterCost + batteryCost + rackingCost
+      + this.sectionTotal(this.detail.bosItems) + this.sectionTotal(this.detail.labourItems)
+      + this.sectionTotal(this.detail.documentationItems);
+  }
+
+  get grandTotalSale(): number {
+    if (!this.detail) return 0;
+    return this.sectionTotal(this.detail.panelItems) + this.sectionTotal(this.detail.inverterItems)
+      + this.sectionTotal(this.detail.batteryItems) + this.sectionTotal(this.detail.rackingItems)
+      + this.bosSummaryTotal + this.sectionTotal(this.detail.labourItems) + this.sectionTotal(this.detail.documentationItems);
+  }
+
+  get grandTotalProfit(): number {
+    return this.grandTotalSale - this.grandTotalCost;
+  }
+
   // เลขหัวข้อคงที่ตาม estimate-page แม้บาง section จะถูกซ่อน (ไม่มี item) เพื่อให้ตรงกับหน้าที่ผู้ใช้คุ้นเคย
   private buildNavItems(detail: EstimateDetail): NavItem[] {
     const items: (NavItem & { visible: boolean })[] = [
@@ -308,6 +333,7 @@ export class EstimateHistoryPageComponent implements OnInit, AfterViewInit, OnDe
       { id: 'sec-11', num: 9, label: 'Energy Output', visible: true },
       { id: 'sec-12', num: 10, label: 'Cash Flow', visible: true },
       { id: 'sec-13', num: 11, label: 'Energy Demand', visible: true },
+      { id: 'sec-14', num: 12, label: 'Cost Summary', visible: true },
     ];
     return items.filter((item) => item.visible);
   }
