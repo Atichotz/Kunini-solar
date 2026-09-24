@@ -1,0 +1,703 @@
+// .th-cell/.td-cell เป็นของ dashboard.component.scss เดิม (ใช้ร่วมกับตาราง Recent Quotes ที่นั่นด้วย) — คัดลอกมาเพราะ
+// view encapsulation ของ Angular ไม่ให้ style ของ parent ไหลเข้ามาใน template ของ child component
+.th-cell {
+  padding: 0.625rem 1rem;
+  text-align: left;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.td-cell {
+  padding: 0.875rem 1rem;
+  vertical-align: middle;
+}
+
+.grid {
+  display: grid;
+  gap: 24px;
+}
+
+// .card/.card-header ทั่วไป (styles.scss) ไม่มี padding/shadow/overflow พวกนี้ — dashboard.component.scss เดิมมี override
+// ชุดนี้ไว้ในไฟล์ของตัวเอง (encapsulation ไม่ไหลข้ามคอมโพเนนต์) เลยต้อง override ซ้ำที่นี่เหมือนที่ dashboard เคยทำ
+// overflow-x/min-width สำคัญมาก: ตารางกว้าง 1110px ถ้าการ์ดไม่ scroll เองจะดันหน้าทั้งหน้าล้นแนวนอน
+.card {
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  overflow-x: auto;
+  min-width: 320px;
+  transition: all .2s ease;
+
+  &:hover {
+    border: 1.5px solid var(--k-red);
+  }
+}
+
+.card-header {
+  border-bottom: 2px solid var(--bg-color);
+  margin-bottom: 20px;
+}
+
+// styles.scss ไม่มี h2 เปล่าๆ (Tailwind preflight ทำให้ h2 ไม่ bold โดย default) — dashboard.component.scss เดิมมี
+// `h2, h3 { color: var(--k-black); font-weight: 700; }` ให้ผลนี้ แต่ยังอยู่ที่ dashboard เพราะ h2 อื่นในนั้นยังใช้อยู่
+.card-header h2 {
+  color: var(--k-black);
+  font-weight: 700;
+}
+
+/* Collapsible content — grid trick allows height: auto transition */
+.collapsible-content {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition: grid-template-rows 220ms ease, opacity 200ms ease;
+
+  &:not(.expanded) {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+
+  .collapsible-inner {
+    overflow: hidden;
+  }
+}
+
+/* To-Do Table */
+.todo-table-wrap {
+  overflow-x: auto;
+}
+
+.todo-table {
+  width: 100%;
+  min-width: 1110px;
+  border-collapse: collapse;
+  table-layout: fixed;
+
+  // แถวชิดกว่า .td-cell ปกติของตาราง Recent Quotes เพราะที่นี่มี 9 คอลัมน์ที่แก้ในตัวได้
+  // ต้องดูเป็น "ตาราง" ไม่ใช่การ์ดเรียงกัน — padding เดิม 14px + padding ของ input/select ข้างในอีกชั้นทำให้สูงเกินจำเป็น
+  .td-cell {
+    padding: 0.375rem 0.75rem;
+  }
+
+  // ความกว้างคอลัมน์: Task ใหญ่สุด, Customer รองลงมา, ที่เหลือให้พอดีกับ content ของมัน
+  // (datepicker/number input ในคอลัมน์วันที่-ตัวเลขมีความกว้าง fix อยู่แล้วใน .todo-cell-date/.todo-cell-number
+  // เผื่อ padding ของ .td-cell (0.75rem ซ้ายขวา = 24px) ไว้ด้วยตอนตั้ง % ไม่งั้น input ล้นเซลล์)
+  thead th {
+    // header คอลัมน์แคบ (Days Allotted/Days Overdue ฯลฯ) ตัวหนังสือยาวกว่าคอลัมน์ — ให้ขึ้นบรรทัดใหม่แทนล้นไปทับคอลัมน์ถัดไป
+    // (ไม่แก้ .th-cell ตรงๆ เพราะตาราง Recent Quotes ใช้ class เดียวกันแต่ต้องการ nowrap เหมือนเดิม)
+    white-space: normal;
+
+    &:nth-child(1) {
+      width: 4%;
+    }
+
+    // Task
+    &:nth-child(2) {
+      width: 13%;
+    }
+
+    // Customer — ต้องเผื่อปุ่ม "Link Customer" (ไอคอน+ข้อความ) ตอนยังไม่ผูก customer ไม่ใช่แค่ชื่อ+ไอคอนโฟลเดอร์
+    &:nth-child(3) {
+      width: 13%;
+    }
+
+    &:nth-child(4) {
+      width: 10%;
+    }
+
+    // Start Date
+    &:nth-child(5) {
+      width: 11%;
+    }
+
+    // Days Allotted
+    &:nth-child(6) {
+      width: 12%;
+    }
+
+    // Days Overdue
+    &:nth-child(7) {
+      width: 13%;
+    }
+
+    // Close Date
+    &:nth-child(8) {
+      width: 11%;
+    }
+
+    // Who's Task
+    &:nth-child(9) {
+      width: 9%;
+    }
+
+    // ปุ่มลบ — เดิม 2% แคบไปจนไอคอนถังขยะโดนบีบ
+    &:nth-child(10) {
+      width: 4%;
+    }
+  }
+
+  // ล็อก customerId แล้วซ่อนคอลัมน์ Customer — คอลัมน์ที่เหลือขยับมาชิดกันหนึ่งตำแหน่ง เอา 13% ที่ว่างไปให้ Task
+  &.no-customer-col thead th {
+    &:nth-child(2) {
+      width: 26%;
+    }
+
+    &:nth-child(3) {
+      width: 10%;
+    }
+
+    &:nth-child(4) {
+      width: 11%;
+    }
+
+    &:nth-child(5) {
+      width: 12%;
+    }
+
+    &:nth-child(6) {
+      width: 13%;
+    }
+
+    &:nth-child(7) {
+      width: 11%;
+    }
+
+    &:nth-child(8) {
+      width: 9%;
+    }
+
+    &:nth-child(9) {
+      width: 4%;
+    }
+  }
+}
+
+.todo-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--k-red);
+  cursor: pointer;
+}
+
+// ความกว้างคอลัมน์คุมด้วย thead th:nth-child(2) ด้านบนแล้ว (table-layout: fixed)
+// ที่นี่แค่ตัด title 2 บรรทัด, description 1 บรรทัด ไม่ให้ดันแถวสูง — ไม่ต้องมีปุ่มลอยทับแล้ว
+// (Edit ย้ายไปอยู่ที่ field ของมันเอง, Delete ย้ายไปคอลัมน์ท้ายตาราง) เลยไม่ต้อง position/padding-right พิเศษ
+.todo-task-cell {
+  overflow: hidden;
+}
+
+.todo-title {
+  font-weight: 600;
+  color: var(--k-black);
+  font-size: 14px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.todo-details {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+
+// task ที่เสร็จแล้วเป็นเทาทั้งแถว (หัวข้อ/รายละเอียด) โดยขีดฆ่าเฉพาะหัวข้อ
+.todo-table tr.done {
+
+  .todo-title,
+  .todo-details {
+    color: var(--k-mid-grey);
+  }
+
+  .todo-title {
+    text-decoration: line-through;
+  }
+}
+
+// ปุ่มดินสอเล็กต่อท้ายค่าที่แสดง (โหมดดู, มีค่าแล้ว) — inline ในบรรทัดข้อความ ไม่ลอยทับเหมือนของเก่า
+// hover ถึงเห็น (opacity:0 ปกติ) เพราะอยู่ในเซลล์ที่มีเนื้อหาอยู่แล้ว ไม่ใช่เซลล์ว่างที่ห่วงเรื่องเผื่อพื้นที่แบบ .todo-delete
+.todo-inline-edit {
+  background: none;
+  border: none;
+  color: var(--k-accent-blue);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 4px;
+  margin-left: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+
+  tr:hover & {
+    opacity: 1;
+  }
+
+  &:hover {
+    color: var(--k-accent-blue);
+  }
+}
+
+// ปุ่ม Save/Cancel ที่โผล่ข้าง dropdown/input ตอนกำลังแก้ไข field นั้นๆ — active เสมอไม่ต้อง hover เพราะเป็น action ที่ตั้งใจแล้ว
+.todo-inline-save,
+.todo-inline-cancel {
+  background: none;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  color: var(--k-light-grey);
+  margin-left: 2px;
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.todo-inline-save:hover {
+  color: var(--k-accent-green);
+}
+
+.todo-inline-cancel:hover {
+  color: var(--k-red);
+}
+
+// คอลัมน์ Delete ท้ายตาราง — เป็นเซลล์ปกติแล้ว ไม่ต้องลอยทับอีกต่อไป และแสดงเสมอไม่ต้อง hover แถวก่อน (จะได้เห็นปุ่มบนมือถือ/แตะหน้าจอด้วย)
+.todo-delete {
+  background: none;
+  border: none;
+  color: var(--k-light-grey);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: var(--k-red);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+// แถวพิเศษใต้ task ที่กำลังแก้ Customer/Who's Task — โผล่เป็นการ์ดลอย ไม่ใช่ยัด dropdown ลงช่องแคบในตาราง (colspan เต็มแถว)
+.todo-edit-row td {
+  border-bottom: none;
+}
+
+.todo-edit-row-cell {
+  padding: 0 0 10px !important;
+  background: var(--bg-color);
+}
+
+.todo-edit-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 12px 0;
+  padding: 12px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.todo-edit-card-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--k-mid-grey);
+  flex-shrink: 0;
+}
+
+.todo-edit-card-select {
+  flex: 1;
+  min-width: 220px;
+  border-radius: var(--radius-sm);
+
+  // ใช้ร่วมกันทั้ง Customer (p-select) และ Who's Task (p-multiselect) — label คนละ class กัน
+  ::ng-deep .p-select-label,
+  ::ng-deep .p-multiselect-label {
+    padding-inline: 12px;
+  }
+}
+
+.todo-cell-date {
+  width: 110px;
+
+  ::ng-deep .p-datepicker-input {
+    padding-inline: 8px;
+    border-color: transparent;
+    background: transparent;
+    transition: border-color 0.12s ease, background-color 0.12s ease;
+  }
+
+  &:hover,
+  &:focus-within {
+    ::ng-deep .p-datepicker-input {
+      border-color: var(--k-mid-grey);
+      background: var(--card-bg);
+    }
+  }
+}
+
+.todo-cell-number {
+  width: 56px;
+  border-color: transparent;
+  background: transparent;
+  padding-inline: 8px;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+
+  &:hover,
+  &:focus {
+    border-color: var(--k-mid-grey) !important;
+    background: var(--card-bg);
+  }
+
+  // ซ่อนลูกศร step ของ input[type=number] ให้ดูเป็นช่องเปล่าเฉยๆ ไม่ใช่ form field
+  -moz-appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+// compound กับ .badge ด้วยเหตุผลเดียวกับ .status-badge-* ด้านล่าง (กัน .badge เปล่าๆ ท้ายไฟล์แย่ง background/color)
+// padding/font-size ตั้งเองด้วย เพราะ .badge global (styles.scss) ใช้ 4px 12px/12px ต่างจาก .badge เดิมของ dashboard (4px 10px/11px)
+.badge.badge-overdue {
+  padding: 4px 10px;
+  font-size: 11px;
+  background: color-mix(in srgb, var(--k-red) 12%, var(--k-white));
+  color: var(--k-red);
+  white-space: nowrap;
+}
+
+// Status p-select หน้าตาเหมือน badge สีตลอดเวลา (ไม่ใช่แค่ตอน edit) — คลิกได้ทันทีไม่ต้องกด Edit ก่อน ต่างจาก field อื่นในแถว
+// สไตล์เอง ไม่ใช้ .badge class เพราะ padding/font ของ .badge ออกแบบไว้สำหรับ <span> ธรรมดา ไม่ใช่ host element ของ p-select
+// .todo-status-select กับ .p-select (class ที่ PrimeNG ใส่ให้ตัวเอง) อยู่บน host element เดียวกัน
+// ห้ามตั้ง display/width ที่นี่เด็ดขาด — PrimeNG ตั้ง display: inline-flex ไว้ให้ label ยืดเต็มพื้นที่เอง
+// (เคยพลาดตั้ง display: inline-block ทับ ทำให้ label หด เหลือกว้างแค่ 16px จนตัวหนังสือหาย เห็นแต่จุดสี)
+.todo-status-select {
+  border: none;
+  border-radius: var(--radius-pill);
+  box-shadow: none;
+
+  ::ng-deep .p-select-label {
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  // ตัดลูกศร dropdown ออก — เป็น badge สีอยู่แล้ว คนใช้รู้เองว่ากดเปลี่ยนได้
+  ::ng-deep .p-select-dropdown {
+    display: none;
+  }
+
+  &.status-badge-todo {
+    background: color-mix(in srgb, var(--k-accent-orange) 15%, var(--k-white));
+
+    ::ng-deep .p-select-label {
+      color: var(--k-accent-orange);
+    }
+  }
+
+  &.status-badge-to_schedule,
+  &.status-badge-in_progress {
+    background: color-mix(in srgb, var(--k-accent-blue) 15%, var(--k-white));
+
+    ::ng-deep .p-select-label {
+      color: var(--k-accent-blue);
+    }
+  }
+
+  &.status-badge-done {
+    background: color-mix(in srgb, var(--k-accent-green) 15%, var(--k-white));
+
+    ::ng-deep .p-select-label {
+      color: var(--k-accent-green);
+    }
+  }
+}
+
+// จุดสีหน้า label ใน Status dropdown (ทั้ง selected value และตัวเลือกใน list) — สีมาจาก statusOptions ที่ผูกไว้ใน .ts
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+// ชื่อคนใน Who's Task ที่ตรงกับ user ที่ login อยู่ — เด่นขึ้นด้วยสีแดงตัวหนา ไม่ต้องมองหาเอง
+.todo-assignee-me {
+  color: var(--k-red);
+  font-weight: 700;
+}
+
+.todo-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 4px;
+}
+
+// icon + label บอกว่าแถวนี้คือ filter/ค้นหา
+.todo-filters-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--k-mid-grey);
+}
+
+// ช่องค้นหา pill เหมือน filter ทีม/คน — icon อยู่ซ้าย ปุ่มล้างอยู่ขวา (ทับบน input จึงต้อง padding เผื่อ)
+.todo-search {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+
+.todo-search-input {
+  width: 100%;
+  padding: 10px 34px 10px 38px;
+  border: 1px solid var(--k-mid-grey);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  outline: none;
+
+  &:focus {
+    border-color: var(--k-red);
+  }
+}
+
+.todo-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--k-mid-grey);
+  pointer-events: none;
+}
+
+.todo-search-clear {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  padding: 4px 6px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  font-size: 12px;
+  color: var(--k-mid-grey);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--k-red);
+  }
+}
+
+// filter ทีม/คนของ ceo/admin — pill เหมือนช่องอื่นในการ์ด (ต้อง ::ng-deep เพราะ label อยู่ใน PrimeNG)
+.todo-filter {
+  min-width: 160px;
+  border-radius: var(--radius-pill);
+
+  ::ng-deep .p-select-label {
+    padding-inline: 16px;
+  }
+}
+
+// แถวเลือกจำนวนต่อหน้า + เปลี่ยนหน้า (อยู่ใต้รายการ เหนือฟอร์ม Add task)
+.todo-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--k-light-grey);
+}
+
+.todo-page-size,
+.todo-page-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+// ชุดปุ่ม Show ด้านบนรายการ (ชุดเดียวกับที่อยู่ใน pager ด้านล่าง)
+.todo-page-size-top {
+  margin-top: 12px;
+}
+
+.todo-pager-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--k-mid-grey);
+}
+
+.todo-pager-btn {
+  min-width: 32px;
+  padding: 4px 10px;
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-pill);
+  background: var(--card-bg);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--k-dark-grey);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    border-color: var(--k-red);
+    color: var(--k-red);
+  }
+
+  &.active {
+    border-color: var(--k-red);
+    background: var(--k-red);
+    color: var(--k-white);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.todo-empty {
+  padding: 16px 0;
+  font-size: 13px;
+  color: var(--k-mid-grey);
+}
+
+.todo-error {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--k-red);
+}
+
+.todo-checkbox:disabled {
+  cursor: not-allowed;
+}
+
+.add-todo-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--k-mid-grey);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  outline: none;
+  margin-top: 12px;
+}
+
+.add-todo-input:focus {
+  border-color: var(--k-red);
+}
+
+// แยก form เพิ่มงานออกจากรายการงานด้วยเส้นคั่น + panel พื้นเทาอ่อน
+.add-todo-form {
+  margin-top: 20px;
+  padding: 16px;
+  border-top: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-sm);
+  background: var(--bg-color);
+
+  .add-todo-input:first-of-type {
+    margin-top: 0;
+  }
+}
+
+.add-todo-heading {
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--k-mid-grey);
+}
+
+// radius มาจาก .add-todo-input (radius-sm) เหมือนช่องอื่นในฟอร์ม
+.add-todo-textarea {
+  font-family: inherit;
+  resize: vertical;
+}
+
+.add-todo-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  .add-todo-input {
+    flex: 1;
+    min-width: 160px;
+    margin-top: 0;
+  }
+
+  // PrimeNG ไม่รับ style จาก .add-todo-input จึงต้องตั้ง radius ให้เองผ่าน ::ng-deep
+  .add-todo-date {
+    width: 160px;
+
+    ::ng-deep .p-datepicker-input {
+      border-radius: var(--radius-sm);
+      padding-inline: 16px;
+      height: 46px;
+    }
+  }
+
+  .add-todo-assignee {
+    width: 160px;
+    border-radius: var(--radius-sm);
+
+    // p-select (ลูกค้า/filter ทีม/คน) และ p-multiselect (ผู้รับงาน) ใช้ class label คนละชื่อ
+    ::ng-deep .p-select-label,
+    ::ng-deep .p-multiselect-label {
+      padding-inline: 16px;
+    }
+  }
+
+  // จำนวนวันที่ให้ทำ — เลขล้วนไม่ต้องกว้างเท่า input อื่นในแถว, ซ่อนลูกศร step ของ input[type=number]
+  .add-todo-days {
+    flex: 0 0 160px;
+    min-width: 160px;
+    -moz-appearance: textfield;
+
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  }
+
+  .add-todo-confirm {
+    flex-shrink: 0;
+  }
+}
+
+// date row มาก่อน title input ในฟอร์มเพิ่ม event (ต่างจากฟอร์มเพิ่มงานที่ date อยู่แถวสุดท้าย)
+// .add-todo-input:first-of-type ที่ตั้ง margin-top: 0 ไว้เจาะจงตาม tag ไม่ใช่ตำแหน่งจริง จึงต้องเผื่อ gap เองตรงนี้
+.add-todo-row+.add-todo-input {
+  margin-top: 12px;
+}
+
+.k-btn-text-todo {
+  font-weight: 700;
+  color: var(--k-red);
+}

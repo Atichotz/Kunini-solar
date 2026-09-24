@@ -1,0 +1,287 @@
+@if (me()) {
+<!-- ceo/admin: การ์ดเดียว กรองตามทีม/คนได้ | role อื่น: My To-Do + Team To-Do (ดู cards ใน .ts) -->
+<div class="grid">
+  @for (card of cards(); track card.key) {
+  <div class="card">
+    <div class="card-header" style="cursor: pointer;" (click)="toggleCollapsed(card.key)">
+      <div class="flex items-center gap-2">
+        <i class="fa-regular fa-file-lines text-[18px]" style="color: var(--k-red);"></i>
+        <h2>{{ card.title }}</h2>
+        <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
+          style="background: #fde8ea; color: var(--k-red);">
+          {{ card.todos.length }}
+        </span>
+      </div>
+      <i class="fa-solid text-xs transition-transform duration-200" [class.fa-chevron-up]="!collapsed()[card.key]"
+        [class.fa-chevron-down]="collapsed()[card.key]" style="color: var(--k-mid-grey);"></i>
+    </div>
+
+    <div class="collapsible-content" [class.expanded]="!collapsed()[card.key]">
+      <div class="collapsible-inner">
+        <div class="todo-filters" (click)="$event.stopPropagation()">
+          <span class="todo-filters-label"><i class="fa-solid fa-filter"></i>Filter</span>
+          <div class="todo-search">
+            <i class="fa-solid fa-magnifying-glass todo-search-icon"></i>
+            <input type="text" class="todo-search-input" placeholder="Search tasks..." autocomplete="off"
+              [ngModel]="searchText()[card.key]" (ngModelChange)="setSearchText(card.key, $event)">
+            @if (searchText()[card.key]) {
+            <button type="button" class="todo-search-clear" title="Clear search"
+              (click)="setSearchText(card.key, '')">✕</button>
+            }
+          </div>
+          @if (card.showFilters) {
+          <p-select [options]="teamOptions" optionLabel="label" optionValue="role" [ngModel]="teamFilter()"
+            (ngModelChange)="setTeamFilter($event)" appendTo="body" placeholder="All teams" [showClear]="true"
+            class="todo-filter" />
+          <p-select [options]="personOptions()" optionLabel="label" optionValue="id" [ngModel]="personFilter()"
+            (ngModelChange)="setPersonFilter($event)" appendTo="body" placeholder="All people" [filter]="true"
+            filterBy="name" [showClear]="true" class="todo-filter" />
+          }
+        </div>
+
+        @if (card.todos.length > pageSizeOptions[0]) {
+        <div class="todo-page-size todo-page-size-top mb-2" (click)="$event.stopPropagation()">
+          <span class="todo-pager-label">Show</span>
+          @for (size of pageSizeOptions; track size) {
+          <button type="button" class="todo-pager-btn" [class.active]="pageSize()[card.key] === size"
+            (click)="setPageSize(card.key, size)">{{ size }}</button>
+          }
+        </div>
+        }
+
+        <div class="todo-table-wrap">
+          <table class="todo-table" [class.no-customer-col]="!!customerId">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-100">
+                <th class="th-cell">Done</th>
+                <th class="th-cell">Task</th>
+                @if (!customerId) {
+                <th class="th-cell">Customer</th>
+                }
+                <th class="th-cell">Status</th>
+                <th class="th-cell">Start Date</th>
+                <th class="th-cell">Days Allotted</th>
+                <th class="th-cell">Days Overdue</th>
+                <th class="th-cell">Close Date</th>
+                <th class="th-cell">Who's Task</th>
+                <th class="th-cell"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (todo of card.visibleTodos; track todo.id) {
+              <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors" [class.done]="todo.isDone">
+                <td class="td-cell">
+                  <input #todoCheckbox type="checkbox" class="todo-checkbox" [checked]="todo.isDone"
+                    [disabled]="!canModify(todo) || isTodoPending(todo.id)"
+                    (change)="toggleTask(todo, todoCheckbox)">
+                </td>
+                <td class="td-cell todo-task-cell">
+                  <div class="todo-title">{{ todo.title }}</div>
+                  @if (todo.description) {
+                  <div class="todo-details" [title]="todo.description">{{ todo.description }}</div>
+                  }
+                </td>
+                @if (!customerId) {
+                <td class="td-cell">
+                  @if (todo.customerName) {
+                  <a [routerLink]="['/detail', todo.customerId]" class="k-btn-text k-btn-text-todo" title="View customer detail">
+                    <i class="fa-regular fa-folder-open"></i> {{
+                    todo.customerName }}</a>
+                  @if (canModify(todo)) {
+                  <button type="button" class="todo-inline-edit" (click)="startEditField(todo, 'customer')"
+                    title="Edit">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                  }
+                  } @else if (canModify(todo)) {
+                  <button type="button" class="k-btn-sm k-btn-outline" (click)="startEditField(todo, 'customer')">
+                    <i class="fa-solid fa-link"></i> Link Customer
+                  </button>
+                  } @else {
+                  <span class="text-slate-400">—</span>
+                  }
+                </td>
+                }
+                <td class="td-cell">
+                  <!-- ไม่ผูกกับ isEditingField เหมือน field อื่น — คลิก badge เปลี่ยนสถานะได้ทันที ไม่ต้องกด Edit ก่อน -->
+                  <p-select [options]="statusOptions" optionLabel="label" optionValue="value"
+                    [ngModel]="todo.status" (ngModelChange)="setTodoStatus(todo, $event)" appendTo="body"
+                    [disabled]="!canModify(todo) || isTodoPending(todo.id)"
+                    [class]="'todo-status-select status-badge-' + todo.status">
+                    <ng-template #selectedItem let-option>
+                      <span class="status-dot" [style.background]="option.color"></span>{{ option.label }}
+                    </ng-template>
+                    <ng-template #item let-option>
+                      <span class="status-dot" [style.background]="option.color"></span>{{ option.label }}
+                    </ng-template>
+                  </p-select>
+                </td>
+                <td class="td-cell">
+                  <!-- คลิกช่องแล้วเปิด panel เลือกวันที่ได้ทันที เลือกแล้ว save เลย ไม่ต้องกด Edit/Save ก่อนเหมือน field อื่น (เหมือน Status) -->
+                  <p-datepicker [ngModel]="toDate(todo.startDate)" (onSelect)="setTodoStartDate(todo, $event)"
+                    dateFormat="dd/mm/yy" appendTo="body" placeholder="—"
+                    [disabled]="!canModify(todo) || isTodoPending(todo.id)" class="todo-cell-date" />
+                </td>
+                <td class="td-cell">
+                  <!-- พิมพ์เสร็จแล้ว blur/Enter ถึง save (change event) ไม่ต้องกด Edit/Save ก่อนเหมือน field อื่น -->
+                  <input type="number" min="0" class="todo-cell-number" placeholder="—"
+                    [value]="todo.daysAllotted ?? ''" [disabled]="!canModify(todo) || isTodoPending(todo.id)"
+                    (change)="setTodoDaysAllotted(todo, $event)">
+                </td>
+                <td class="td-cell">
+                  @if (daysOverdue(todo); as overdue) {
+                  <span class="badge badge-overdue">{{ overdue }} days overdue</span>
+                  } @else {
+                  <span class="text-slate-400">—</span>
+                  }
+                </td>
+                <td class="td-cell">
+                  <p-datepicker [ngModel]="toDate(todo.closeDate)" (onSelect)="setTodoCloseDate(todo, $event)"
+                    dateFormat="dd/mm/yy" appendTo="body" placeholder="—"
+                    [disabled]="!canModify(todo) || isTodoPending(todo.id)" class="todo-cell-date" />
+                </td>
+                <td class="td-cell">
+                  @if (todo.assignees.length) {
+                  <span [title]="assigneeNames(todo)">
+                    @for (assignee of todo.assignees; track assignee.id; let last = $last) {
+                    <span [class.todo-assignee-me]="assignee.id === me()?.id">{{ assignee.name }}</span>@if
+                    (!last) {<span>, </span>}
+                    }
+                  </span>
+                  } @else {
+                  <span class="text-slate-400">—</span>
+                  }
+                  @if (canModify(todo)) {
+                  <button type="button" class="todo-inline-edit" (click)="startEditField(todo, 'assignees')"
+                    title="Edit">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                  }
+                </td>
+                <td class="td-cell">
+                  @if (canModify(todo)) {
+                  @if(isTodoPending(todo.id)){
+                  <button class="todo-delete" [disabled]="isTodoPending(todo.id)" title="Delete task">
+                    <p-progress-spinner ariaLabel="loading" strokeWidth="6"
+                      [style]="{ width: '14px', height: '14px' }" /></button>
+                  }
+                  @else {
+                  <button class="todo-delete" (click)="deleteTask(todo.id)" title="Delete task"><i
+                      class="fa-solid fa-trash"></i></button>
+                  }
+                  }
+                </td>
+              </tr>
+              @if (isEditingField(todo.id, 'customer')) {
+              <!-- การ์ดลอยแยกแถวใต้ task ที่กำลังแก้ — เลือก customer ในนี้แทนที่จะยัด p-select ลงช่องแคบๆ ในตาราง -->
+              <tr class="todo-edit-row">
+                <td class="todo-edit-row-cell" [attr.colspan]="columnCount">
+                  <div class="todo-edit-card">
+                    <span class="todo-edit-card-label">Customer</span>
+                    <p-select [options]="customerOptions" optionLabel="name" optionValue="id"
+                      [(ngModel)]="editCustomerId" appendTo="body" placeholder="Select customer" [filter]="true"
+                      filterBy="name" [showClear]="true" [disabled]="isTodoPending(todo.id)"
+                      class="todo-edit-card-select" />
+                    <button class="todo-inline-save" [disabled]="isTodoPending(todo.id)"
+                      (click)="saveEditField(todo, 'customer')" title="Save">
+                      <i class="fa-solid fa-check"></i>
+                    </button>
+                    <button class="todo-inline-cancel" [disabled]="isTodoPending(todo.id)"
+                      (click)="cancelEditField()" title="Cancel">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              }
+              @if (isEditingField(todo.id, 'assignees')) {
+              <tr class="todo-edit-row">
+                <td class="todo-edit-row-cell" [attr.colspan]="columnCount">
+                  <div class="todo-edit-card">
+                    <span class="todo-edit-card-label">Who's Task</span>
+                    <p-multiselect [options]="assigneeOptions()" optionLabel="label" optionValue="id"
+                      [(ngModel)]="editAssigneeIds" appendTo="body" placeholder="Assign to..." [filter]="true"
+                      filterBy="label" [maxSelectedLabels]="1" selectedItemsLabel="{0} people"
+                      [disabled]="isTodoPending(todo.id)" class="todo-edit-card-select" />
+                    <button class="todo-inline-save" [disabled]="isTodoPending(todo.id)"
+                      (click)="saveEditField(todo, 'assignees')" title="Save">
+                      <i class="fa-solid fa-check"></i>
+                    </button>
+                    <button class="todo-inline-cancel" [disabled]="isTodoPending(todo.id)"
+                      (click)="cancelEditField()" title="Cancel">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              }
+              } @empty {
+              <tr>
+                <td class="td-cell todo-empty" [attr.colspan]="columnCount">{{ searchText()[card.key].trim() ? 'No matching tasks'
+                  : 'No tasks' }}</td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        @if (card.todos.length > pageSizeOptions[0]) {
+        <div class="todo-pager" (click)="$event.stopPropagation()">
+          <div class="todo-page-size">
+            <span class="todo-pager-label">Show</span>
+            @for (size of pageSizeOptions; track size) {
+            <button type="button" class="todo-pager-btn" [class.active]="pageSize()[card.key] === size"
+              (click)="setPageSize(card.key, size)">{{ size }}</button>
+            }
+          </div>
+          <div class="todo-page-nav">
+            <button type="button" class="todo-pager-btn" title="Previous page" [disabled]="card.currentPage <= 1"
+              (click)="setPage(card.key, card.currentPage - 1)">‹</button>
+            <span class="todo-pager-label">{{ card.currentPage }} / {{ card.totalPages }}</span>
+            <button type="button" class="todo-pager-btn" title="Next page"
+              [disabled]="card.currentPage >= card.totalPages"
+              (click)="setPage(card.key, card.currentPage + 1)">›</button>
+          </div>
+        </div>
+        }
+
+        @if (card.showForm) {
+        <div class="add-todo-form" (click)="$event.stopPropagation()">
+          <div class="add-todo-heading">Add task</div>
+          <input #titleInput type="text" class="add-todo-input mb-2" placeholder="Task title"
+            (keyup.enter)="addTask(titleInput, descInput)">
+          <textarea #descInput class="add-todo-input add-todo-textarea" rows="3"
+            placeholder="Description (optional)"></textarea>
+          <div class="add-todo-row">
+            @if (!customerId) {
+            <p-select [options]="customerOptions" optionLabel="name" optionValue="id"
+              [(ngModel)]="newCustomerId" appendTo="body" placeholder="Customer" [filter]="true" filterBy="name"
+              [showClear]="true" class="add-todo-assignee" />
+            }
+            <p-datepicker [(ngModel)]="newStartDate" dateFormat="dd/mm/yy" appendTo="body"
+              placeholder="Start date" class="add-todo-date" />
+            <input type="number" min="0" class="add-todo-input add-todo-days" placeholder="Days allotted"
+              [(ngModel)]="newDaysAllotted">
+            <p-multiselect [options]="assigneeOptions()" optionLabel="label" optionValue="id"
+              [(ngModel)]="newAssigneeIds" appendTo="body" placeholder="Assign to..." [filter]="true"
+              filterBy="label" [maxSelectedLabels]="1" selectedItemsLabel="{0} people"
+              class="add-todo-assignee" />
+            <button type="button" class="k-btn-sm k-btn-primary add-todo-confirm" [disabled]="isSubmitting()"
+              (click)="addTask(titleInput, descInput)">{{ isSubmitting() ? 'Adding…' : 'Add task' }}</button>
+          </div>
+        </div>
+        }
+      </div>
+    </div>
+  </div>
+  }
+</div>
+} @else if (todosLoading()) {
+<div class="card">
+  <div class="todo-empty" role="status">Loading tasks…</div>
+</div>
+}
+
+@if (todoError(); as error) {
+<p class="todo-error" role="alert">{{ error }}</p>
+}

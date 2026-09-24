@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import type { TodoCard, TodoAssignee, CreateTodoPayload } from '../dto/todo.dto';
+import type { TodoCard, TodoAssignee, CreateTodoPayload, UpdateTodoPayload } from '../dto/todo.dto';
 
 @Injectable({ providedIn: 'root' })
 export class TodoService {
@@ -34,6 +34,11 @@ export class TodoService {
   // input: todo UUID — สลับ is_done และ sync status ที่ backend (เฉพาะ assignee/ceo/admin)
   toggle(id: string): Observable<void> {
     return this.http.patch<void>(`${this.baseUrl}/${id}/toggle`, {});
+  }
+
+  // input: todo UUID, field ที่จะแก้ (undefined = ไม่แตะ, null = ล้างค่า) — output: todo ที่อัปเดตแล้ว (เฉพาะ assignee/ceo/admin)
+  update(id: string, payload: UpdateTodoPayload): Observable<TodoCard> {
+    return this.http.patch<TodoCard>(`${this.baseUrl}/${id}`, payload);
   }
 
   // input: todo UUID (เฉพาะ assignee/ceo/admin)

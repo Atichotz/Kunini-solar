@@ -356,134 +356,8 @@
         </div>
       </div> -->
 
-      @if (me()) {
-      <!-- ceo/admin: การ์ดเดียว กรองตามทีม/คนได้ | role อื่น: My To-Do + Team To-Do (ดู cards ใน .ts) -->
-      <div class="grid" [class]="isManager() ? '' : 'md:grid-cols-2'">
-        @for (card of cards(); track card.key) {
-        <div class="card">
-          <div class="card-header" style="cursor: pointer;" (click)="toggleCollapsed(card.key)">
-            <div class="flex items-center gap-2">
-              <i class="fa-regular fa-file-lines text-[18px]" style="color: var(--k-red);"></i>
-              <h2>{{ card.title }}</h2>
-              <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
-                style="background: #fde8ea; color: var(--k-red);">
-                {{ card.todos.length }}
-              </span>
-            </div>
-            <i class="fa-solid text-xs transition-transform duration-200"
-              [class.fa-chevron-up]="!collapsed()[card.key]" [class.fa-chevron-down]="collapsed()[card.key]"
-              style="color: var(--k-mid-grey);"></i>
-          </div>
+      <app-todo-board [customers]="customers()" />
 
-          <div class="collapsible-content" [class.expanded]="!collapsed()[card.key]">
-            <div class="collapsible-inner">
-              <div class="todo-filters" (click)="$event.stopPropagation()">
-                <span class="todo-filters-label"><i class="fa-solid fa-filter"></i>Filter</span>
-                <div class="todo-search">
-                  <i class="fa-solid fa-magnifying-glass todo-search-icon"></i>
-                  <input type="text" class="todo-search-input" placeholder="Search tasks..." autocomplete="off"
-                    [ngModel]="searchText()[card.key]" (ngModelChange)="setSearchText(card.key, $event)">
-                  @if (searchText()[card.key]) {
-                  <button type="button" class="todo-search-clear" title="Clear search"
-                    (click)="setSearchText(card.key, '')">✕</button>
-                  }
-                </div>
-                @if (card.showFilters) {
-                <p-select [options]="teamOptions" optionLabel="label" optionValue="role" [ngModel]="teamFilter()"
-                  (ngModelChange)="setTeamFilter($event)" appendTo="body" placeholder="All teams" [showClear]="true"
-                  class="todo-filter" />
-                <p-select [options]="personOptions()" optionLabel="label" optionValue="id" [ngModel]="personFilter()"
-                  (ngModelChange)="setPersonFilter($event)" appendTo="body" placeholder="All people" [filter]="true"
-                  filterBy="name" [showClear]="true" class="todo-filter" />
-                }
-              </div>
-
-              @if (card.todos.length > pageSizeOptions[0]) {
-              <div class="todo-page-size todo-page-size-top" (click)="$event.stopPropagation()">
-                <span class="todo-pager-label">Show</span>
-                @for (size of pageSizeOptions; track size) {
-                <button type="button" class="todo-pager-btn" [class.active]="pageSize()[card.key] === size"
-                  (click)="setPageSize(card.key, size)">{{ size }}</button>
-                }
-              </div>
-              }
-
-              <div style="flex: 1;">
-                @for (todo of card.visibleTodos; track todo.id) {
-                <div class="todo-item" [class.done]="todo.isDone">
-                  <input #todoCheckbox type="checkbox" class="todo-checkbox" [checked]="todo.isDone"
-                    [disabled]="!canModify(todo) || isTodoPending(todo.id)"
-                    (change)="toggleTask(todo, todoCheckbox)">
-                  <div class="todo-content">
-                    <div class="todo-title">{{ todo.title }}</div>
-                    @if (todo.description) {
-                    <div class="todo-details">{{ todo.description }}</div>
-                    }
-                    <div class="todo-meta">{{ todoMeta(todo) }}</div>
-                  </div>
-                  @if (canModify(todo)) {
-                  <button class="todo-delete" [disabled]="isTodoPending(todo.id)"
-                    (click)="deleteTask(todo.id); $event.stopPropagation()"
-                    title="Delete task">{{ isTodoPending(todo.id) ? '…' : '✕' }}</button>
-                  }
-                </div>
-                } @empty {
-                <div class="todo-empty">{{ searchText()[card.key].trim() ? 'No matching tasks' : 'No tasks' }}</div>
-                }
-              </div>
-
-              @if (card.todos.length > pageSizeOptions[0]) {
-              <div class="todo-pager" (click)="$event.stopPropagation()">
-                <div class="todo-page-size">
-                  <span class="todo-pager-label">Show</span>
-                  @for (size of pageSizeOptions; track size) {
-                  <button type="button" class="todo-pager-btn" [class.active]="pageSize()[card.key] === size"
-                    (click)="setPageSize(card.key, size)">{{ size }}</button>
-                  }
-                </div>
-                <div class="todo-page-nav">
-                  <button type="button" class="todo-pager-btn" title="Previous page" [disabled]="card.currentPage <= 1"
-                    (click)="setPage(card.key, card.currentPage - 1)">‹</button>
-                  <span class="todo-pager-label">{{ card.currentPage }} / {{ card.totalPages }}</span>
-                  <button type="button" class="todo-pager-btn" title="Next page"
-                    [disabled]="card.currentPage >= card.totalPages"
-                    (click)="setPage(card.key, card.currentPage + 1)">›</button>
-                </div>
-              </div>
-              }
-
-              @if (card.showForm) {
-              <div class="add-todo-form" (click)="$event.stopPropagation()">
-                <div class="add-todo-heading">Add task</div>
-                <input #titleInput type="text" class="add-todo-input mb-2" placeholder="Task title"
-                  (keyup.enter)="addTask(titleInput, descInput)">
-                <textarea #descInput class="add-todo-input add-todo-textarea" rows="3"
-                  placeholder="Description (optional)"></textarea>
-                <div class="add-todo-row">
-                  <p-datepicker [(ngModel)]="newDueDate" appendTo="body" placeholder="Due date" class="add-todo-date" />
-                  <p-multiselect [options]="assigneeOptions()" optionLabel="label" optionValue="id"
-                    [(ngModel)]="newAssigneeIds" appendTo="body" placeholder="Assign to..." [filter]="true"
-                    filterBy="label" [maxSelectedLabels]="1" selectedItemsLabel="{0} people"
-                    class="add-todo-assignee" />
-                  <button type="button" class="k-btn-sm k-btn-primary add-todo-confirm" [disabled]="isSubmitting()"
-                    (click)="addTask(titleInput, descInput)">{{ isSubmitting() ? 'Adding…' : 'Add task' }}</button>
-                </div>
-              </div>
-              }
-            </div>
-          </div>
-        </div>
-        }
-      </div>
-      } @else if (todosLoading()) {
-      <div class="card">
-        <div class="todo-empty" role="status">Loading tasks…</div>
-      </div>
-      }
-
-      @if (todoError(); as error) {
-      <p class="todo-error" role="alert">{{ error }}</p>
-      }
       @if (kpiError(); as error) {
       <p class="todo-error" role="alert">{{ error }}</p>
       }
@@ -496,15 +370,15 @@
         <a class="btn btn-text" href="https://calendar.google.com/calendar" target="_blank">Open Full Screen ↗</a>
       </div>
       <div class="calendar-container">
-        <!-- Replace 'src' with your actual public Google Calendar embed link -->
         <iframe
-          src="https://calendar.google.com/calendar/embed?height=600&wkst=2&ctz=Asia%2FBangkok&showPrint=0&mode=MONTH&showTitle=0&src=aW5mb0BrdW5pbmkuY29t&src=Y18yOTY4M2QyMGY0MjFiOTdjZDMyNDc1NDcwZmVkNmNjMmU5ZmYxODA1OWZmMmFkOGYyM2Y2ZDk5N2I1YmU0OGQ0QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y184OWEzYWQwNmFkOGJlODQ1MDRlYTU1MDhmNzJjZTliNzhmZmEyMjg0MTA5M2Q2MzgwMmViYTkxYjc5NTc5ZWZlQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19jNWYyZjMwYTFhYmI1YWViYWVkOWIzMTc5MmY3OWFiMThiZDVlNGM4Mzk3NDgxODY1MjVhODUwNzQ3NGJmZTAxQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19jYjE2YWMxNGRmN2IzYmZkNGQwZDY1OGNiMjEwNmM3YjU5Y2IxMDY2ZjUyYWVlMGM0MzBlNTRhNTQ3MjE5NDcwQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19lNjIxOWE1YmFhNDYzZjlmYTg2ZTRlNDEzOGVkMjg0YWZhMGNlOTI4OTg3YzIzN2NkNDA2OWUxMzZmNDM5ZTQxQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&color=%23039be5&color=%23a79b8e&color=%234285f4&color=%23ad1457&color=%239e69af&color=%23ef6c00"
+          src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Asia%2FBangkok&showPrint=0&src=aW5mb0BrdW5pbmkuY29t&src=Y182YTdhNzdhN2VlZmJhMTAwNTIyY2EzYjc1MGRlYzliZGNiMGM4MGYwNjRhZGU3NDZkMjBiNWNkMDgwN2U4Mjk3QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y18yOTY4M2QyMGY0MjFiOTdjZDMyNDc1NDcwZmVkNmNjMmU5ZmYxODA1OWZmMmFkOGYyM2Y2ZDk5N2I1YmU0OGQ0QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19lNjIxOWE1YmFhNDYzZjlmYTg2ZTRlNDEzOGVkMjg0YWZhMGNlOTI4OTg3YzIzN2NkNDA2OWUxMzZmNDM5ZTQxQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19jNWYyZjMwYTFhYmI1YWViYWVkOWIzMTc5MmY3OWFiMThiZDVlNGM4Mzk3NDgxODY1MjVhODUwNzQ3NGJmZTAxQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19jYjE2YWMxNGRmN2IzYmZkNGQwZDY1OGNiMjEwNmM3YjU5Y2IxMDY2ZjUyYWVlMGM0MzBlNTRhNTQ3MjE5NDcwQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19jNzBmOTM2NmYwZmU1YWFlMTI3NmU2ZDFmZDk1YzIzYzFhMDJlYTA0MzliMzAzNzFiMTg5Y2NiOWExOGNkZDBiQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19kYmUzZGY3YjVmNTQ3MjE1YmQyMzQ0ODRiNjM0ZjVhMWQzOTkzOTAwYzU3ODBlY2Y3YTE1NGNiZTAyZWYzNDhlQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y184OWEzYWQwNmFkOGJlODQ1MDRlYTU1MDhmNzJjZTliNzhmZmEyMjg0MTA5M2Q2MzgwMmViYTkxYjc5NTc5ZWZlQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&color=%23039be5&color=%23009688&color=%23a79b8e&color=%23ef6c00&color=%23ad1457&color=%239e69af&color=%23039be5&color=%23e67c73&color=%23c0ca33"
           style="border-width:0" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
       </div>
     </div>
 
+
     <!-- 4. MAIN DASHBOARD CONTENT (ROW 2) -->
-    <div class="grid md:grid-cols-2 mt-2">
+    <div class="grid mt-2">
 
       <!-- Systems Type Donut Chart -->
       <div class="card" style="height: 100%;">
@@ -516,7 +390,8 @@
         <div class="donut-wrapper" style="flex: 1;">
           <div class="donut-chart" [style.background]="systemTypeGradient()">
             <div class="donut-hole">
-              <span style="font-size: 28px; font-weight: 700; color: var(--k-black);">{{ kpiLoading() || kpiError() ? '–' : systemTypeTotal() }}</span>
+              <span style="font-size: 28px; font-weight: 700; color: var(--k-black);">{{ kpiLoading() || kpiError() ?
+                '–' : systemTypeTotal() }}</span>
               <span
                 style="font-size: 11px; font-weight: 700; color: var(--k-mid-grey); text-transform: uppercase;">Total</span>
             </div>

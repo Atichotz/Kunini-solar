@@ -2,43 +2,10 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DecimalPipe, DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
-import { FormsModule } from '@angular/forms';
-import { SelectModule } from 'primeng/select';
-import { MultiSelectModule } from 'primeng/multiselect';
-import { DatePickerModule } from 'primeng/datepicker';
 import { TodoService } from '../../services/todo.service';
 import { Customer, WORKFLOW_STATUS, WorkflowService } from '../../services/workflow.service';
-import type { TodoCard, TodoAssignee, TodoRole } from '../../dto/todo.dto';
-
-// การ์ด To-Do ที่ collapse ได้: manager เห็น 'all' ใบเดียว, role อื่นเห็น 'mine' + 'team'
-type TodoCardKey = 'all' | 'mine' | 'team';
-
-interface AssigneeOption extends TodoAssignee {
-  label: string;
-}
-
-// จำนวนงานต่อหน้าที่ให้เลือก และค่าเริ่มต้น
-const PAGE_SIZE_OPTIONS = [5, 10, 20, 30] as const;
-const DEFAULT_PAGE_SIZE = 10;
-
-interface TodoCardView {
-  key: TodoCardKey;
-  title: string;
-  // งานทั้งหมดหลังกรอง (ใช้แสดงจำนวนรวมที่หัวการ์ด) — visibleTodos คือเฉพาะหน้าปัจจุบัน
-  todos: TodoCard[];
-  visibleTodos: TodoCard[];
-  currentPage: number;
-  totalPages: number;
-  showFilters: boolean;
-  showForm: boolean;
-}
-
-const ROLE_LABELS: Record<TodoRole, string> = {
-  ceo: 'CEO',
-  admin: 'Admin',
-  technician: 'Technician',
-  purchasing: 'Purchasing'
-};
+import type { TodoAssignee } from '../../dto/todo.dto';
+import { TodoBoardComponent } from '../../todo-board/todo-board.component';
 
 interface SystemTypeSlice {
   label: string;
@@ -88,7 +55,7 @@ interface SizeBar {
 
 @Component({
   selector: 'app-dashboard',
-  imports: [DecimalPipe, DatePipe, RouterLink, FormsModule, SelectModule, MultiSelectModule, DatePickerModule],
+  imports: [DecimalPipe, DatePipe, RouterLink, TodoBoardComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss'
 })
@@ -118,83 +85,14 @@ export class DashboardComponent implements OnInit {
     ).length;
   });
 
-  readonly teamOptions = (Object.keys(ROLE_LABELS) as TodoRole[]).map(role => ({ role, label: ROLE_LABELS[role] }));
-
-  // ตัวเองใน allowed_users — role ตรงนี้ (ไม่ใช่ PermissionService) ใช้ตัดสินว่าแสดง 1 หรือ 2 การ์ด เพื่อให้ตรงกับที่ backend กรอง
+  // ตัวเองใน allowed_users — role ตรงนี้ (ไม่ใช่ PermissionService) ใช้ตัดสินว่า Revenue KPI card แสดงไหม
+  // (TodoBoardComponent โหลด me ของตัวเองแยกต่างหากสำหรับการ์ด To-Do — ยอมยิง API getMe() ซ้ำ 2 ครั้งแทนที่จะผูกกลับด้วย event)
   me = signal<TodoAssignee | null>(null);
-  todos = signal<TodoCard[]>([]);
-  assignees = signal<TodoAssignee[]>([]);
-  todoError = signal<string | null>(null);
-  isSubmitting = signal(false);
-  // true จนกว่าโหลด me + รายการงานครั้งแรกเสร็จ (หรือพัง) — กันการ์ดว่างที่ดูเหมือน "ไม่มีงาน"
-  todosLoading = signal(true);
-  // id งานที่กำลัง toggle/ลบอยู่ — กันกดซ้ำระหว่างรอ request + refetch
-  private readonly pendingTodoIds = signal<ReadonlySet<string>>(new Set());
-  collapsed = signal<Record<TodoCardKey, boolean>>({ all: false, mine: false, team: false });
-
-  // filter ของ ceo/admin (กรองฝั่ง client — backend ส่งทุกงานมาให้ ceo/admin อยู่แล้ว)
-  teamFilter = signal<TodoRole | null>(null);
-  personFilter = signal<string | null>(null);
-
-  // ข้อความค้นหาแยกตามการ์ด (กรองฝั่ง client เหมือน filter ทีม/คน)
-  searchText = signal<Record<TodoCardKey, string>>({ all: '', mine: '', team: '' });
-
-  // แบ่งหน้าแยกตามการ์ด (แบ่งฝั่ง client เหมือน filter — backend ส่งทุกงานมาอยู่แล้ว)
-  readonly pageSizeOptions = PAGE_SIZE_OPTIONS;
-  pageSize = signal<Record<TodoCardKey, number>>({ all: DEFAULT_PAGE_SIZE, mine: DEFAULT_PAGE_SIZE, team: DEFAULT_PAGE_SIZE });
-  page = signal<Record<TodoCardKey, number>>({ all: 1, mine: 1, team: 1 });
-
-  // ฟอร์มเพิ่มงาน (ใช้ร่วมกันทุกการ์ด เพราะมีฟอร์มเดียวต่อหน้า)
-  newDueDate: Date | null = null;
-  newAssigneeIds: string[] = [];
 
   readonly isManager = computed<boolean>(() => {
     const role = this.me()?.role;
     return role === 'ceo' || role === 'admin';
   });
-
-  // งานที่มี assignee เป็นตัวเอง
-  readonly myTodos = computed<TodoCard[]>(() => {
-    const me = this.me();
-    if (!me) return [];
-    return this.todos().filter(todo => todo.assignees.some(assignee => assignee.id === me.id));
-  });
-
-  // manager: งานที่ผ่าน filter ทีม (มี assignee role นั้นอย่างน้อย 1 คน) และคน
-  readonly filteredTodos = computed<TodoCard[]>(() => {
-    const team = this.teamFilter();
-    const person = this.personFilter();
-    return this.todos().filter(todo =>
-      (!team || todo.assignees.some(assignee => assignee.role === team)) &&
-      (!person || todo.assignees.some(assignee => assignee.id === person))
-    );
-  });
-
-  // manager เห็นหลาย role จึงต่อท้าย role ในชื่อเพื่อแยกคนชื่อซ้ำ; role อื่นเห็นทีมเดียวจึงใช้ชื่ออย่างเดียว
-  readonly assigneeOptions = computed<AssigneeOption[]>(() =>
-    this.assignees().map(assignee => ({
-      ...assignee,
-      label: this.isManager() ? `${assignee.name} · ${ROLE_LABELS[assignee.role]}` : assignee.name
-    }))
-  );
-
-  // ตัวเลือก filter "คน" ตามทีมที่เลือกอยู่
-  readonly personOptions = computed<AssigneeOption[]>(() => {
-    const team = this.teamFilter();
-    return team ? this.assigneeOptions().filter(option => option.role === team) : this.assigneeOptions();
-  });
-
-  // manager: การ์ดเดียวพร้อม filter | role อื่น: My To-Do (อ่าน/ติ๊กอย่างเดียว) + Team To-Do (มีฟอร์มเพิ่มงาน)
-  // งานที่ assign ให้ตัวเองจะอยู่ทั้งสองการ์ด เพราะ Team คือทุกงานของทีมรวมงานของเราด้วย
-  // ช่องค้นหาแสดงทุกการ์ด ส่วน showFilters คุมเฉพาะ filter ทีม/คน (ceo/admin เท่านั้น)
-  readonly cards = computed<TodoCardView[]>(() =>
-    this.isManager()
-      ? [this.toCardView('all', 'To-Do', this.filteredTodos(), true, true)]
-      : [
-        this.toCardView('mine', 'My To-Do', this.myTodos(), false, false),
-        this.toCardView('team', 'Team To-Do', this.todos(), false, true)
-      ]
-  );
 
   ngOnInit(): void {
     this.loadMe();
@@ -275,55 +173,11 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  // ต้องรู้ role ก่อนถึงจะรู้ว่าแสดงกี่การ์ด จึงโหลด me ก่อนแล้วค่อยโหลดที่เหลือ
+  // ใช้เฉพาะรู้ role ตัวเองสำหรับ Revenue KPI card — ไม่โหลด todos/assignees ต่อ (การ์ด To-Do ย้ายไป TodoBoardComponent แล้ว)
   private loadMe(): void {
     this.todoService.getMe().subscribe({
-      next: me => {
-        this.me.set(me);
-        this.loadTodos();
-        this.loadAssignees();
-      },
-      error: err => {
-        this.todoError.set(this.errorMessage(err, 'Unable to load your To-Do profile'));
-        this.todosLoading.set(false);
-      }
-    });
-  }
-
-  // input: onSettled — เรียกเมื่อโหลดเสร็จไม่ว่าสำเร็จหรือพัง (ใช้ปลด pending ของ toggle/delete หลัง list อัปเดตแล้ว)
-  private loadTodos(onSettled?: () => void): void {
-    this.todoService.getAll().subscribe({
-      next: list => {
-        this.todos.set(list);
-        this.todoError.set(null);
-        this.todosLoading.set(false);
-        onSettled?.();
-      },
-      error: err => {
-        this.todoError.set(this.errorMessage(err, 'Unable to load tasks'));
-        this.todosLoading.set(false);
-        onSettled?.();
-      }
-    });
-  }
-
-  isTodoPending(id: string): boolean {
-    return this.pendingTodoIds().has(id);
-  }
-
-  private setTodoPending(id: string, pending: boolean): void {
-    this.pendingTodoIds.update(current => {
-      const next = new Set(current);
-      if (pending) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }
-
-  private loadAssignees(): void {
-    this.todoService.getAssignees().subscribe({
-      next: list => this.assignees.set(list),
-      error: err => this.todoError.set(this.errorMessage(err, 'Unable to load assignees'))
+      next: me => this.me.set(me),
+      error: err => console.error('[API] Failed to load To-Do profile:', err)
     });
   }
 
@@ -335,173 +189,6 @@ export class DashboardComponent implements OnInit {
       if (Array.isArray(message)) return message.join(', ');
     }
     return fallback;
-  }
-
-  // input: Date จาก p-datepicker — output: string "YYYY-MM-DD" ให้ API (ใช้ local date, ไม่ใช้ toISOString เพื่อกัน timezone เพี้ยน)
-  private toDueDateString(date: Date | null): string | undefined {
-    if (!date) return undefined;
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
-  // input: due_date ("2026-07-10") — output: ข้อความสัมพัทธ์ ("Due Today"/"Due Tomorrow"/"Due Jul 10")
-  private formatDueDate(dueDate: string): string {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = new Date(dueDate);
-    due.setHours(0, 0, 0, 0);
-    const diffDays = Math.round((due.getTime() - today.getTime()) / 86400000);
-
-    if (diffDays === 0) return 'Due Today';
-    if (diffDays === 1) return 'Due Tomorrow';
-    if (diffDays < 0) return `Overdue since ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-    return `Due ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-  }
-
-  // input: todo card — output: meta line ("Due Tomorrow • Assigned to Mark, Ann" / "Completed Jul 9")
-  todoMeta(todo: TodoCard): string {
-    if (todo.isDone) {
-      const completed = new Date(todo.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      return `Completed ${completed}`;
-    }
-
-    const parts: string[] = [];
-    if (todo.dueDate) parts.push(this.formatDueDate(todo.dueDate));
-    if (todo.assignees.length) parts.push(`Assigned to ${todo.assignees.map(assignee => assignee.name).join(', ')}`);
-    return parts.join(' • ');
-  }
-
-  // สมาชิกทีมเห็นงานเพื่อนร่วมทีมได้แต่แก้ไม่ได้ — backend บังคับเช่นเดียวกัน ตรงนี้แค่ซ่อนปุ่มไม่ให้กดแล้วเจอ 403
-  canModify(todo: TodoCard): boolean {
-    const me = this.me();
-    return this.isManager() || (!!me && todo.assignees.some(assignee => assignee.id === me.id));
-  }
-
-  // input: การ์ด, งานที่ผ่าน filter อื่นแล้ว — output: งานที่ title / description / ชื่อผู้รับงาน มีข้อความค้นหา (ไม่สนตัวพิมพ์เล็กใหญ่)
-  private searchTodos(key: TodoCardKey, todos: TodoCard[]): TodoCard[] {
-    const query = this.searchText()[key].trim().toLowerCase();
-    if (!query) return todos;
-
-    return todos.filter(todo => {
-      const haystack = [todo.title, todo.description ?? '', ...todo.assignees.map(assignee => assignee.name)];
-      return haystack.some(text => text.toLowerCase().includes(query));
-    });
-  }
-
-  // input: การ์ด, งานที่ผ่าน filter ทีม/คนแล้ว, flag แสดง filter/ฟอร์ม — output: view ของการ์ดพร้อมค้นหาและแบ่งหน้า
-  // หน้าปัจจุบันถูก clamp เพราะลบงาน/ค้นหาแล้วจำนวนหน้าอาจลดลง ไม่งั้นจะเจอหน้าว่าง
-  private toCardView(key: TodoCardKey, title: string, source: TodoCard[], showFilters: boolean, showForm: boolean): TodoCardView {
-    const todos = this.searchTodos(key, source);
-    const size = this.pageSize()[key];
-    const totalPages = Math.max(1, Math.ceil(todos.length / size));
-    const currentPage = Math.min(this.page()[key], totalPages);
-    const start = (currentPage - 1) * size;
-    return { key, title, todos, visibleTodos: todos.slice(start, start + size), currentPage, totalPages, showFilters, showForm };
-  }
-
-  setPage(key: TodoCardKey, page: number): void {
-    this.page.update(current => ({ ...current, [key]: Math.max(1, page) }));
-  }
-
-  // เปลี่ยนจำนวนต่อหน้าแล้วกลับหน้า 1 ไม่พยายามรักษาตำแหน่งเดิม
-  setPageSize(key: TodoCardKey, size: number): void {
-    this.pageSize.update(current => ({ ...current, [key]: size }));
-    this.setPage(key, 1);
-  }
-
-  // ค้นหา/filter เปลี่ยนแล้วผลลัพธ์เปลี่ยนทั้งชุด จึงกลับหน้า 1 ทุกการ์ด
-  private resetPages(): void {
-    this.page.set({ all: 1, mine: 1, team: 1 });
-  }
-
-  setSearchText(key: TodoCardKey, value: string): void {
-    this.searchText.update(current => ({ ...current, [key]: value }));
-    this.setPage(key, 1);
-  }
-
-  setPersonFilter(id: string | null): void {
-    this.personFilter.set(id);
-    this.resetPages();
-  }
-
-  toggleCollapsed(key: TodoCardKey): void {
-    this.collapsed.update(current => ({ ...current, [key]: !current[key] }));
-  }
-
-  // เปลี่ยนทีมแล้วคนที่เลือกไว้ไม่อยู่ทีมนั้น → ล้าง filter คน ไม่งั้นจะได้ list ว่างโดยไม่รู้สาเหตุ
-  setTeamFilter(role: TodoRole | null): void {
-    this.teamFilter.set(role);
-    this.resetPages();
-    const person = this.personFilter();
-    if (person && role && !this.assignees().some(assignee => assignee.id === person && assignee.role === role)) {
-      this.personFilter.set(null);
-    }
-  }
-
-  // input: งานที่ถูกติ๊ก, checkbox element — checkbox เปลี่ยนสถานะเองใน DOM ก่อน request จึงต้องคืนค่าเดิมถ้า backend ปฏิเสธ (binding [checked] ไม่เปลี่ยนเลยไม่รีเซ็ตให้)
-  toggleTask(todo: TodoCard, checkbox: HTMLInputElement): void {
-    if (this.isTodoPending(todo.id)) {
-      checkbox.checked = todo.isDone;
-      return;
-    }
-
-    this.setTodoPending(todo.id, true);
-    this.todoService.toggle(todo.id).subscribe({
-      next: () => this.loadTodos(() => this.setTodoPending(todo.id, false)),
-      error: err => {
-        checkbox.checked = todo.isDone;
-        this.setTodoPending(todo.id, false);
-        this.todoError.set(this.errorMessage(err, 'Unable to update task'));
-      }
-    });
-  }
-
-  deleteTask(id: string): void {
-    if (this.isTodoPending(id)) return;
-
-    this.setTodoPending(id, true);
-    this.todoService.delete(id).subscribe({
-      next: () => this.loadTodos(() => this.setTodoPending(id, false)),
-      error: err => {
-        this.setTodoPending(id, false);
-        this.todoError.set(this.errorMessage(err, 'Unable to delete task'));
-      }
-    });
-  }
-
-  addTask(titleInput: HTMLInputElement, descriptionInput: HTMLTextAreaElement): void {
-    const title = titleInput.value.trim();
-    if (!title || this.isSubmitting()) return;
-
-    if (!this.newAssigneeIds.length) {
-      this.todoError.set('Select at least one assignee');
-      return;
-    }
-    const description = descriptionInput.value.trim();
-
-    this.isSubmitting.set(true);
-    this.todoError.set(null);
-    this.todoService.create({
-      title,
-      description: description || undefined,
-      due_date: this.toDueDateString(this.newDueDate),
-      assignee_ids: this.newAssigneeIds
-    }).subscribe({
-      next: () => {
-        this.loadTodos();
-        titleInput.value = '';
-        descriptionInput.value = '';
-        this.newDueDate = null;
-        this.newAssigneeIds = [];
-        this.isSubmitting.set(false);
-      },
-      error: err => {
-        this.todoError.set(this.errorMessage(err, 'Unable to add task'));
-        this.isSubmitting.set(false);
-      }
-    });
   }
 
   readonly recentQuotes: QuoteRecord[] = [

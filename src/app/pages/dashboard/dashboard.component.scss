@@ -47,6 +47,9 @@
   --k-light-grey: #dcddde;
   --k-accent-blue: #0088c2;
   --k-accent-green: #55b1a5;
+  // --k-accent-orange อยู่ที่ src/styles.scss เท่านั้น (global) — :root ในไฟล์ component ตรงนี้ Angular แปะ
+  // [_ngcontent-xxx] ต่อท้ายให้ กลายเป็น attribute selector ที่ไม่มี element ไหนตรงจริง ประกาศที่นี่จะไม่มีผลอะไรเลย
+  // (--k-accent-blue/--k-accent-green ที่ยังทำงานได้เพราะมี fallback จาก global อยู่แล้ว ไม่ใช่เพราะ block นี้)
 
   --bg-color: #f0f2f5;
   --card-bg: #ffffff;
@@ -169,6 +172,7 @@ h3 {
 .card,
 .kpi-card {
   transition: all .2s ease;
+
   &:hover {
     border: 1.5px solid var(--k-red);
   }
@@ -239,329 +243,202 @@ h3 {
   letter-spacing: 0.05em;
 }
 
-/* Collapsible content — grid trick allows height: auto transition */
-.collapsible-content {
-  display: grid;
-  grid-template-rows: 1fr;
-  opacity: 1;
-  transition: grid-template-rows 220ms ease, opacity 200ms ease;
-
-  &:not(.expanded) {
-    grid-template-rows: 0fr;
-    opacity: 0;
-  }
-
-  .collapsible-inner {
-    overflow: hidden;
-  }
-}
-
-/* To-Do List */
-.todo-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--k-light-grey);
-}
-
-.todo-item:last-child {
-  border-bottom: none;
-}
-
-.todo-checkbox {
-  margin-top: 4px;
-  width: 16px;
-  height: 16px;
-  accent-color: var(--k-red);
-  cursor: pointer;
-}
-
-.todo-content {
-  flex: 1;
-}
-
-.todo-title {
-  font-weight: 600;
-  color: var(--k-black);
-  font-size: 14px;
-  margin-bottom: 4px;
-}
-
-.todo-meta {
-  font-size: 12px;
-  color: var(--k-mid-grey);
-}
-
-// task ที่เสร็จแล้วเป็นเทาทั้ง item (หัวข้อ/รายละเอียด/meta) โดยขีดฆ่าเฉพาะหัวข้อ
-.todo-item.done {
-  .todo-title,
-  .todo-details,
-  .todo-meta {
-    color: var(--k-mid-grey);
-  }
-
-  .todo-title {
-    text-decoration: line-through;
-  }
-}
-
-.todo-delete {
-  background: none;
-  border: none;
-  color: var(--k-light-grey);
-  font-size: 12px;
-  cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 4px;
-  flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 0.15s ease, color 0.15s ease;
-
-  .todo-item:hover & {
-    opacity: 1;
-  }
-
-  &:hover {
-    color: var(--k-red);
-  }
-
-  // กำลังลบ: คงปุ่มให้มองเห็นแม้เมาส์ออกจากแถว ไม่งั้นผู้ใช้ไม่เห็นว่ากำลังทำงานอยู่
-  &:disabled {
-    opacity: 1;
-    cursor: default;
-  }
-}
-
-.todo-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin: 16px 0 4px;
-}
-
-// icon + label บอกว่าแถวนี้คือ filter/ค้นหา
-.todo-filters-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--k-mid-grey);
-}
-
-// ช่องค้นหา pill เหมือน filter ทีม/คน — icon อยู่ซ้าย ปุ่มล้างอยู่ขวา (ทับบน input จึงต้อง padding เผื่อ)
-.todo-search {
-  position: relative;
-  flex: 1;
-  min-width: 200px;
-}
-
-.todo-search-input {
-  width: 100%;
-  padding: 10px 34px 10px 38px;
-  border: 1px solid var(--k-mid-grey);
-  border-radius: var(--radius-pill);
-  font-size: 13px;
-  outline: none;
-
-  &:focus {
-    border-color: var(--k-red);
-  }
-}
-
-.todo-search-icon {
-  position: absolute;
-  top: 50%;
-  left: 14px;
-  transform: translateY(-50%);
-  font-size: 12px;
-  color: var(--k-mid-grey);
-  pointer-events: none;
-}
-
-.todo-search-clear {
-  position: absolute;
-  top: 50%;
-  right: 10px;
-  transform: translateY(-50%);
-  padding: 4px 6px;
-  border: none;
-  border-radius: 4px;
-  background: none;
-  font-size: 12px;
-  color: var(--k-mid-grey);
-  cursor: pointer;
-
-  &:hover {
-    color: var(--k-red);
-  }
-}
-
-// filter ทีม/คนของ ceo/admin — pill เหมือนช่องอื่นในการ์ด (ต้อง ::ng-deep เพราะ label อยู่ใน PrimeNG)
-.todo-filter {
-  min-width: 160px;
-  border-radius: var(--radius-pill);
-
-  ::ng-deep .p-select-label {
-    padding-inline: 16px;
-  }
-}
-
-// แถวเลือกจำนวนต่อหน้า + เปลี่ยนหน้า (อยู่ใต้รายการ เหนือฟอร์ม Add task)
-.todo-pager {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--k-light-grey);
-}
-
-.todo-page-size,
-.todo-page-nav {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-// ชุดปุ่ม Show ด้านบนรายการ (ชุดเดียวกับที่อยู่ใน pager ด้านล่าง)
-.todo-page-size-top {
-  margin-top: 12px;
-}
-
-.todo-pager-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--k-mid-grey);
-}
-
-.todo-pager-btn {
-  min-width: 32px;
-  padding: 4px 10px;
-  border: 1px solid var(--k-light-grey);
-  border-radius: var(--radius-pill);
-  background: var(--card-bg);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--k-dark-grey);
-  cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
-
-  &:hover:not(:disabled) {
-    border-color: var(--k-red);
-    color: var(--k-red);
-  }
-
-  &.active {
-    border-color: var(--k-red);
-    background: var(--k-red);
-    color: var(--k-white);
-  }
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-}
-
-.todo-empty {
-  padding: 16px 0;
-  font-size: 13px;
-  color: var(--k-mid-grey);
-}
-
+// ใช้แสดง error ของ KPI summary (kpiError) — .todo-error เดิมย้ายไป todo-board.component.scss แล้ว แต่ error นี้ยังอยู่ dashboard เอง
 .todo-error {
   margin-top: 8px;
   font-size: 12px;
   color: var(--k-red);
 }
 
-.todo-checkbox:disabled {
-  cursor: not-allowed;
-}
-
-.add-todo-input {
-  width: 100%;
-  padding: 12px 16px;
-  border: 1px solid var(--k-mid-grey);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  outline: none;
+.event-form-actions {
   margin-top: 12px;
+  justify-content: flex-end;
 }
 
-.add-todo-input:focus {
-  border-color: var(--k-red);
-}
-
-// แยก form เพิ่มงานออกจากรายการงานด้วยเส้นคั่น + panel พื้นเทาอ่อน
-.add-todo-form {
+/* Team Weekly Calendar Custom: mini month grid ของระบบเอง (ไม่ใช่ iframe) */
+.mini-calendar {
   margin-top: 20px;
-  padding: 16px;
-  border-top: 1px solid var(--k-light-grey);
-  border-radius: var(--radius-sm);
-  background: var(--bg-color);
 
-  .add-todo-input:first-of-type {
-    margin-top: 0;
+  &.loading {
+    opacity: 0.6;
+    pointer-events: none;
   }
 }
 
-.add-todo-heading {
-  margin-bottom: 12px;
+.mini-calendar-weekdays,
+.mini-calendar-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+// กันแท่ง event ที่ bleed ชนขอบ (ไม่มี border-right ให้ชนที่คอลัมน์เสาร์) ล้นออกนอกการ์ดไป 1px
+.mini-calendar-week {
+  overflow: hidden;
+}
+
+.mini-calendar-weekdays {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--k-light-grey);
+
+  span {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--k-mid-grey);
+    text-align: center;
+  }
+}
+
+.mini-calendar-day {
+  min-height: 84px;
+  padding: 6px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-right: 1px solid var(--k-light-grey);
+  border-bottom: 1px solid var(--k-light-grey);
+
+  &:nth-child(7n) {
+    border-right: none;
+  }
+}
+
+.mini-calendar-day.outside {
+  background: var(--bg-color);
+
+  .mini-calendar-day-number {
+    color: var(--k-mid-grey);
+  }
+}
+
+// height/line-height คงที่ 20px ทุกวัน (ปกติและวันนี้) ไม่งั้น badge วงกลมของวันนี้สูงกว่าตัวเลขเฉยๆ
+// ทำให้แท่ง event แถวแรกเริ่มคนละระดับ ดูเป็นขั้นบันไดเวลาแท่งเดียวกันลากข้ามจากวันนี้ไปวันอื่น
+.mini-calendar-day-number {
+  display: inline-block;
+  height: 20px;
+  line-height: 20px;
   font-size: 12px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--k-dark-grey);
+}
+
+.mini-calendar-day.today .mini-calendar-day-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  line-height: normal;
+  border-radius: var(--radius-pill);
+  background: var(--k-red);
+  color: var(--k-white);
+}
+
+// แท่ง event: ทุกวันที่ event ครอบคลุมมีขอบมนเฉพาะฝั่งที่เป็นวันเริ่ม/จบจริง ส่วนฝั่งที่ event ยังต่อไปจะ "bleed"
+// ทับ padding + border ของ day cell (padding 4px + border 1px = 5px) ให้กลายเป็นแท่งเดียวต่อเนื่องข้ามวัน/ข้ามสัปดาห์
+.mini-calendar-event {
+  height: 18px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--k-red) 12%, var(--k-white));
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.mini-calendar-event.is-start {
+  border-top-left-radius: var(--radius-sm);
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+.mini-calendar-event.is-end {
+  border-top-right-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.mini-calendar-event:not(.is-start) {
+  margin-left: -5px;
+  padding-left: 6px;
+}
+
+.mini-calendar-event:not(.is-end) {
+  margin-right: -5px;
+  padding-right: 6px;
+}
+
+.mini-calendar-event-time {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--k-red);
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.mini-calendar-event-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--k-red);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: 4px;
+}
+
+// เว้นตำแหน่ง lane ที่สัปดาห์นี้มี event แต่วันนี้ไม่มี — สูงเท่า .mini-calendar-event เพื่อให้ lane อื่นในแถวเดียวกันเรียงตรงกันทุกวัน
+.mini-calendar-event-spacer {
+  height: 18px;
+}
+
+/* การ์ดรายละเอียด event (p-dialog เปิดตอนคลิกแท่ง event) */
+.event-detail-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--k-dark-grey);
+  margin-bottom: 4px;
+}
+
+.event-detail-range {
+  font-size: 12px;
   color: var(--k-mid-grey);
 }
 
-// radius มาจาก .add-todo-input (radius-sm) เหมือนช่องอื่นในฟอร์ม
-.add-todo-textarea {
-  font-family: inherit;
-  resize: vertical;
+.event-detail-desc {
+  font-size: 13px;
+  color: var(--k-dark-grey);
+  white-space: pre-wrap;
 }
 
-.add-todo-row {
+.event-detail-desc.empty {
+  color: var(--k-mid-grey);
+  font-style: italic;
+}
+
+.event-detail-meta {
+  font-size: 11px;
+  color: var(--k-mid-grey);
+}
+
+.event-detail-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  justify-content: flex-end;
+}
 
-  .add-todo-input {
-    flex: 1;
-    min-width: 160px;
-    margin-top: 0;
-  }
+.event-detail-delete {
+  background: transparent;
+  color: var(--k-red);
+  border: 1px solid var(--k-red);
+}
 
-  // PrimeNG ไม่รับ style จาก .add-todo-input จึงต้องตั้ง radius ให้เองผ่าน ::ng-deep
-  .add-todo-date {
-    width: 140px;
+.event-detail-delete:hover {
+  background: color-mix(in srgb, var(--k-red) 10%, var(--k-white));
+}
 
-    ::ng-deep .p-datepicker-input {
-      border-radius: var(--radius-sm);
-      padding-inline: 16px;
-    }
-  }
-
-  .add-todo-assignee {
-    width: 160px;
-    border-radius: var(--radius-sm);
-
-    // p-select (filter ทีม/คน) และ p-multiselect (ผู้รับงาน) ใช้ class label คนละชื่อ
-    ::ng-deep .p-select-label,
-    ::ng-deep .p-multiselect-label {
-      padding-inline: 16px;
-    }
-  }
-
-  .add-todo-confirm {
-    flex-shrink: 0;
-  }
+.event-detail-delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Calendar Widget */
@@ -569,6 +446,31 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+// My Upcoming Events แสดงทั้งเดือนอาจมี event เยอะ — scroll แทนที่จะดันความสูงการ์ดยืดไม่จำกัด
+.agenda-scroll {
+  max-height: 460px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.agenda-day-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agenda-day-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--k-mid-grey);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.agenda-day-label.today {
+  color: var(--k-red);
 }
 
 .agenda-item {
@@ -624,17 +526,6 @@ h3 {
   font-weight: 700;
   background-color: var(--k-light-grey);
   color: var(--k-dark-grey);
-}
-
-/* To-Do Details Extension */
-.todo-details {
-  font-size: 13px;
-  color: var(--k-dark-grey);
-  margin-bottom: 6px;
-  line-height: 1.4;
-  // description เป็น textarea หลายบรรทัด ต้องคงการขึ้นบรรทัดใหม่ และกัน URL ยาวๆ ล้น
-  white-space: pre-line;
-  overflow-wrap: anywhere;
 }
 
 /* Donut Chart Setup */
