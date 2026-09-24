@@ -28,11 +28,21 @@
     overflow: hidden;
     border: 1px solid var(--k-light-grey);
 
+    // p-image ครอบ <img> ด้วย <span> ที่ default เป็น inline ไม่มีความสูงกำหนดไว้ —
+    // ต้องบังคับให้ tag เอง + span ภายในเต็มช่องสี่เหลี่ยมจัตุรัสก่อน ไม่งั้น height:100% ของ img จะ resolve ไม่ได้
+    p-image,
+    .p-image {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+
     img {
         width: 100%;
         height: 100%;
         object-fit: cover;
         display: block;
+        cursor: pointer;
     }
 }
 

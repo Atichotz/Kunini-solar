@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
+import { ImageModule } from 'primeng/image';
 import { SurveyService } from '../../services/survey.service';
 import type { SurveyDetail, SurveyNote, SurveyPhoto } from '../../dto/survey.dto';
 
@@ -20,7 +21,7 @@ interface StagedPhoto {
 
 @Component({
   selector: 'app-survey-page',
-  imports: [CommonModule, FormsModule, RouterLink, ButtonModule],
+  imports: [CommonModule, FormsModule, RouterLink, ButtonModule, ImageModule],
   templateUrl: './survey-page.component.html',
   styleUrl: './survey-page.component.scss',
 })

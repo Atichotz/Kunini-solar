@@ -40,7 +40,7 @@
       <div class="survey-photo-grid">
         @for (photo of photos; track photo.id) {
         <div class="survey-photo-item">
-          <img [src]="photo.url" [alt]="photo.fileName" />
+          <p-image [src]="photo.url" [alt]="photo.fileName" [preview]="true" />
           <button type="button" class="btn-icon btn-remove survey-photo-remove"
             [disabled]="removingPhotoId === photo.id" (click)="removePhoto(photo)" title="Remove photo">
             <i class="fas" [ngClass]="removingPhotoId === photo.id ? 'fa-spinner fa-spin' : 'fa-trash'"></i>
@@ -57,7 +57,7 @@
       <div class="survey-photo-grid">
         @for (staged of stagedPhotos; track staged.previewUrl; let i = $index) {
         <div class="survey-photo-item survey-photo-item--pending">
-          <img [src]="staged.previewUrl" [alt]="staged.file.name" />
+          <p-image [src]="staged.previewUrl" [alt]="staged.file.name" [preview]="true" />
           <span class="survey-photo-pending-badge">Pending save</span>
           <button type="button" class="btn-icon btn-remove survey-photo-remove" (click)="removeStagedPhoto(i)"
             title="Remove">
