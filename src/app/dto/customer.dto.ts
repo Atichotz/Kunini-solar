@@ -49,6 +49,10 @@ export interface UpdateCustomerNamePayload {
   displayName: string;
 }
 
+export interface UpdateCustomerNumberPayload {
+  customerNumber: string | null;
+}
+
 export interface UpdateCustomerDetailsPayload {
   fullAddress: string;
   googleMapsLink: string | null;
@@ -77,6 +81,7 @@ export interface SaveElectricBillPayload {
 export interface CustomerDetail {
   id: string;
   displayName: string;
+  customerNumber: string | null;
   projectLocationName: string | null;
   typeOfCustomerName: string | null;
   typeOfSystemName: string | null;
@@ -90,6 +95,7 @@ export interface CustomerDetail {
 
 export interface CreateCustomerPayload {
   display_name: string;
+  customer_number: string | null;
   project_type: string | null;
   project_location_name: string;
   type_of_customer_name: string;

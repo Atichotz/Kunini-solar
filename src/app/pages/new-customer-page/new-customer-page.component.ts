@@ -1,5 +1,6 @@
-import { Component, Output, EventEmitter, Input, inject, OnInit } from '@angular/core';
+import { Component, Output, EventEmitter, Input, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { SelectModule } from 'primeng/select';
 import { DialogModule } from 'primeng/dialog';
 import { CustomerService } from '../../services/customer.service';
@@ -23,10 +24,10 @@ export class NewCustomerPageComponent implements OnInit {
 
   private readonly customerService = inject(CustomerService);
 
-  selectedType: 'personal' | 'company' = 'personal';
-  selectedLocation: LocationOption = 'Pattaya';
-  selectedCustomerType: CustomerTypeOption = 'Residential';
-  selectedSystemType: SystemTypeOption = 'Hybrid';
+  selectedType = signal<'personal' | 'company'>('personal');
+  selectedLocation = signal<LocationOption>('Pattaya');
+  selectedCustomerType = signal<CustomerTypeOption>('Residential');
+  selectedSystemType = signal<SystemTypeOption>('Hybrid');
 
   readonly locationOptions: LocationOption[] = ['Pattaya', 'Huahin', 'Bangkok', 'Up Country'];
   readonly customerTypeOptions: CustomerTypeOption[] = ['Residential', 'Commercial', 'Upgrade'];
@@ -36,6 +37,7 @@ export class NewCustomerPageComponent implements OnInit {
 
   // form fields
   displayName = '';
+  customerNumber = '';
   selectedStatusId: number | null = null;
   firstname = '';
   lastname = '';
@@ -83,10 +85,11 @@ export class NewCustomerPageComponent implements OnInit {
 
     this.customerService.create({
       display_name: this.displayName,
-      project_type: this.selectedType,
-      project_location_name: this.selectedLocation,
-      type_of_customer_name: this.selectedCustomerType,
-      type_of_system_name: this.selectedSystemType,
+      customer_number: this.customerNumber.trim() || null,
+      project_type: this.selectedType(),
+      project_location_name: this.selectedLocation(),
+      type_of_customer_name: this.selectedCustomerType(),
+      type_of_system_name: this.selectedSystemType(),
       status_id: this.selectedStatusId,
       full_address: this.fullAddress || null,
       google_maps_link: this.googleMapsLink || null,
@@ -101,10 +104,9 @@ export class NewCustomerPageComponent implements OnInit {
         this.isSaving = false;
         this.saved.emit(res);
       },
-      error: (err: unknown) => {
+      error: (err: HttpErrorResponse) => {
         this.isSaving = false;
-        const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
-        this.errorMessage = msg;
+        this.errorMessage = err.error?.message ?? 'Something went wrong. Please try again.';
       },
     });
   }

@@ -10,10 +10,10 @@
 
   <div class="modal-body">
     <div class="type-toggle">
-        <div class="toggle-slider" [class.slide-right]="selectedType === 'company'"></div>
-        <div class="type-option" [class.active]="selectedType === 'personal'" (click)="selectedType = 'personal'">
+        <div class="toggle-slider" [class.slide-right]="selectedType() === 'company'"></div>
+        <div class="type-option" [class.active]="selectedType() === 'personal'" (click)="selectedType.set('personal')">
             Personal</div>
-        <div class="type-option" [class.active]="selectedType === 'company'" (click)="selectedType = 'company'">
+        <div class="type-option" [class.active]="selectedType() === 'company'" (click)="selectedType.set('company')">
             Company</div>
     </div>
     <div id="customerForm">
@@ -25,6 +25,10 @@
                 @if (touched && !displayName.trim()) {
                     <span class="field-error">Project name is required</span>
                 }
+            </div>
+            <div class="input-group">
+                <label>Customer #</label>
+                <input type="text" [(ngModel)]="customerNumber" name="customerNumber">
             </div>
         </div>
 
@@ -75,8 +79,8 @@
                     <label>Project Location</label>
                     <div class="tag-select-group">
                         @for (loc of locationOptions; track loc) {
-                            <div class="tag-pill" [class.selected]="selectedLocation === loc"
-                                (click)="selectedLocation = loc">{{ loc }}</div>
+                            <div class="tag-pill" [class.selected]="selectedLocation() === loc"
+                                (click)="selectedLocation.set(loc)">{{ loc }}</div>
                         }
                     </div>
                 </div>
@@ -84,8 +88,8 @@
                     <label>Type of Customer</label>
                     <div class="tag-select-group">
                         @for (ct of customerTypeOptions; track ct) {
-                            <div class="tag-pill" [class.selected]="selectedCustomerType === ct"
-                                (click)="selectedCustomerType = ct">{{ ct }}</div>
+                            <div class="tag-pill" [class.selected]="selectedCustomerType() === ct"
+                                (click)="selectedCustomerType.set(ct)">{{ ct }}</div>
                         }
                     </div>
                 </div>
@@ -93,8 +97,8 @@
                     <label>Type of System</label>
                     <div class="tag-select-group">
                         @for (st of systemTypeOptions; track st) {
-                            <div class="tag-pill" [class.selected]="selectedSystemType === st"
-                                (click)="selectedSystemType = st">{{ st }}</div>
+                            <div class="tag-pill" [class.selected]="selectedSystemType() === st"
+                                (click)="selectedSystemType.set(st)">{{ st }}</div>
                         }
                     </div>
                 </div>

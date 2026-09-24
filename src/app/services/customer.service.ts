@@ -10,6 +10,7 @@ import type {
   CreateNotePayload,
   NoteDetail,
   UpdateCustomerNamePayload,
+  UpdateCustomerNumberPayload,
   UpdateCustomerDetailsPayload,
   CustomerDetailsResult,
   UpsertContactPayload,
@@ -86,6 +87,12 @@ export class CustomerService {
   // output: ชื่อที่ backend บันทึกแล้ว (trim แล้ว)
   updateName(customerId: string, payload: UpdateCustomerNamePayload): Observable<{ displayName: string }> {
     return this.http.patch<{ displayName: string }>(`${this.baseUrl}/${customerId}`, payload);
+  }
+
+  // input: customer UUID + customer number ใหม่ (null = ล้างค่า)
+  // output: ค่าที่ backend บันทึกแล้ว (trim แล้ว), 409 ถ้าเลขซ้ำกับลูกค้าคนอื่น
+  updateCustomerNumber(customerId: string, payload: UpdateCustomerNumberPayload): Observable<{ customerNumber: string | null }> {
+    return this.http.patch<{ customerNumber: string | null }>(`${this.baseUrl}/${customerId}/customer-number`, payload);
   }
 
   // input: customer UUID + ที่อยู่/ลิงก์แผนที่/location/project type/system type

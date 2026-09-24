@@ -15,6 +15,8 @@ import { EstimateService } from '../../services/estimate.service';
 import { SurveyService } from '../../services/survey.service';
 import { PermissionService } from '../../services/permission.service';
 import { KLoadingComponent } from '../../k-loading/k-loading.component';
+import { TodoBoardComponent } from '../../todo-board/todo-board.component';
+import { ScrollToTopComponent } from '../../scroll-to-top/scroll-to-top.component';
 import type { CustomerDetail, ElectricBillDetail, NoteDetail, StatusOption, UpsertContactPayload } from '../../dto/customer.dto';
 import type { EstimateDetail, EstimateSummary } from '../../dto/estimate.dto';
 import type { SurveyHistoryItem } from '../../dto/survey.dto';
@@ -50,6 +52,7 @@ interface ElectricBillForm {
 // ต้องตรงกับ NOTE_MAX_LENGTH / CUSTOMER_NAME_MAX_LENGTH ใน backend (dto/note.dto.ts, dto/update-customer-name.dto.ts)
 const NOTE_MAX_LENGTH = 2000;
 const CUSTOMER_NAME_MAX_LENGTH = 100;
+const CUSTOMER_NUMBER_MAX_LENGTH = 50;
 const CUSTOMER_ADDRESS_MAX_LENGTH = 500;
 const GOOGLE_MAPS_LINK_MAX_LENGTH = 2000;
 
@@ -111,7 +114,7 @@ interface SystemFigures {
 
 @Component({
   selector: 'app-customer-detail-page',
-  imports: [CommonModule, FormsModule, FloatLabelModule, InputTextModule, SelectModule, ConfirmDialogModule, RouterLink, KLoadingComponent],
+  imports: [CommonModule, FormsModule, FloatLabelModule, InputTextModule, SelectModule, ConfirmDialogModule, RouterLink, KLoadingComponent, TodoBoardComponent, ScrollToTopComponent],
   providers: [ConfirmationService],
   templateUrl: './customer-detail-page.component.html',
   styleUrl: './customer-detail-page.component.scss'
@@ -127,6 +130,7 @@ export class CustomerDetailPageComponent implements OnInit {
   readonly canManage = this.permission.canManage;
   readonly canCreateQuotation = this.permission.canCreateQuotation;
   readonly canSeePrice = this.permission.canSeePrice;
+  readonly isCeo = this.permission.isCeo;
   private readonly destroyRef = inject(DestroyRef);
 
   customer: CustomerDetail | null = null;
@@ -141,12 +145,16 @@ export class CustomerDetailPageComponent implements OnInit {
 
   estimates: EstimateSummary[] = [];
 
-  // System Details card — currentSystem = ผลรวมของ final ทุกใบ (ระบบสะสมของลูกค้า), pendingSystem = ค่าของ draft เดี่ยวๆ (ยังไม่บวกเข้า current)
+  // System Details card — currentSystem = ผลรวมของ final ทุกใบ (ระบบสะสมของลูกค้า), pendingSystem = ผลรวมของ draft ทุกใบ (ยังไม่บวกเข้า current)
   currentSystem: SystemFigures | null = null;
   pendingSystem: SystemFigures | null = null;
   finalizedEstimateCount = 0;
   isLoadingSystem = true;
   systemErrorMessage = '';
+
+  // id ของ estimate ที่กำลังกด Final หรือ Cancel Finalization อยู่ — กันกดซ้ำระหว่างรอ backend ตอบ
+  finalizingEstimateId: string | null = null;
+  estimateActionErrorMessage = '';
 
   get estimateHistoryRows(): EstimateHistoryRow[] {
     return this.estimates.map((e) => ({
@@ -210,6 +218,12 @@ export class CustomerDetailPageComponent implements OnInit {
   isSavingName = false;
   nameDraft = '';
   nameErrorMessage = '';
+
+  readonly customerNumberMaxLength = CUSTOMER_NUMBER_MAX_LENGTH;
+  isEditingCustomerNumber = false;
+  isSavingCustomerNumber = false;
+  customerNumberDraft = '';
+  customerNumberErrorMessage = '';
 
   readonly customerAddressMaxLength = CUSTOMER_ADDRESS_MAX_LENGTH;
   readonly googleMapsLinkMaxLength = GOOGLE_MAPS_LINK_MAX_LENGTH;
@@ -326,15 +340,15 @@ export class CustomerDetailPageComponent implements OnInit {
 
   // input: estimate ทั้งหมดของลูกค้า (draft + final) — output: ไม่มี, เซ็ต currentSystem/pendingSystem
   // currentSystem = บวกจาก final ทุกใบ (ระบบสะสมจริงของลูกค้า, ไม่ใช่ final ล่าสุดใบเดียว เพราะลูกค้ากลับมาขยายระบบได้)
-  // pendingSystem = ค่าของ draft เดี่ยวๆ ไม่บวกกับ current — ใช้โชว์คู่กันว่า "ถ้ายืนยัน draft นี้จะเพิ่มอีกเท่าไร"
+  // pendingSystem = บวกจาก draft ทุกใบ (ลูกค้าคนเดียวมีได้หลาย draft พร้อมกัน) ไม่บวกกับ current — ใช้โชว์คู่กันว่า "ถ้ายืนยัน draft ที่ค้างอยู่ทั้งหมดจะเพิ่มอีกเท่าไร"
   // ⚠️ สมมติฐาน: ทุก final ที่นับ = การขาย/ขยายระบบจริง ถ้าวันหน้ามีเคส finalize ซ้ำเพื่อ "แก้ไขใบเดิม" (ไม่ใช่ขยาย)
   // ตัวเลขจะนับซ้ำ เพราะ DB ไม่มี field แยกประเภท final (ดู finalizedEstimateCount ในการ์ดเป็นตัวช่วยสังเกตความผิดปกติ)
   private loadSystemDetails(estimates: EstimateSummary[]): void {
     const finalSummaries = estimates.filter((e) => e.status === 'final');
-    const draftSummary = estimates.find((e) => e.status === 'draft');
+    const draftSummaries = estimates.filter((e) => e.status === 'draft');
     this.finalizedEstimateCount = finalSummaries.length;
 
-    if (finalSummaries.length === 0 && !draftSummary) {
+    if (finalSummaries.length === 0 && draftSummaries.length === 0) {
       this.isLoadingSystem = false;
       return;
     }
@@ -342,14 +356,14 @@ export class CustomerDetailPageComponent implements OnInit {
     const finals$ = finalSummaries.length > 0
       ? forkJoin(finalSummaries.map((e) => this.estimateService.getOne(e.id)))
       : of([] as EstimateDetail[]);
-    const draft$ = draftSummary
-      ? this.estimateService.getOne(draftSummary.id)
-      : of(null as EstimateDetail | null);
+    const drafts$ = draftSummaries.length > 0
+      ? forkJoin(draftSummaries.map((e) => this.estimateService.getOne(e.id)))
+      : of([] as EstimateDetail[]);
 
-    forkJoin({ finals: finals$, draft: draft$ })
+    forkJoin({ finals: finals$, drafts: drafts$ })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ finals, draft }) => {
+        next: ({ finals, drafts }) => {
           this.currentSystem = this.sumFigures(finals.map((d) => this.toFigures(d)));
           if (this.currentSystem && finals.length > 0) {
             // type ของระบบไม่ใช่ค่าที่บวกกันได้ — เอาจาก final ที่ version_no สูงสุด (ล่าสุด)
@@ -357,7 +371,11 @@ export class CustomerDetailPageComponent implements OnInit {
               (d.versionNo ?? 0) > (max.versionNo ?? 0) ? d : max, finals[0]);
             this.currentSystem.typeOfSystemName = latestFinal.typeOfSystemName;
           }
-          this.pendingSystem = draft ? this.toFigures(draft) : null;
+          this.pendingSystem = this.sumFigures(drafts.map((d) => this.toFigures(d)));
+          if (this.pendingSystem && drafts.length > 0) {
+            // estimates มาเรียง created_at ใหม่สุดก่อนอยู่แล้ว (listByCustomer) → drafts[0] คือ draft ล่าสุด
+            this.pendingSystem.typeOfSystemName = drafts[0].typeOfSystemName;
+          }
           this.isLoadingSystem = false;
         },
         error: (err) => {
@@ -404,6 +422,89 @@ export class CustomerDetailPageComponent implements OnInit {
       systemPrice: sumField((f) => f.systemPrice),
       typeOfSystemName: null,
     };
+  }
+
+  // input: id ของ draft ในแถว History — output: ไม่มี, confirm ก่อนเพราะ finalize แล้วแก้ไขไม่ได้อีก
+  onFinalizeEstimate(id: string): void {
+    if (this.finalizingEstimateId) return;
+    this.confirmationService.confirm({
+      header: 'Finalize Estimate',
+      message: 'Once finalized, this estimate can no longer be edited. Continue?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Finalize',
+      rejectLabel: 'Cancel',
+      accept: () => this.finalizeEstimate(id),
+    });
+  }
+
+  private finalizeEstimate(id: string): void {
+    this.estimateActionErrorMessage = '';
+    this.finalizingEstimateId = id;
+
+    this.estimateService.finalize(id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          this.finalizingEstimateId = null;
+          // แก้ในแถวเดิมแทนการ refetch ทั้ง list — estimateHistoryRows/loadSystemDetails คำนวณจาก this.estimates ใหม่ทุกครั้งอยู่แล้ว
+          const estimate = this.estimates.find((e) => e.id === id);
+          if (estimate) {
+            estimate.status = result.status;
+            estimate.versionNo = result.versionNo;
+            estimate.finalizedAt = result.finalizedAt;
+            estimate.finalizedBy = result.finalizedBy;
+          }
+          this.loadSystemDetails(this.estimates);
+        },
+        error: (err) => {
+          this.finalizingEstimateId = null;
+          console.error('[API] Failed to finalize estimate:', err);
+          this.estimateActionErrorMessage = err?.status === 409
+            ? 'This estimate was already finalized elsewhere'
+            : 'Failed to finalize estimate. Please try again';
+        },
+      });
+  }
+
+  // input: id ของ estimate final ในแถว History (ปุ่มนี้โชว์เฉพาะ CEO) — output: ไม่มี, confirm ก่อนเพราะย้อนกลับเป็น draft ทำให้แก้ไขได้อีกครั้ง
+  onUnfinalizeEstimate(id: string): void {
+    if (this.finalizingEstimateId) return;
+    this.confirmationService.confirm({
+      header: 'Cancel Finalization',
+      message: 'This quotation will become an editable draft again. Continue?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Revert to Draft',
+      rejectLabel: 'Cancel',
+      accept: () => this.unfinalizeEstimate(id),
+    });
+  }
+
+  private unfinalizeEstimate(id: string): void {
+    this.estimateActionErrorMessage = '';
+    this.finalizingEstimateId = id;
+
+    this.estimateService.unfinalize(id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          this.finalizingEstimateId = null;
+          const estimate = this.estimates.find((e) => e.id === id);
+          if (estimate) {
+            estimate.status = result.status;
+            estimate.versionNo = result.versionNo;
+            estimate.finalizedAt = result.finalizedAt;
+            estimate.finalizedBy = result.finalizedBy;
+          }
+          this.loadSystemDetails(this.estimates);
+        },
+        error: (err) => {
+          this.finalizingEstimateId = null;
+          console.error('[API] Failed to unfinalize estimate:', err);
+          this.estimateActionErrorMessage = err?.status === 409
+            ? 'This estimate is not finalized'
+            : 'Failed to revert estimate to draft. Please try again';
+        },
+      });
   }
 
   // input: status id ที่ผู้ใช้เลือกใน dropdown — output: ไม่มี, บันทึกลง backend; ถ้าพลาดคืนค่า dropdown กลับเป็นค่าที่บันทึกไว้
@@ -680,6 +781,49 @@ export class CustomerDetailPageComponent implements OnInit {
         console.error('[API] Failed to update customer name:', err);
         this.isSavingName = false;
         this.nameErrorMessage = 'Failed to update name. Please try again';
+      },
+    });
+  }
+
+  startEditCustomerNumber(): void {
+    if (!this.customer) return;
+    this.customerNumberDraft = this.customer.customerNumber ?? '';
+    this.customerNumberErrorMessage = '';
+    this.isEditingCustomerNumber = true;
+  }
+
+  cancelEditCustomerNumber(): void {
+    if (this.isSavingCustomerNumber) return;
+    this.isEditingCustomerNumber = false;
+    this.customerNumberErrorMessage = '';
+  }
+
+  // input: this.customerNumberDraft — output: ไม่มี, อัปเดต customer.customerNumber ด้วยค่าที่ backend บันทึกแล้ว
+  saveCustomerNumber(): void {
+    if (!this.customer || this.isSavingCustomerNumber) return;
+
+    const trimmed = this.customerNumberDraft.trim();
+    const normalized = trimmed || null;
+    if (normalized === this.customer.customerNumber) {
+      this.isEditingCustomerNumber = false;
+      return;
+    }
+
+    this.customerNumberErrorMessage = '';
+    this.isSavingCustomerNumber = true;
+
+    this.customerService.updateCustomerNumber(this.customer.id, { customerNumber: normalized }).subscribe({
+      next: ({ customerNumber }) => {
+        if (this.customer) this.customer = { ...this.customer, customerNumber };
+        this.isSavingCustomerNumber = false;
+        this.isEditingCustomerNumber = false;
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('[API] Failed to update customer number:', err);
+        this.isSavingCustomerNumber = false;
+        this.customerNumberErrorMessage = err.status === 409
+          ? `Customer # "${trimmed}" ถูกใช้ไปแล้ว`
+          : 'Failed to update customer number. Please try again';
       },
     });
   }

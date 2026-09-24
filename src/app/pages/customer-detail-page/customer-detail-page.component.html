@@ -22,7 +22,8 @@
                     <button class="k-btn-sm k-btn-primary" [disabled]="isSavingName" (click)="saveName()">
                         {{ isSavingName ? 'Saving...' : 'Save' }}
                     </button>
-                    <button class="k-btn-sm k-btn-outline" [disabled]="isSavingName" (click)="cancelEditName()">Cancel</button>
+                    <button class="k-btn-sm k-btn-outline" [disabled]="isSavingName"
+                        (click)="cancelEditName()">Cancel</button>
                     } @else {
                     <div class="client-name">{{ customer.displayName }}</div>
                     @if (canManage()) {
@@ -31,9 +32,31 @@
                     </button>
                     }
                     }
+                    @if (isEditingCustomerNumber) {
+                    <input class="customer-number-input" [(ngModel)]="customerNumberDraft"
+                        [maxlength]="customerNumberMaxLength" [disabled]="isSavingCustomerNumber"
+                        (keydown.enter)="saveCustomerNumber()" (keydown.escape)="cancelEditCustomerNumber()"
+                        placeholder="Customer #" autofocus />
+                    <button class="k-btn-sm k-btn-primary" [disabled]="isSavingCustomerNumber"
+                        (click)="saveCustomerNumber()">
+                        {{ isSavingCustomerNumber ? 'Saving...' : 'Save' }}
+                    </button>
+                    <button class="k-btn-sm k-btn-outline" [disabled]="isSavingCustomerNumber"
+                        (click)="cancelEditCustomerNumber()">Cancel</button>
+                    } @else {
+                    <span class="customer-number-label">Customer #: {{ customer.customerNumber ?? '—' }}</span>
+                    @if (canManage()) {
+                    <button class="k-btn-sm k-btn-outline" (click)="startEditCustomerNumber()">
+                        <i class="fa-solid fa-pen"></i> Edit
+                    </button>
+                    }
+                    }
                 </div>
                 @if (isEditingName && nameErrorMessage) {
                 <div class="text-sm" style="color: var(--k-red);">{{ nameErrorMessage }}</div>
+                }
+                @if (isEditingCustomerNumber && customerNumberErrorMessage) {
+                <div class="text-sm" style="color: var(--k-red);">{{ customerNumberErrorMessage }}</div>
                 }
                 <div class="client-status"><span class="dot-green"></span> {{ currentStatusName }}</div>
             </div>
@@ -45,7 +68,8 @@
             }
             <button class="k-btn-sm k-btn-primary" [routerLink]="'/survey'"
                 [queryParams]="{customerId: customer.id}">Survey</button>
-            <button class="k-btn-sm k-btn-primary">Scope Of Work</button>
+            <button class="k-btn-sm k-btn-primary" [routerLink]="'/sow'" [queryParams]="{customerId: customer.id}">Scope
+                Of Work</button>
 
             <div class="dropdown">
                 <button class="k-btn-sm k-btn-primary">Report <i class="fa-solid fa-angle-down"></i></button>
@@ -241,8 +265,7 @@
                             [class.active]="customer.typeOfCustomerName === 'Residential'">Residential</span>
                         <span class="tag-item"
                             [class.active]="customer.typeOfCustomerName === 'Commercial'">Commercial</span>
-                        <span class="tag-item"
-                            [class.active]="customer.typeOfCustomerName === 'Upgrade'">Upgrade</span>
+                        <span class="tag-item" [class.active]="customer.typeOfCustomerName === 'Upgrade'">Upgrade</span>
                     </div>
                 </div>
 
@@ -250,13 +273,76 @@
                     <span class="info-label">Type of System</span>
                     <div class="tag-group">
                         <span class="tag-item" [class.active]="customer.typeOfSystemName === 'On-Grid'">On-Grid</span>
-                        <span class="tag-item"
-                            [class.active]="customer.typeOfSystemName === 'Off-Grid'">Off-Grid</span>
+                        <span class="tag-item" [class.active]="customer.typeOfSystemName === 'Off-Grid'">Off-Grid</span>
                         <span class="tag-item" [class.active]="customer.typeOfSystemName === 'Hybrid'">Hybrid</span>
                     </div>
                 </div>
                 }
 
+            </div>
+
+            <!-- History Card — estimate + survey รวมเป็น timeline เดียว เรียงใหม่→เก่า -->
+            <div class="card mb-[1.5rem]">
+                <div class="card-header">
+                    <h2>History</h2>
+                </div>
+
+                @if (surveyHistoryErrorMessage) {
+                <div class="text-sm mb-2" style="color: var(--k-red);">{{ surveyHistoryErrorMessage }}</div>
+                }
+                @if (estimateActionErrorMessage) {
+                <div class="text-sm mb-2" style="color: var(--k-red);">{{ estimateActionErrorMessage }}</div>
+                }
+
+                <div class="doc-list">
+                    @for (row of historyTimelineRows; track row.kind + row.id) {
+                    <div class="doc-item">
+                        @if (row.kind === 'estimate') {
+                        <a [routerLink]="row.isDraft ? ['/estimate'] : ['/detail', customer.id, 'estimate', row.id]"
+                            [queryParams]="row.isDraft ? { customerId: customer.id, estimateId: row.id } : null"
+                            class="doc-item-title">
+                            <i class="fa-solid fa-file-lines"></i> {{ row.title }}
+                            <span class="badge" [class.badge-final]="!row.isDraft">{{ row.badgeLabel }}</span>
+                        </a>
+                        <div class="item-meta" style="text-align: right;">
+                            {{ row.dateIso | date:'dd MMM yyyy' }} • by <strong>{{ row.author }}</strong>
+                            @if (canSeePrice() && row.grandTotal !== null) {
+                            • ฿{{ row.grandTotal | number:'1.0-0' }}
+                            }
+                            @if (row.isDraft && canCreateQuotation()) {
+                            <button type="button" class="k-btn-sm k-btn-outline" style="margin-left: 8px;"
+                                [disabled]="finalizingEstimateId === row.id" (click)="onFinalizeEstimate(row.id)">
+                                @if (finalizingEstimateId === row.id) { <i class="fas fa-spinner fa-spin"></i> } @else {
+                                Final }
+                            </button>
+                            }
+                            @if (!row.isDraft && isCeo()) {
+                            <button type="button" class="k-btn-sm k-btn-outline" style="margin-left: 8px;"
+                                [disabled]="finalizingEstimateId === row.id" (click)="onUnfinalizeEstimate(row.id)"
+                                title="Revert to draft">
+                                @if (finalizingEstimateId === row.id) { <i class="fas fa-spinner fa-spin"></i> } @else {
+                                Cancel Final }
+                            </button>
+                            }
+                        </div>
+                        } @else {
+                        <a [routerLink]="'/survey'" [queryParams]="{customerId: customer.id, surveyId: row.id}"
+                            class="doc-item-title">
+                            <i class="fa-solid fa-people-roof"></i> Site Survey
+                            <span class="badge">{{ row.photoCount }} photos • {{ row.noteCount }} notes</span>
+                        </a>
+                        <div class="item-meta" style="text-align: right;">
+                            {{ row.dateIso | date:'dd MMM yyyy' }} • by <strong>{{ row.author }}</strong>
+                        </div>
+                        }
+                    </div>
+                    }
+                    @if (isLoadingHistory) {
+                    <div class="note-empty">Loading…</div>
+                    } @else if (historyTimelineRows.length === 0) {
+                    <div class="note-empty">No history yet.</div>
+                    }
+                </div>
             </div>
 
         </div>
@@ -293,7 +379,8 @@
                 } @else {
 
                 @if (finalizedEstimateCount > 1) {
-                <div class="text-sm mb-2" style="color: var(--k-mid-grey);">Combined from {{ finalizedEstimateCount }} estimate(s)</div>
+                <div class="text-sm mb-2" style="color: var(--k-mid-grey);">Combined from {{ finalizedEstimateCount }}
+                    estimate(s)</div>
                 }
 
                 <div class="flex-col gap-4">
@@ -329,7 +416,8 @@
                         <span class="info-label mb-0"><i class="fa-solid fa-battery-full"></i> Battery Size</span>
                         <span class="info-value">
                             <strong>
-                                @if (currentSystem?.batteryKwh) { {{ currentSystem?.batteryKwh | number:'1.0-2' }} kWh } @else { — }
+                                @if (currentSystem?.batteryKwh) { {{ currentSystem?.batteryKwh | number:'1.0-2' }} kWh }
+                                @else { — }
                             </strong>
                             @if (pendingSystem?.batteryKwh) {
                             <span class="system-pending">({{ pendingSystem?.batteryKwh | number:'1.0-2' }} kWh)</span>
@@ -343,7 +431,8 @@
                         <span class="info-label mb-0"><i class="fa-solid fa-tag"></i> System Price</span>
                         <span class="info-value">
                             <span style="color: var(--k-red); font-weight: 700;">
-                                @if (currentSystem?.systemPrice) { ฿{{ currentSystem?.systemPrice | number:'1.2-2' }} } @else { — }
+                                @if (currentSystem?.systemPrice) { ฿{{ currentSystem?.systemPrice | number:'1.2-2' }} }
+                                @else { — }
                             </span>
                             @if (pendingSystem?.systemPrice) {
                             <span class="system-pending">(฿{{ pendingSystem?.systemPrice | number:'1.2-2' }})</span>
@@ -372,8 +461,8 @@
                     </div>
                     <div class="input-group">
                         <label class="input-label">Electric Bill Amount (฿)</label>
-                        <input type="number" name="billAmount" min="0" placeholder="e.g. 5500" [disabled]="!isEditingBill"
-                            [(ngModel)]="electricBillForm.billAmount">
+                        <input type="number" name="billAmount" min="0" placeholder="e.g. 5500"
+                            [disabled]="!isEditingBill" [(ngModel)]="electricBillForm.billAmount">
                     </div>
                     <div class="input-group">
                         <label class="input-label">CA / Ref No. 1</label>
@@ -382,21 +471,22 @@
                     </div>
                     <div class="input-group">
                         <label class="input-label">Installation No.</label>
-                        <input type="text" name="installationNo" placeholder="Installation ID" [disabled]="!isEditingBill"
-                            [(ngModel)]="electricBillForm.installationNo">
+                        <input type="text" name="installationNo" placeholder="Installation ID"
+                            [disabled]="!isEditingBill" [(ngModel)]="electricBillForm.installationNo">
                     </div>
                     <div class="input-group">
                         <label class="input-label">Electricity Usage Type</label>
-                        <p-select [options]="electricityOptions" appendTo="body" [(ngModel)]="electricBillForm.electricityUsageType"
-                            name="electricityUsageType" optionLabel="label" optionValue="value" [filter]="true"
-                            [disabled]="!isEditingBill" filterBy="label,value" [showClear]="true"
-                            placeholder="Select Electricity Usage Type" class="w-full">
+                        <p-select [options]="electricityOptions" appendTo="body"
+                            [(ngModel)]="electricBillForm.electricityUsageType" name="electricityUsageType"
+                            optionLabel="label" optionValue="value" [filter]="true" [disabled]="!isEditingBill"
+                            filterBy="label,value" [showClear]="true" placeholder="Select Electricity Usage Type"
+                            class="w-full">
                         </p-select>
                     </div>
                     <div class="input-group">
                         <label class="input-label">KWH Consumption / Month</label>
-                        <input type="number" name="kwhPerMonth" min="0" placeholder="e.g. 1200" [disabled]="!isEditingBill"
-                            [(ngModel)]="electricBillForm.kwhPerMonth">
+                        <input type="number" name="kwhPerMonth" min="0" placeholder="e.g. 1200"
+                            [disabled]="!isEditingBill" [(ngModel)]="electricBillForm.kwhPerMonth">
                     </div>
 
                     <div class="input-group full-width mt-4">
@@ -410,7 +500,8 @@
                             @if (isEditingBill) {
                             <div class="bill-file-actions">
                                 <button type="button" class="k-btn-text" [disabled]="isUploadingBill"
-                                    (click)="billFileInput.click()">{{ isUploadingBill ? 'Uploading...' : 'Replace' }}</button>
+                                    (click)="billFileInput.click()">{{ isUploadingBill ? 'Uploading...' : 'Replace'
+                                    }}</button>
                                 <button type="button" class="btn-icon btn-remove" title="Remove file"
                                     [disabled]="isUploadingBill" (click)="removeBillFile()">✕</button>
                             </div>
@@ -450,11 +541,7 @@
                     }
                 </div>
             </div>
-
         </div>
-
-        <!-- TODO: Document History — pending customer_documents table -->
-
     </div>
     <div class="flex flex-col gap-6">
 
@@ -472,9 +559,11 @@
                 <textarea class="form-textarea" [(ngModel)]="newNoteText" placeholder="Write your note here..." rows="4"
                     [maxlength]="noteMaxLength" [disabled]="isSavingNote" autofocus></textarea>
                 <div class="note-form-actions">
-                    <button class="k-btn k-btn-primary" (click)="saveNote()" [disabled]="!newNoteText.trim() || isSavingNote">
+                    <button class="k-btn k-btn-primary" (click)="saveNote()"
+                        [disabled]="!newNoteText.trim() || isSavingNote">
                         {{ isSavingNote ? 'Saving...' : 'Save Note' }}</button>
-                    <button class="k-btn k-btn-outline" [disabled]="isSavingNote" (click)="toggleNoteForm()">Cancel</button>
+                    <button class="k-btn k-btn-outline" [disabled]="isSavingNote"
+                        (click)="toggleNoteForm()">Cancel</button>
                 </div>
             </div>
             }
@@ -493,7 +582,8 @@
                 </div>
                 @if (note.canDelete) {
                 <button class="btn-icon btn-remove note-delete-btn" [disabled]="deletingNoteId === note.id"
-                    (click)="removeNote(note.id)" title="Remove note">{{ deletingNoteId === note.id ? '…' : '✕' }}</button>
+                    (click)="removeNote(note.id)" title="Remove note">{{ deletingNoteId === note.id ? '…' : '✕'
+                    }}</button>
                 }
             </div>
             }
@@ -505,52 +595,10 @@
             }
         </div>
 
-        <!-- History Card (Full Width) — estimate + survey รวมเป็น timeline เดียว เรียงใหม่→เก่า -->
-        <div class="card mb-[1.5rem]">
-            <div class="card-header">
-                <h2>History</h2>
-            </div>
-
-            @if (surveyHistoryErrorMessage) {
-            <div class="text-sm mb-2" style="color: var(--k-red);">{{ surveyHistoryErrorMessage }}</div>
-            }
-
-            <div class="doc-list">
-                @for (row of historyTimelineRows; track row.kind + row.id) {
-                <div class="doc-item">
-                    @if (row.kind === 'estimate') {
-                    <a [routerLink]="row.isDraft ? ['/estimate'] : ['/detail', customer.id, 'estimate', row.id]"
-                        [queryParams]="row.isDraft ? { customerId: customer.id, estimateId: row.id } : null"
-                        class="doc-item-title">
-                        <i class="fa-solid fa-file-lines"></i> {{ row.title }}
-                        <span class="badge" [class.badge-final]="!row.isDraft">{{ row.badgeLabel }}</span>
-                    </a>
-                    <div class="item-meta" style="text-align: right;">
-                        {{ row.dateIso | date:'dd MMM yyyy' }} • by <strong>{{ row.author }}</strong>
-                        @if (canSeePrice() && row.grandTotal !== null) {
-                        • ฿{{ row.grandTotal | number:'1.0-0' }}
-                        }
-                    </div>
-                    } @else {
-                    <a [routerLink]="'/survey'" [queryParams]="{customerId: customer.id, surveyId: row.id}"
-                        class="doc-item-title">
-                        <i class="fa-solid fa-people-roof"></i> Site Survey
-                        <span class="badge">{{ row.photoCount }} photos • {{ row.noteCount }} notes</span>
-                    </a>
-                    <div class="item-meta" style="text-align: right;">
-                        {{ row.dateIso | date:'dd MMM yyyy' }} • by <strong>{{ row.author }}</strong>
-                    </div>
-                    }
-                </div>
-                }
-                @if (isLoadingHistory) {
-                <div class="note-empty">Loading…</div>
-                } @else if (historyTimelineRows.length === 0) {
-                <div class="note-empty">No history yet.</div>
-                }
-            </div>
-        </div>
+        <!-- Add Task — สิทธิ์การ์ดเดียวกับ dashboard เป๊ะๆ (ผ่าน TodoBoardComponent) แต่ล็อกเฉพาะงานของลูกค้ารายนี้ -->
+        <app-todo-board class="mb-10" [customerId]="customer.id" />
 
     </div>
 </div>
+<app-scroll-to-top />
 }
