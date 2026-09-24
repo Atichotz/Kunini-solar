@@ -9,6 +9,8 @@ import type { SurveyDetail, SurveyNote, SurveyPhoto } from '../../dto/survey.dto
 
 const PHOTO_ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const PHOTO_MAX_SIZE_BYTES = 10 * 1024 * 1024;
+// ต้องตรงกับ MaxLength ใน backend (dto/add-survey-note.dto.ts, dto/update-survey-note.dto.ts)
+const NOTE_MAX_LENGTH = 10000;
 
 // รูปที่เพิ่งเลือก/ลากมา — โชว์ preview ในเครื่องก่อน ยังไม่ยิงอัปโหลดจนกว่าจะกด "Save Photos"
 interface StagedPhoto {
@@ -56,6 +58,8 @@ export class SurveyPageComponent implements OnInit, OnDestroy {
   isPhotoDragOver = false;
   photoErrorMessage = '';
   removingPhotoId: string | null = null;
+
+  readonly noteMaxLength = NOTE_MAX_LENGTH;
 
   showNoteForm = false;
   newNoteText = '';

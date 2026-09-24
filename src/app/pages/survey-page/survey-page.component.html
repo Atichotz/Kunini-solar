@@ -95,7 +95,8 @@
       @if (showNoteForm) {
       <div class="note-form">
         <textarea class="form-textarea" [(ngModel)]="newNoteText" placeholder="Write your note here..." rows="4"
-          autofocus></textarea>
+          [maxlength]="noteMaxLength" autofocus></textarea>
+        <div class="text-sm" style="color: var(--k-mid-grey); text-align: right;">{{ newNoteText.length }} / {{ noteMaxLength }}</div>
         <div class="note-form-actions">
           <button class="k-btn k-btn-primary" (click)="saveNote()" [disabled]="!newNoteText.trim() || isSavingNote">
             {{ isSavingNote ? 'Saving...' : 'Save Note' }}
@@ -110,7 +111,8 @@
         <div class="note-item-body">
           @if (editingNoteId === note.id) {
           <textarea class="form-textarea" style="margin-bottom: 8px;" [(ngModel)]="editingNoteText"
-            rows="3"></textarea>
+            [maxlength]="noteMaxLength" rows="3"></textarea>
+          <div class="text-sm" style="color: var(--k-mid-grey); text-align: right; margin-bottom: 8px;">{{ editingNoteText.length }} / {{ noteMaxLength }}</div>
           <div class="note-form-actions" style="margin-top: 0;">
             <button class="k-btn-sm k-btn-primary" (click)="saveEditNote(note)"
               [disabled]="!editingNoteText.trim() || isUpdatingNote">
