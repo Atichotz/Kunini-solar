@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import type { TodoCard, TodoAssignee, CreateTodoPayload, UpdateTodoPayload } from '../dto/todo.dto';
+import type { TodoCard, TodoAssignee, CreateTodoPayload, UpdateTodoPayload, TodoComment, AddTodoCommentPayload } from '../dto/todo.dto';
 
 @Injectable({ providedIn: 'root' })
 export class TodoService {
@@ -44,5 +44,25 @@ export class TodoService {
   // input: todo UUID (เฉพาะ assignee/ceo/admin)
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
+  }
+
+  // output: comment ของ task นี้ เรียงเก่า→ใหม่ (เฉพาะคนที่มองเห็น task นี้ได้)
+  getComments(todoId: string): Observable<TodoComment[]> {
+    return this.http.get<TodoComment[]>(`${this.baseUrl}/${todoId}/comments`);
+  }
+
+  // input: todo UUID, payload (ต้องมี body หรือ files อย่างน้อยอย่างใดอย่างหนึ่ง)
+  // output: comment ที่สร้างแล้ว — ส่งเป็น multipart เพราะมีไฟล์แนบได้
+  addComment(todoId: string, payload: AddTodoCommentPayload): Observable<TodoComment> {
+    const form = new FormData();
+    if (payload.body) form.append('body', payload.body);
+    if (payload.mentionedUserIds?.length) form.append('mentioned_user_ids', JSON.stringify(payload.mentionedUserIds));
+    (payload.files ?? []).forEach(file => form.append('files', file));
+    return this.http.post<TodoComment>(`${this.baseUrl}/${todoId}/comments`, form);
+  }
+
+  // input: todo UUID, comment UUID (เฉพาะเจ้าของ comment หรือ ceo/admin)
+  deleteComment(todoId: string, commentId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${todoId}/comments/${commentId}`);
   }
 }

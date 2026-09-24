@@ -7,6 +7,7 @@ import { MultiSelectModule } from 'primeng/multiselect';
 import { DatePickerModule } from 'primeng/datepicker';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TodoService } from '../services/todo.service';
+import { TodoCommentsComponent } from './todo-comments/todo-comments.component';
 import type { Customer } from '../services/workflow.service';
 import type { TodoCard, TodoAssignee, TodoRole, TodoStatus, UpdateTodoPayload } from '../dto/todo.dto';
 
@@ -14,9 +15,9 @@ import type { TodoCard, TodoAssignee, TodoRole, TodoStatus, UpdateTodoPayload } 
 type TodoCardKey = 'all' | 'mine' | 'team';
 
 // field ที่แก้ไขแบบ inline ได้ทีละอัน (Status/startDate/daysAllotted/closeDate ไม่รวม เพราะคลิกแล้วเปลี่ยน/save ได้ทันทีอยู่แล้วเหมือน badge dropdown)
-type EditableField = 'customer' | 'assignees';
+type EditableField = 'task' | 'customer' | 'assignees';
 
-interface AssigneeOption extends TodoAssignee {
+export interface AssigneeOption extends TodoAssignee {
   label: string;
 }
 
@@ -53,9 +54,12 @@ const STATUS_META: Record<TodoStatus, { label: string; color: string }> = {
 
 // To-Do cards + Add Task ใช้ร่วมกันระหว่าง Dashboard (ทุกลูกค้า) และ Customer Detail (ลูกค้ารายเดียว)
 // [customerId] ว่าง = โหมด dashboard เห็นทุกงาน, มีค่า = กรองเฉพาะงานของลูกค้านั้นและซ่อนคอลัมน์/ฟิลด์ Customer
+// role ที่มองเห็น/จัดการ task ได้ทุกใบ — ใช้คำนวณว่าใครมองเห็น task ไหนได้บ้าง (ดู commentMentionOptions)
+const PRIVILEGED_ROLES: readonly TodoRole[] = ['ceo', 'admin'];
+
 @Component({
   selector: 'app-todo-board',
-  imports: [RouterLink, FormsModule, SelectModule, MultiSelectModule, DatePickerModule, ProgressSpinnerModule],
+  imports: [RouterLink, FormsModule, SelectModule, MultiSelectModule, DatePickerModule, ProgressSpinnerModule, TodoCommentsComponent],
   templateUrl: './todo-board.component.html',
   styleUrl: './todo-board.component.scss'
 })
@@ -88,9 +92,14 @@ export class TodoBoardComponent implements OnInit {
   // field ที่กำลังแก้ไขอยู่ (แยกอิสระต่อ field ไม่ใช่ทั้งแถว) — แก้ได้ทีละ field ทั้งระบบ, null = ไม่มี field ไหนกำลังแก้
   private readonly activeEdit = signal<{ todoId: string; field: EditableField } | null>(null);
   // ค่า draft ระหว่างแก้ไข — ไม่ยิง API จนกว่าจะกด Save (saveEditField)
+  editTitle = '';
+  editDescription = '';
   editCustomerId: string | null = null;
   editAssigneeIds: string[] = [];
   collapsed = signal<Record<TodoCardKey, boolean>>({ all: false, mine: false, team: false });
+
+  // แถว comment ที่เปิดอยู่ (todo.id -> เปิด/ปิด) — เปิดได้ทีละหลายแถวพร้อมกัน ต่างจาก editField ที่เปิดได้ทีละอัน
+  openComments = signal<Record<string, boolean>>({});
 
   // filter ของ ceo/admin (กรองฝั่ง client — backend ส่งทุกงานมาให้ ceo/admin อยู่แล้ว)
   teamFilter = signal<TodoRole | null>(null);
@@ -224,6 +233,10 @@ export class TodoBoardComponent implements OnInit {
   startEditField(todo: TodoCard, field: EditableField): void {
     this.activeEdit.set({ todoId: todo.id, field });
     switch (field) {
+      case 'task':
+        this.editTitle = todo.title;
+        this.editDescription = todo.description ?? '';
+        break;
       case 'customer':
         this.editCustomerId = todo.customerId;
         break;
@@ -244,6 +257,16 @@ export class TodoBoardComponent implements OnInit {
 
     const patch: UpdateTodoPayload = {};
     switch (field) {
+      case 'task': {
+        const title = this.editTitle.trim();
+        if (!title) {
+          this.todoError.set('Title is required');
+          return;
+        }
+        patch.title = title;
+        patch.description = this.editDescription.trim() || null;
+        break;
+      }
       case 'customer':
         patch.customer_id = this.editCustomerId;
         break;
@@ -397,6 +420,34 @@ export class TodoBoardComponent implements OnInit {
 
   toggleCollapsed(key: TodoCardKey): void {
     this.collapsed.update(current => ({ ...current, [key]: !current[key] }));
+  }
+
+  // key ผูกกับ card.key ด้วย ไม่ใช่แค่ todo.id — งานที่ assign ให้ตัวเองโผล่ทั้งใน My To-Do และ Team To-Do
+  // (เป็น TodoCard คนละ object แต่ id เดียวกัน) ถ้า key แค่ todo.id เปิด comment ในการ์ดหนึ่งจะเปิดอีกการ์ดตามไปด้วย
+  private commentPanelKey(cardKey: TodoCardKey, todoId: string): string {
+    return `${cardKey}:${todoId}`;
+  }
+
+  isCommentsOpen(cardKey: TodoCardKey, todoId: string): boolean {
+    return !!this.openComments()[this.commentPanelKey(cardKey, todoId)];
+  }
+
+  toggleComments(cardKey: TodoCardKey, todoId: string): void {
+    const key = this.commentPanelKey(cardKey, todoId);
+    this.openComments.update(current => ({ ...current, [key]: !current[key] }));
+  }
+
+  // คนที่ @mention ได้ในแผง comment ของ task นี้ — เฉพาะคนที่มองเห็น task นี้ได้ (privileged + assignee role เดียวกับ task)
+  // เกณฑ์เดียวกับที่ backend ใช้กรอง getAll()/assertCanView — ดูเหตุผลใน todos.service.ts ฝั่ง backend
+  commentMentionOptions(todo: TodoCard): AssigneeOption[] {
+    return this.assigneeOptions().filter(option =>
+      PRIVILEGED_ROLES.includes(option.role) || todo.assignees.some(assignee => assignee.role === option.role)
+    );
+  }
+
+  // comment ถูกเพิ่ม/ลบใน child component — reload todos list ทั้งชุดเพื่ออัปเดต commentCount บน badge (เหมือน pattern อื่นในไฟล์นี้)
+  onCommentsChanged(): void {
+    this.loadTodos();
   }
 
   // เปลี่ยนทีมแล้วคนที่เลือกไว้ไม่อยู่ทีมนั้น → ล้าง filter คน ไม่งั้นจะได้ list ว่างโดยไม่รู้สาเหตุ

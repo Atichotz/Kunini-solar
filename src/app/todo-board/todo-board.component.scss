@@ -191,6 +191,13 @@
   overflow: hidden;
 }
 
+// ปุ่มดินสอเป็น sibling นอก .todo-title แทนลูกข้างใน — กัน line-clamp ตัดปุ่มหายเวลาหัวข้อยาว 2 บรรทัดเต็ม
+.todo-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+}
+
 .todo-title {
   font-weight: 600;
   color: var(--k-black);
@@ -288,8 +295,32 @@
   }
 }
 
-// แถวพิเศษใต้ task ที่กำลังแก้ Customer/Who's Task — โผล่เป็นการ์ดลอย ไม่ใช่ยัด dropdown ลงช่องแคบในตาราง (colspan เต็มแถว)
-.todo-edit-row td {
+// ปุ่ม comment ใต้ title ใน Task cell — badge ตัวเลขในตัว ไม่ต้องมี .badge แยก (คลิกเปิด/ปิดแผง comment ใต้แถว)
+.todo-comment-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-pill);
+  background: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--k-mid-grey);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+
+  &:hover,
+  &.active {
+    border-color: var(--k-accent-blue);
+    color: var(--k-accent-blue);
+  }
+}
+
+// แถวพิเศษใต้ task ที่กำลังแก้ Customer/Who's Task หรือเปิดแผง comment — โผล่เป็นการ์ดลอย ไม่ใช่ยัดลงช่องแคบในตาราง (colspan เต็มแถว)
+.todo-edit-row td,
+.todo-comments-row td {
   border-bottom: none;
 }
 
@@ -317,6 +348,24 @@
   letter-spacing: 0.05em;
   color: var(--k-mid-grey);
   flex-shrink: 0;
+}
+
+// เฉพาะ edit card ของ Task — มี input + textarea ซ้อนกันแนวตั้ง จึงชิดบนแทนกึ่งกลางเหมือน select ตัวเดียวของ field อื่น
+.todo-edit-card-task {
+  align-items: flex-start;
+}
+
+.todo-edit-card-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 220px;
+
+  // .add-todo-input ปกติมี margin-top: 12px ไว้เผื่อ field ก่อนหน้าในฟอร์มเพิ่มงาน ที่นี่ใช้ gap ของ flex คุมระยะห่างแทน
+  .add-todo-input {
+    margin-top: 0;
+  }
 }
 
 .todo-edit-card-select {

@@ -76,10 +76,22 @@
                     (change)="toggleTask(todo, todoCheckbox)">
                 </td>
                 <td class="td-cell todo-task-cell">
-                  <div class="todo-title">{{ todo.title }}</div>
+                  <div class="todo-title-row">
+                    <div class="todo-title">{{ todo.title }}</div>
+                    @if (canModify(todo)) {
+                    <button type="button" class="todo-inline-edit" (click)="startEditField(todo, 'task')"
+                      title="Edit">
+                      <i class="fa-solid fa-pen"></i>
+                    </button>
+                    }
+                  </div>
                   @if (todo.description) {
                   <div class="todo-details" [title]="todo.description">{{ todo.description }}</div>
                   }
+                  <button type="button" class="todo-comment-toggle" [class.active]="isCommentsOpen(card.key, todo.id)"
+                    (click)="toggleComments(card.key, todo.id)" title="Comments">
+                    <i class="fa-regular fa-comment"></i> {{ todo.commentCount }}
+                  </button>
                 </td>
                 @if (!customerId) {
                 <td class="td-cell">
@@ -172,6 +184,30 @@
                   }
                 </td>
               </tr>
+              @if (isEditingField(todo.id, 'task')) {
+              <tr class="todo-edit-row">
+                <td class="todo-edit-row-cell" [attr.colspan]="columnCount">
+                  <div class="todo-edit-card todo-edit-card-task">
+                    <span class="todo-edit-card-label">Task</span>
+                    <div class="todo-edit-card-fields">
+                      <input type="text" class="add-todo-input" placeholder="Task title" [(ngModel)]="editTitle"
+                        [disabled]="isTodoPending(todo.id)" (keyup.enter)="saveEditField(todo, 'task')">
+                      <textarea class="add-todo-input add-todo-textarea" rows="2"
+                        placeholder="Description (optional)" [(ngModel)]="editDescription"
+                        [disabled]="isTodoPending(todo.id)"></textarea>
+                    </div>
+                    <button class="todo-inline-save" [disabled]="isTodoPending(todo.id)"
+                      (click)="saveEditField(todo, 'task')" title="Save">
+                      <i class="fa-solid fa-check"></i>
+                    </button>
+                    <button class="todo-inline-cancel" [disabled]="isTodoPending(todo.id)"
+                      (click)="cancelEditField()" title="Cancel">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              }
               @if (isEditingField(todo.id, 'customer')) {
               <!-- การ์ดลอยแยกแถวใต้ task ที่กำลังแก้ — เลือก customer ในนี้แทนที่จะยัด p-select ลงช่องแคบๆ ในตาราง -->
               <tr class="todo-edit-row">
@@ -212,6 +248,14 @@
                       <i class="fa-solid fa-xmark"></i>
                     </button>
                   </div>
+                </td>
+              </tr>
+              }
+              @if (isCommentsOpen(card.key, todo.id)) {
+              <tr class="todo-comments-row">
+                <td class="todo-edit-row-cell" [attr.colspan]="columnCount">
+                  <app-todo-comments [todoId]="todo.id" [me]="me()" [mentionOptions]="commentMentionOptions(todo)"
+                    (commentsChanged)="onCommentsChanged()" />
                 </td>
               </tr>
               }

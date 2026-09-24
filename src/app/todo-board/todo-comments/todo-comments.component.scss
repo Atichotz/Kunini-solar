@@ -1,0 +1,248 @@
+// แผง comment ลอยใต้แถว task (colspan เต็มแถว) — พื้นหลัง/ขอบชุดเดียวกับ .todo-edit-card ใน todo-board.component.scss
+:host {
+  display: block;
+  margin: 8px 12px 10px;
+  padding: 14px 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.comments-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--k-mid-grey);
+  padding: 8px 0;
+}
+
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  // จำกัดความสูง กันแถวลากยาวเกินไปเมื่อ comment เยอะ
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.comments-empty {
+  font-size: 13px;
+  color: var(--k-mid-grey);
+  padding: 4px 0;
+}
+
+.comment-item {
+  display: flex;
+  gap: 10px;
+}
+
+.comment-avatar {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--k-light-grey);
+  color: var(--k-dark-grey);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.comment-avatar-sm {
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+}
+
+.comment-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comment-author {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--k-black);
+}
+
+.comment-date {
+  font-size: 11px;
+  color: var(--k-mid-grey);
+}
+
+.comment-delete {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--k-light-grey);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: var(--k-red);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.comment-text {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--k-dark-grey);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.comment-mention {
+  color: var(--k-accent-blue);
+  font-weight: 700;
+}
+
+.comment-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.comment-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  color: var(--k-accent-blue);
+  text-decoration: none;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: var(--k-accent-blue);
+  }
+}
+
+.comments-error {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--k-red);
+}
+
+.comment-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--k-light-grey);
+}
+
+.comment-composer-input {
+  flex: 1;
+}
+
+.comment-textarea {
+  width: 100%;
+  resize: none;
+  font-family: inherit;
+}
+
+// อยู่ในลำดับปกติของ layout (ไม่ position: absolute) ใต้ textarea — กันโดนตัดขอบบนของ .todo-table-wrap
+// ที่ overflow-x: auto (ทำให้แกน y ถูก clip ไปด้วย) ถ้าลอยขึ้นด้านบนแบบ dropdown ทั่วไป
+.mention-dropdown {
+  margin-top: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+  background: var(--card-bg);
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--k-shadow);
+}
+
+.mention-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: var(--k-dark-grey);
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--bg-color);
+  }
+}
+
+.comment-file-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.comment-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--bg-color);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--k-dark-grey);
+
+  button {
+    background: none;
+    border: none;
+    color: var(--k-mid-grey);
+    cursor: pointer;
+    font-size: 11px;
+
+    &:hover {
+      color: var(--k-red);
+    }
+  }
+}
+
+.comment-composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+.comment-attach-btn {
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.comment-send-btn {
+  color: var(--k-red);
+
+  &:hover:not(:disabled) {
+    color: var(--k-red);
+    opacity: 0.8;
+  }
+}
