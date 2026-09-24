@@ -19,128 +19,164 @@
   }
 }
 
-/* =========================================
-   Layout helpers unique to this page
-   ========================================= */
-.sow-section-label {
-  color: var(--k-accent-blue);
+.full-width {
+  grid-column: 1 / -1;
 }
 
-.sow-header-hint {
+.report-overview-row {
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--k-light-grey);
+}
+
+.report-header-hint {
   color: var(--k-mid-grey);
   font-weight: normal;
 }
 
-.sow-add-task {
-  align-self: flex-start;
-  margin-top: 4px;
-}
-
-.sow-bottom-actions {
-  padding-top: 24px;
-  border-top: 1px solid var(--k-light-grey);
+.report-divider {
+  height: 1px;
+  background: var(--k-light-grey);
+  margin: 24px 0;
 }
 
 /* =========================================
-   Day Block (Execution Plan)
+   Component rows (Solar Array / Power & Storage)
    ========================================= */
-.day-block {
-  background: var(--bg-color);
-  border: 1px solid var(--k-light-grey);
-  border-radius: var(--radius-sm);
-  padding: 24px;
-  margin-bottom: 24px;
-  page-break-inside: avoid;
+.component-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--bg-color);
 
   &:last-child {
-    margin-bottom: 0;
+    border-bottom: none;
   }
 }
 
-.day-block-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--k-light-grey);
+.comp-qty {
+  width: 56px;
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--k-red);
 }
 
-.day-block-title {
-  margin: 0;
-  font-size: 16px;
-}
-
-.day-date-input {
-  width: 140px;
-
-  ::ng-deep .p-datepicker-input {
-    padding: 6px 10px;
-  }
-}
-
-.day-status-select {
-  width: auto;
-  padding: 6px 10px;
+.comp-name {
+  flex: 1.2;
   font-weight: 600;
-  background-color: var(--card-bg);
-}
-
-/* EOD report blocks reuse .day-block but sit on a plain background */
-.sow-eod-block {
-  background: transparent;
-  border-color: var(--k-light-grey);
-}
-
-.sow-eod-header {
-  border-bottom: none;
-  margin-bottom: 0;
-  padding-bottom: 0;
-}
-
-.sow-eod-title {
-  margin: 0;
-  font-size: 14px;
   color: var(--k-black);
 }
 
-/* =========================================
-   Weather selector
-   ========================================= */
-.weather-group {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
+.comp-detail {
+  flex: 1;
+  color: var(--k-mid-grey);
+  font-size: 13px;
 }
 
-.weather-btn {
-  padding: 8px 16px;
-  border: 1px solid var(--k-mid-grey);
-  border-radius: var(--radius-pill);
-  font-size: 12px;
-  font-weight: 700;
-  background: var(--card-bg);
-  color: var(--k-dark-grey);
-  cursor: pointer;
+/* =========================================
+   Measurement tables (Test Results)
+   ========================================= */
+.test-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  font-size: 13px;
 
-  &.active {
-    background: var(--k-dark-grey);
-    color: var(--k-white);
-    border-color: var(--k-dark-grey);
+  th {
+    background-color: var(--bg-color);
+    color: var(--k-dark-grey);
+    font-weight: 700;
+    text-align: left;
+    padding: 10px;
+    border: 1px solid var(--k-light-grey);
+  }
+
+  td {
+    padding: 8px 10px;
+    border: 1px solid var(--k-light-grey);
+  }
+
+  input {
+    border: none;
+    background: transparent;
+    padding: 0;
+    width: 100%;
+    border-radius: 0;
+    font-size: 13px;
+    color: var(--k-black);
+
+    &:focus {
+      outline: none;
+      border-bottom: 1px solid var(--k-red);
+    }
   }
 }
 
+.report-ac-table {
+  width: 70%;
+}
+
+.report-phase-label {
+  font-weight: 600;
+}
+
+.report-summary-box {
+  background: var(--bg-color);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+
+  input {
+    background: var(--card-bg);
+  }
+}
+
+.report-ac-summary {
+  width: 70%;
+}
+
+.report-highlight-input {
+  border-color: var(--k-red) !important;
+  font-weight: bold;
+}
+
+.report-checklist {
+  background: #fafafa;
+  padding: 20px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--k-light-grey);
+}
+
 /* =========================================
-   Photo upload (local preview only)
+   Equipment serial numbers
    ========================================= */
-.sow-photo-grid {
+.report-sn-label {
+  font-size: 11px;
+}
+
+.report-sn-add {
+  font-size: 11px;
+}
+
+.report-sn-input {
+  font-family: monospace;
+  font-size: 13px;
+}
+
+/* =========================================
+   Layout / Roof / Equipment photos
+   ========================================= */
+.report-photo-box-lg {
+  height: 200px;
+}
+
+.report-photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 12px;
   margin-bottom: 8px;
 }
 
-.sow-photo-item {
+.report-photo-item {
   position: relative;
   border-radius: var(--radius-sm);
   overflow: hidden;
@@ -154,7 +190,7 @@
   }
 }
 
-.sow-photo-remove {
+.report-photo-remove {
   position: absolute;
   top: 4px;
   right: 4px;
@@ -163,17 +199,37 @@
 }
 
 /* =========================================
-   Task list row
+   Warranty & maintenance
    ========================================= */
-.task-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
+.report-maintenance-box {
+  background: var(--bg-color);
+  padding: 20px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--k-light-grey);
+}
 
-  input {
-    flex: 1;
-  }
+.report-maintenance-hint {
+  font-size: 12px;
+  color: var(--k-mid-grey);
+  margin-top: 12px;
+  line-height: 1.4;
+}
+
+.report-warranty-box {
+  padding: 20px;
+}
+
+.report-warranty-list {
+  list-style-type: disc;
+  margin-left: 20px;
+  font-size: 13px;
+  color: var(--k-dark-grey);
+  line-height: 1.8;
+}
+
+.report-bottom-actions {
+  padding-top: 24px;
+  border-top: 1px solid var(--k-light-grey);
 }
 
 /* =========================================
@@ -236,10 +292,10 @@
     margin-top: 20px;
   }
 
-  .day-block {
-    background: transparent;
-    border-color: var(--k-light-grey);
+  .card {
+    box-shadow: none;
     padding: 16px;
+    margin-bottom: 20px;
   }
 
   .page-break {
@@ -261,6 +317,10 @@
     resize: none;
   }
 
+  .test-table input {
+    border-bottom: none;
+  }
+
   // p-datepicker renders its input deep inside its own component template — global
   // encapsulation means the plain "input" rule above can't reach it, so target it explicitly
   ::ng-deep .p-datepicker-input {
@@ -273,5 +333,10 @@
 
   ::ng-deep .p-datepicker-dropdown {
     display: none;
+  }
+
+  .photo-box {
+    border: 1px solid var(--k-light-grey);
+    background: transparent;
   }
 }

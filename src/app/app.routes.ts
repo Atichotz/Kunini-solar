@@ -15,6 +15,7 @@ import { NewCustomerSuccessPopupComponent } from './popups/new-customer-success-
 import { SettingPageComponent } from './pages/setting-page/setting-page.component';
 import { PdfBosPreviewComponent } from './pages/pdf-bos-preview/pdf-bos-preview.component';
 import { SowPageComponent } from './pages/sow-page/sow-page.component';
+import { ReportPageComponent } from './pages/report-page/report-page.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -30,6 +31,7 @@ export const routes: Routes = [
       { path: 'estimate', component: EstimatePageComponent },
       { path: 'survey', component: SurveyPageComponent },
       { path: 'sow', component: SowPageComponent },
+      { path: 'report', component: ReportPageComponent },
       { path: 'pdf-bos-preview', component: PdfBosPreviewComponent },
       { path: 'battery-guide', component: BatteryGuideComponent },
       { path: 'calculators', component: CalculatorsPageComponent },

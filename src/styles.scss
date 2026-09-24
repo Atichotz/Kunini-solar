@@ -877,6 +877,11 @@ select:focus {
   color: var(--k-dark-grey);
   white-space: pre-wrap;
   overflow-wrap: anywhere; // ข้อความยาวไม่มีช่องว่างต้องไม่ล้น card
+
+  a {
+    color: var(--k-red);
+    text-decoration: underline;
+  }
 }
 
 .upload-area {
@@ -947,5 +952,72 @@ select:focus {
       background-color: rgba(0, 136, 194, 0.1);
       color: var(--k-accent-blue);
     }
+  }
+
+  &.btn-edit {
+    background-color: transparent;
+    color: var(--k-mid-grey);
+    margin-right: 4px;
+
+    &:hover:not(:disabled) {
+      background-color: rgba(0, 136, 194, 0.1);
+      color: var(--k-accent-blue);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+}
+
+/* ===== CHECKBOX GRID (ใช้ซ้ำใน sow-page, report-page ฯลฯ) ===== */
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--k-black);
+  cursor: pointer;
+
+  input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--k-red);
+    cursor: pointer;
+  }
+}
+
+/* ===== PHOTO UPLOAD BOX (local preview only — ใช้ซ้ำใน sow-page, report-page ฯลฯ) ===== */
+.photo-box {
+  border: 2px dashed var(--k-mid-grey);
+  border-radius: var(--radius-sm);
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--k-mid-grey);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--bg-color);
+  text-align: center;
+  padding: 16px;
+  margin-top: 8px;
+}
+
+/* ===== CUSTOMER LIST DRAWER (List View Customers — เมนูสไลด์จากขวา ใน header-brand) ===== */
+.p-drawer.customer-list-drawer {
+  width: 40vw;
+
+  @media (max-width: 1024px) {
+    width: 100vw;
   }
 }
