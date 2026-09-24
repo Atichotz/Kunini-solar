@@ -24,6 +24,11 @@
     <a class="solar-guide-link" [routerLink]="'/workflow'">
       Workflow
     </a>
+    <span class="user-divider" aria-hidden="true"></span>
+    <button type="button" class="solar-guide-link" (click)="customerListDrawer.open()">
+      <i class="pi pi-users"></i>
+      Customer List
+    </button>
     <!-- <a class="solar-guide-link">
       <i class="pi pi-bell"></i>
     </a> -->
@@ -35,3 +40,4 @@
     </a>
   </div>
 </header>
+<app-customer-list-drawer #customerListDrawer></app-customer-list-drawer>

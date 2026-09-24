@@ -4,10 +4,11 @@ import { RouterLink } from "@angular/router";
 import { AuthService } from '../services/auth.service';
 import { salesRepNameOf } from '../quotation-snapshot.util';
 import { Tooltip } from "primeng/tooltip";
+import { CustomerListDrawerComponent } from '../customer-list-drawer/customer-list-drawer.component';
 
 @Component({
   selector: 'app-header-brand',
-  imports: [RouterLink, Tooltip],
+  imports: [RouterLink, Tooltip, CustomerListDrawerComponent],
   templateUrl: './header-brand.component.html',
   styleUrl: './header-brand.component.scss'
 })

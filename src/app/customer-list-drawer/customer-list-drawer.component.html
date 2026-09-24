@@ -1,0 +1,94 @@
+<p-toast></p-toast>
+
+<p-drawer [visible]="visible()" (visibleChange)="onVisibleChange($event)" position="right" [modal]="true"
+  [dismissible]="true" [closeOnEscape]="true" [blockScroll]="true" styleClass="customer-list-drawer"
+  header="Customer List">
+
+  <div class="drawer-search">
+    <input type="text" placeholder="ค้นหาชื่อ, Customer #, ที่อยู่, ผู้ติดต่อ..." [value]="searchTerm()"
+      (input)="searchTerm.set($any($event.target).value)" [disabled]="loading() || error()" />
+  </div>
+
+  @if (loading()) {
+  <div class="drawer-state">
+    <i class="pi pi-spin pi-spinner"></i>
+    <span>กำลังโหลดข้อมูลลูกค้า...</span>
+  </div>
+  } @else if (error()) {
+  <div class="drawer-state">
+    <span>โหลดข้อมูลไม่สำเร็จ</span>
+    <button type="button" class="k-btn-sm k-btn-outline" (click)="retry()">ลองใหม่</button>
+  </div>
+  } @else if (filteredCustomers().length === 0) {
+  <div class="drawer-state">
+    @if (customers().length === 0) {
+    <span>ยังไม่มีข้อมูลลูกค้า</span>
+    } @else {
+    <span>ไม่พบลูกค้าที่ตรงกับคำค้นหา</span>
+    }
+  </div>
+  } @else {
+  <div class="customer-list">
+    @for (customer of filteredCustomers(); track customer.id) {
+    <div class="card customer-card">
+      <div class="customer-card-header">
+        <button type="button" class="customer-name-btn" (click)="goToDetail(customer.id)">
+          <span class="customer-name">{{ customer.displayName }}</span>
+        </button>
+        @if (customer.customerNumber) {
+        <span class="badge">{{ customer.customerNumber }}</span>
+        }
+      </div>
+
+      <div class="customer-card-row">
+        <i class="pi pi-map-marker"></i>
+        <span class="customer-card-value">{{ customer.fullAddress ?? '—' }}</span>
+        @if (customer.fullAddress) {
+        <button type="button" class="icon-btn copy-btn" title="Copy address"
+          (click)="copyToClipboard(customer.fullAddress)">
+          <i class="pi pi-copy"></i>
+        </button>
+        }
+      </div>
+
+      @if (customer.googleMapsLink) {
+      <a class="customer-map-link" [href]="customer.googleMapsLink" target="_blank" rel="noopener noreferrer">
+        <i class="fa-solid fa-location-dot"></i> View on Map
+      </a>
+      }
+
+      <div class="customer-card-divider"></div>
+
+      <div class="customer-card-row">
+        <i class="pi pi-user"></i>
+        <span class="customer-card-value">{{ contactFullName(customer.contact) }}</span>
+      </div>
+
+      @if (customer.contact?.tel) {
+      <div class="customer-card-row">
+        <i class="pi pi-phone"></i>
+        <a class="customer-contact-link customer-card-value" [href]="'tel:' + customer.contact!.tel">{{
+          customer.contact!.tel }}</a>
+        <button type="button" class="icon-btn copy-btn" title="Copy phone"
+          (click)="copyToClipboard(customer.contact!.tel!)">
+          <i class="pi pi-copy"></i>
+        </button>
+      </div>
+      }
+
+      @if (customer.contact?.email) {
+      <div class="customer-card-row">
+        <i class="pi pi-envelope"></i>
+        <a class="customer-contact-link customer-card-value" [href]="'mailto:' + customer.contact!.email">{{
+          customer.contact!.email }}</a>
+        <button type="button" class="icon-btn copy-btn" title="Copy email"
+          (click)="copyToClipboard(customer.contact!.email!)">
+          <i class="pi pi-copy"></i>
+        </button>
+      </div>
+      }
+    </div>
+    }
+  </div>
+  }
+</p-drawer>
