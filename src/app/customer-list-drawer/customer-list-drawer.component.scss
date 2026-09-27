@@ -1,8 +1,148 @@
+:host ::ng-deep .customer-list-dialog {
+  display: flex;
+  flex-direction: column;
+
+  .p-dialog-content {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .p-dialog-close-button {
+    color: var(--k-red);
+
+    &:hover {
+      background: color-mix(in srgb, var(--k-red) 12%, transparent);
+      color: var(--k-red);
+    }
+  }
+}
+
 .drawer-search {
   margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 
   input {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.filter-toggle-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  width: auto;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-sm);
+  color: var(--k-dark-grey);
+  background: var(--card-bg);
+  transition: var(--k-transition);
+
+  &:hover {
+    border-color: var(--k-red);
+  }
+
+  &.active {
+    border-color: var(--k-red);
+    color: var(--k-red);
+  }
+}
+
+.filter-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: var(--k-red);
+  color: var(--k-white);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-lg);
+  background: var(--card-bg);
+  box-shadow: var(--k-shadow);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &:not(:first-child) {
+    padding-top: 14px;
+    border-top: 1px solid var(--k-light-grey);
+  }
+}
+
+.filter-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--k-mid-grey);
+}
+
+.clear-filters-btn {
+  align-self: flex-start;
+  padding-top: 2px;
+}
+
+/* Location pill ใช้สี branch เดียวกับที่ customer-detail-page ใช้ (ดู design-system.md ข้อ 6) */
+.tag-pill {
+  &.Pattaya {
+    border-color: var(--k-pattaya);
+  }
+
+  &.HuaHin {
+    border-color: var(--k-huahin);
+  }
+
+  &.Bangkok {
+    border-color: var(--k-bangkok);
+  }
+
+  &.Up-Country {
+    border-color: var(--k-up-country);
+  }
+
+  &.selected {
+    &.Pattaya {
+      background: var(--k-pattaya);
+      border-color: var(--k-pattaya);
+    }
+
+    &.HuaHin {
+      background: var(--k-huahin);
+      border-color: var(--k-huahin);
+    }
+
+    &.Bangkok {
+      background: var(--k-bangkok);
+      border-color: var(--k-bangkok);
+    }
+
+    &.Up-Country {
+      background: var(--k-up-country);
+      border-color: var(--k-up-country);
+    }
   }
 }
 
@@ -22,24 +162,73 @@
   }
 }
 
-.customer-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.customer-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-sm);
 }
 
-.customer-card {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.customer-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--card-bg);
+  }
+
+  th {
+    text-align: left;
+    padding: 10px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--k-mid-grey);
+    border-bottom: 1px solid var(--k-light-grey);
+    white-space: nowrap;
+
+    .pi {
+      margin-right: 6px;
+      color: var(--k-mid-grey);
+    }
+  }
+
+  td {
+    padding: 10px 12px;
+    color: var(--k-dark-grey);
+    border-bottom: 1px solid var(--k-light-grey);
+    vertical-align: top;
+  }
+
+  tbody tr:hover {
+    background: var(--bg-color);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
 }
 
-.customer-card-header {
+.cell-muted {
+  color: var(--k-mid-grey);
+}
+
+.cell-with-action {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
+
+  > span,
+  > a {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+  }
 }
 
 .customer-name-btn {
@@ -48,43 +237,19 @@
   padding: 0;
   text-align: left;
   cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--k-black);
+  word-break: break-word;
 
-  &:hover .customer-name {
+  &:hover {
     color: var(--k-red);
     text-decoration: underline;
   }
 }
 
-.customer-name {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--k-black);
-  word-break: break-word;
-}
-
-.customer-card-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--k-dark-grey);
-
-  > .pi {
-    margin-top: 2px;
-    color: var(--k-mid-grey);
-    flex-shrink: 0;
-  }
-}
-
-.customer-card-value {
-  flex: 1;
-  min-width: 0;
-  word-break: break-word;
-}
-
 .copy-btn {
   flex-shrink: 0;
-  margin-top: -2px;
 
   .pi {
     font-size: 13px;
@@ -104,13 +269,6 @@
 .customer-map-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  width: fit-content;
-}
-
-.customer-card-divider {
-  height: 1px;
-  background: var(--k-light-grey);
-  margin: 4px 0;
+  gap: 4px;
+  white-space: nowrap;
 }

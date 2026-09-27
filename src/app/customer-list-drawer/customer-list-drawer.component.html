@@ -1,94 +1,172 @@
 <p-toast></p-toast>
 
-<p-drawer [visible]="visible()" (visibleChange)="onVisibleChange($event)" position="right" [modal]="true"
-  [dismissible]="true" [closeOnEscape]="true" [blockScroll]="true" styleClass="customer-list-drawer"
-  header="Customer List">
+<p-dialog header="Customer List" [(visible)]="visible" (visibleChange)="onVisibleChange($event)" [modal]="true"
+  [style]="{ width: '95vw', height: '90vh' }" [draggable]="false" [resizable]="false"
+  styleClass="customer-list-dialog">
 
   <div class="drawer-search">
-    <input type="text" placeholder="ค้นหาชื่อ, Customer #, ที่อยู่, ผู้ติดต่อ..." [value]="searchTerm()"
+    <input type="text" placeholder="Search by name, Customer #, Address" [value]="searchTerm()"
       (input)="searchTerm.set($any($event.target).value)" [disabled]="loading() || error()" />
+    <button type="button" class="icon-btn filter-toggle-btn"
+      [class.active]="filterPanelOpen() || activeFilterCount() > 0" title="Filter" (click)="toggleFilterPanel()">
+      <i class="pi pi-filter"></i>
+      Filter
+      @if (activeFilterCount() > 0) {
+      <span class="filter-count-badge">{{ activeFilterCount() }}</span>
+      }
+    </button>
   </div>
+
+  @if (filterPanelOpen()) {
+  <div class="filter-panel">
+    <div class="filter-group">
+      <span class="filter-group-label">Location</span>
+      <div class="tag-select-group">
+        @for (loc of locationOptions; track loc) {
+        <div class="tag-pill" [class]="locationClass(loc)" [class.selected]="selectedLocations().includes(loc)"
+          (click)="setLocation(loc)">{{ loc }}</div>
+        }
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <span class="filter-group-label">Project Type</span>
+      <div class="tag-select-group">
+        @for (ct of customerTypeOptions; track ct) {
+        <div class="tag-pill" [class.selected]="selectedCustomerTypes().includes(ct)" (click)="setCustomerType(ct)">{{ ct
+          }}</div>
+        }
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <span class="filter-group-label">Type of System</span>
+      <div class="tag-select-group">
+        @for (st of systemTypeOptions; track st) {
+        <div class="tag-pill" [class.selected]="selectedSystemTypes().includes(st)" (click)="setSystemType(st)">{{ st }}
+        </div>
+        }
+      </div>
+    </div>
+
+    @if (statusOptions().length > 0) {
+    <div class="filter-group">
+      <span class="filter-group-label">Status</span>
+      <div class="tag-select-group">
+        @for (s of statusOptions(); track s.id) {
+        <div class="tag-pill" [class.selected]="selectedStatusIds().includes(s.id)" (click)="setStatus(s.id)">{{
+          s.status_name }}</div>
+        }
+      </div>
+    </div>
+    }
+
+    @if (activeFilterCount() > 0) {
+    <button type="button" class="k-btn-text clear-filters-btn" (click)="clearFilters()">Clear all filters</button>
+    }
+  </div>
+  }
 
   @if (loading()) {
   <div class="drawer-state">
     <i class="pi pi-spin pi-spinner"></i>
-    <span>กำลังโหลดข้อมูลลูกค้า...</span>
+    <span>Loading customers...</span>
   </div>
   } @else if (error()) {
   <div class="drawer-state">
-    <span>โหลดข้อมูลไม่สำเร็จ</span>
-    <button type="button" class="k-btn-sm k-btn-outline" (click)="retry()">ลองใหม่</button>
+    <span>Failed to load data</span>
+    <button type="button" class="k-btn-sm k-btn-outline" (click)="retry()">Retry</button>
   </div>
   } @else if (filteredCustomers().length === 0) {
   <div class="drawer-state">
     @if (customers().length === 0) {
-    <span>ยังไม่มีข้อมูลลูกค้า</span>
+    <span>No customers yet</span>
     } @else {
-    <span>ไม่พบลูกค้าที่ตรงกับคำค้นหา</span>
+    <span>No customers match your search</span>
     }
   </div>
   } @else {
-  <div class="customer-list">
-    @for (customer of filteredCustomers(); track customer.id) {
-    <div class="card customer-card">
-      <div class="customer-card-header">
-        <button type="button" class="customer-name-btn" (click)="goToDetail(customer.id)">
-          <span class="customer-name">{{ customer.displayName }}</span>
-        </button>
-        @if (customer.customerNumber) {
-        <span class="badge">{{ customer.customerNumber }}</span>
+  <div class="customer-table-wrap">
+    <table class="customer-table">
+      <thead>
+        <tr>
+          <th><i class="pi pi-hashtag"></i>Customer No.</th>
+          <th><i class="pi pi-user"></i>Full Name</th>
+          <th><i class="pi pi-map-marker"></i>Address</th>
+          <th><i class="pi pi-envelope"></i>Email</th>
+          <th><i class="pi pi-phone"></i>Phone</th>
+          <th><i class="pi pi-map"></i>Location</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (customer of filteredCustomers(); track customer.id) {
+        <tr>
+          <td>
+            @if (customer.customerNumber) {
+            <span class="badge">{{ customer.customerNumber }}</span>
+            } @else {
+            <span class="cell-muted">—</span>
+            }
+          </td>
+          <td>
+            <button type="button" class="customer-name-btn" (click)="goToDetail(customer.id)">
+              {{ customer.displayName }}
+            </button>
+          </td>
+          <td>
+            @if (customer.fullAddress) {
+            <div class="cell-with-action">
+              <span>{{ customer.fullAddress }}</span>
+              <button type="button" class="icon-btn copy-btn" title="Copy address"
+                (click)="copyToClipboard(customer.fullAddress)">
+                <i class="pi pi-copy"></i>
+              </button>
+            </div>
+            } @else {
+            <span class="cell-muted">—</span>
+            }
+          </td>
+          <td>
+            @if (customer.contact?.email) {
+            <div class="cell-with-action">
+              <a class="customer-contact-link" [href]="'mailto:' + customer.contact!.email">{{
+                customer.contact!.email }}</a>
+              <button type="button" class="icon-btn copy-btn" title="Copy email"
+                (click)="copyToClipboard(customer.contact!.email!)">
+                <i class="pi pi-copy"></i>
+              </button>
+            </div>
+            } @else {
+            <span class="cell-muted">—</span>
+            }
+          </td>
+          <td>
+            @if (customer.contact?.tel) {
+            <div class="cell-with-action">
+              <a class="customer-contact-link" [href]="'tel:' + customer.contact!.tel">{{ customer.contact!.tel
+                }}</a>
+              <button type="button" class="icon-btn copy-btn" title="Copy phone"
+                (click)="copyToClipboard(customer.contact!.tel!)">
+                <i class="pi pi-copy"></i>
+              </button>
+            </div>
+            } @else {
+            <span class="cell-muted">—</span>
+            }
+          </td>
+          <td>
+            @if (customer.googleMapsLink) {
+            <a class="customer-map-link" [href]="customer.googleMapsLink" target="_blank" rel="noopener noreferrer">
+              <i class="fa-solid fa-location-dot"></i> View
+            </a>
+            } @else {
+            <span class="cell-muted">—</span>
+            }
+          </td>
+        </tr>
         }
-      </div>
-
-      <div class="customer-card-row">
-        <i class="pi pi-map-marker"></i>
-        <span class="customer-card-value">{{ customer.fullAddress ?? '—' }}</span>
-        @if (customer.fullAddress) {
-        <button type="button" class="icon-btn copy-btn" title="Copy address"
-          (click)="copyToClipboard(customer.fullAddress)">
-          <i class="pi pi-copy"></i>
-        </button>
-        }
-      </div>
-
-      @if (customer.googleMapsLink) {
-      <a class="customer-map-link" [href]="customer.googleMapsLink" target="_blank" rel="noopener noreferrer">
-        <i class="fa-solid fa-location-dot"></i> View on Map
-      </a>
-      }
-
-      <div class="customer-card-divider"></div>
-
-      <div class="customer-card-row">
-        <i class="pi pi-user"></i>
-        <span class="customer-card-value">{{ contactFullName(customer.contact) }}</span>
-      </div>
-
-      @if (customer.contact?.tel) {
-      <div class="customer-card-row">
-        <i class="pi pi-phone"></i>
-        <a class="customer-contact-link customer-card-value" [href]="'tel:' + customer.contact!.tel">{{
-          customer.contact!.tel }}</a>
-        <button type="button" class="icon-btn copy-btn" title="Copy phone"
-          (click)="copyToClipboard(customer.contact!.tel!)">
-          <i class="pi pi-copy"></i>
-        </button>
-      </div>
-      }
-
-      @if (customer.contact?.email) {
-      <div class="customer-card-row">
-        <i class="pi pi-envelope"></i>
-        <a class="customer-contact-link customer-card-value" [href]="'mailto:' + customer.contact!.email">{{
-          customer.contact!.email }}</a>
-        <button type="button" class="icon-btn copy-btn" title="Copy email"
-          (click)="copyToClipboard(customer.contact!.email!)">
-          <i class="pi pi-copy"></i>
-        </button>
-      </div>
-      }
-    </div>
-    }
+      </tbody>
+    </table>
   </div>
   }
-</p-drawer>
+</p-dialog>

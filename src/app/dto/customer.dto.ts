@@ -121,6 +121,10 @@ export interface CustomerListItem {
   fullAddress: string | null;
   googleMapsLink: string | null;
   contact: CustomerListContact | null;
+  projectLocationName: string | null;
+  typeOfCustomerName: string | null;
+  typeOfSystemName: string | null;
+  statusId: number | null;
 }
 
 export interface CreateCustomerPayload {
