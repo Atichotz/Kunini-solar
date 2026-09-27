@@ -1,254 +1,5 @@
-@if(false){
-<div class="max-w-[1000px] mx-auto px-4 py-5 space-y-5">
-
-  <!-- ── Page Header ── -->
-  <div class="flex items-center justify-between animate-fade-in-up">
-    <div>
-      <h1 class="text-xl font-bold text-slate-800">Sales Dashboard</h1>
-      <p class="text-sm text-slate-500 mt-0.5">Overview of quotes and system installations</p>
-    </div>
-  </div>
-
-  <!-- ── KPI Cards ── -->
-  <div class="grid grid-cols-4 gap-4">
-    @for (card of kpiCards; track card.label; let i = $index) {
-    <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 animate-fade-in-up"
-      [style.animation-delay]="(100 + i * 100) + 'ms'">
-      <div class="flex items-start justify-between mb-3">
-        <span class="text-2xl">{{ card.icon }}</span>
-        <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
-          [class]="card.trend === 'up' ? 'bg-green-50 text-green-600' : 'bg-slate-50 text-slate-500'">
-          {{ card.trendText }}
-        </span>
-      </div>
-      <p class="text-slate-500 text-xs font-semibold uppercase tracking-wide mb-1">{{ card.label }}</p>
-      <p class="text-slate-800 text-2xl font-bold leading-tight">{{ card.value }}</p>
-      <p class="text-slate-400 text-xs mt-1">{{ card.sub }}</p>
-    </div>
-    }
-  </div>
-
-  <!-- ── Monthly Chart + System Type ── -->
-  <div class="grid grid-cols-[1fr_280px] gap-4 animate-fade-in-up" style="animation-delay: 350ms">
-
-    <!-- Monthly Quotes Bar Chart -->
-    <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-      <h2 class="font-bold text-sm text-slate-700 mb-1">Monthly Quotes</h2>
-      <p class="text-xs text-slate-400 mb-5">Number of quotes generated per month</p>
-      <div class="flex items-end gap-3 h-36">
-        @for (m of monthlyData; track m.month) {
-        <div class="flex-1 flex flex-col items-center gap-1.5">
-          <span class="text-xs font-bold text-slate-600">{{ m.quotes }}</span>
-          <div class="w-full rounded-t-md transition-all" [style.height.%]="barHeight(m.quotes)" [class]="m.month === 'Apr'
-                   ? 'bg-orange-400 min-h-[8px]'
-                   : 'bg-slate-200 min-h-[8px]'">
-          </div>
-          <span class="text-[11px] text-slate-400 font-medium">{{ m.month }}</span>
-        </div>
-        }
-      </div>
-      <div class="flex items-center gap-2 mt-4 pt-4 border-t border-slate-100">
-        <span class="w-3 h-3 rounded-sm bg-orange-400 inline-block"></span>
-        <span class="text-xs text-slate-500">Current month</span>
-        <span class="w-3 h-3 rounded-sm bg-slate-200 inline-block ml-3"></span>
-        <span class="text-xs text-slate-500">Previous months</span>
-      </div>
-    </div>
-
-    <!-- System Type Distribution -->
-    <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-      <h2 class="font-bold text-sm text-slate-700 mb-1">System Type Split</h2>
-      <p class="text-xs text-slate-400 mb-5">Hybrid vs Grid-Tied ratio</p>
-
-      <!-- Ring visual -->
-      <div class="flex justify-center mb-4">
-        <div class="relative w-28 h-28">
-          <svg viewBox="0 0 36 36" class="w-28 h-28 -rotate-90">
-            <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e2e8f0" stroke-width="3.5" />
-            <circle cx="18" cy="18" r="15.9" fill="none" stroke="#1e3a5f" stroke-width="3.5"
-              [attr.stroke-dasharray]="hybridPct + ' ' + (100 - hybridPct)" stroke-linecap="round" />
-          </svg>
-          <div class="absolute inset-0 flex flex-col items-center justify-center">
-            <span class="text-xl font-bold text-slate-800">{{ hybridPct }}%</span>
-            <span class="text-[10px] text-slate-400">Hybrid</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="space-y-2.5">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full bg-[#1e3a5f] inline-block"></span>
-            <span class="text-xs text-slate-600">Hybrid (On/Off-Grid)</span>
-          </div>
-          <span class="text-xs font-bold text-slate-700">{{ hybridCount }} quotes</span>
-        </div>
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full bg-slate-200 inline-block"></span>
-            <span class="text-xs text-slate-600">Grid-Tied</span>
-          </div>
-          <span class="text-xs font-bold text-slate-700">{{ gridTiedCount }} quotes</span>
-        </div>
-      </div>
-
-      <div class="mt-5 pt-4 border-t border-slate-100 space-y-1.5">
-        <div class="flex justify-between text-xs">
-          <span class="text-slate-500">✅ Installed</span>
-          <span class="font-bold text-green-600">{{ installedCount }}</span>
-        </div>
-        <div class="flex justify-between text-xs">
-          <span class="text-slate-500">🟡 Approved</span>
-          <span class="font-bold text-yellow-600">{{ approvedCount }}</span>
-        </div>
-        <div class="flex justify-between text-xs">
-          <span class="text-slate-500">⏳ Pending</span>
-          <span class="font-bold text-slate-500">{{ pendingCount }}</span>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- ── Recent Quotes ── -->
-  <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in-up"
-    style="animation-delay: 450ms">
-    <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-      <h2 class="font-bold text-sm text-slate-700">Recent Quotes</h2>
-      <span class="text-xs text-slate-400">Showing last {{ recentQuotes.length }} entries</span>
-    </div>
-
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="bg-slate-50 border-b border-slate-100">
-            <th class="th-cell">Quote ID</th>
-            <th class="th-cell">Client</th>
-            <th class="th-cell">System</th>
-            <th class="th-cell">Components</th>
-            <th class="th-cell text-right">Total Cost</th>
-            <th class="th-cell text-right">Mo. Savings</th>
-            <th class="th-cell">Date</th>
-            <th class="th-cell text-center">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (q of recentQuotes; track q.id) {
-          <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-            <td class="td-cell">
-              <span class="font-mono text-xs text-slate-500">{{ q.id }}</span>
-            </td>
-            <td class="td-cell">
-              <p class="font-semibold text-slate-800">{{ q.clientName }}</p>
-              <p class="text-xs text-slate-400 truncate max-w-[160px]">{{ q.address }}</p>
-            </td>
-            <td class="td-cell">
-              <p class="font-bold text-slate-800">{{ q.systemSize }} kW</p>
-              <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" [class]="q.systemType === 'hybrid'
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'bg-slate-100 text-slate-500'">
-                {{ q.systemType === 'hybrid' ? '⚡ Hybrid' : '◀ Grid-Tied' }}
-              </span>
-            </td>
-            <td class="td-cell">
-              <p class="text-xs text-slate-600">{{ q.solarPanel }}</p>
-              <p class="text-xs text-slate-400">{{ q.inverter }}</p>
-              @if (q.battery) {
-              <p class="text-[10px] text-orange-500 font-semibold">🔋 {{ q.battery }}</p>
-              }
-            </td>
-            <td class="td-cell text-right">
-              <span class="font-bold text-slate-800">₱{{ q.totalCost | number:'1.0-0' }}</span>
-            </td>
-            <td class="td-cell text-right">
-              <span class="text-green-600 font-semibold">₱{{ q.monthlySavings | number:'1.0-0' }}</span>
-            </td>
-            <td class="td-cell">
-              <span class="text-xs text-slate-500">{{ q.date | date:'MMM d, y' }}</span>
-            </td>
-            <td class="td-cell text-center">
-              <span class="badge" [class]="statusClass(q.status)">
-                {{ statusLabel(q.status) }}
-              </span>
-            </td>
-          </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ── Top System Sizes + Quick Stats ── -->
-  <div class="grid grid-cols-[1fr_280px] gap-4 animate-fade-in-up" style="animation-delay: 550ms">
-
-    <!-- Top System Sizes -->
-    <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-      <h2 class="font-bold text-sm text-slate-700 mb-1">Top System Sizes (All Time)</h2>
-      <p class="text-xs text-slate-400 mb-4">Most frequently quoted DC capacities</p>
-      <div class="space-y-3">
-        @for (s of sizeBars; track s.kw) {
-        <div class="flex items-center gap-3">
-          <span class="text-xs font-bold text-slate-600 w-10 shrink-0">{{ s.kw }} kW</span>
-          <div class="flex-1 bg-slate-100 rounded-full h-2.5">
-            <div class="bg-gradient-to-r from-[#1e3a5f] to-[#2d5a8e] h-2.5 rounded-full transition-all"
-              [style.width.%]="s.pct">
-            </div>
-          </div>
-          <span class="text-xs text-slate-400 w-16 shrink-0 text-right">{{ s.count }} quotes</span>
-        </div>
-        }
-      </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-      <h2 class="font-bold text-sm text-slate-700 mb-4">Quick Actions</h2>
-      <div class="space-y-2">
-        <a routerLink="/estimate"
-          class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-orange-200 hover:bg-orange-50 transition-colors group">
-          <span class="text-xl">📋</span>
-          <div>
-            <p class="text-sm font-semibold text-slate-700 group-hover:text-orange-600">New Quotation</p>
-            <p class="text-xs text-slate-400">Build a solar quote for a client</p>
-          </div>
-        </a>
-        <a routerLink="/battery-guide"
-          class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-colors group">
-          <span class="text-xl">🔋</span>
-          <div>
-            <p class="text-sm font-semibold text-slate-700 group-hover:text-blue-600">Battery Guide</p>
-            <p class="text-xs text-slate-400">Compare battery storage options</p>
-          </div>
-        </a>
-        <a routerLink="/calculators"
-          class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-green-200 hover:bg-green-50 transition-colors group">
-          <span class="text-xl">🧮</span>
-          <div>
-            <p class="text-sm font-semibold text-slate-700 group-hover:text-green-600">Calculators</p>
-            <p class="text-xs text-slate-400">ROI, savings & system tools</p>
-          </div>
-        </a>
-      </div>
-    </div>
-
-  </div>
-</div>
-}
-
 <div class="max-w-container">
   <div class="container-content">
-    <!-- HEADER -->
-    <!-- <div class="flex justify-between items-center mb-4">
-      <div>
-        <h1>Welcome back, Team!</h1>
-        <p style="color: var(--k-mid-grey); margin-top: 4px;">Here is your summary for today, May 3, 2026.
-        </p>
-      </div>
-      <div class="flex gap-2">
-        <button class="k-btn k-btn-primary" style="box-shadow: 0 4px 14px rgba(176, 29, 42, 0.3);" [routerLink]="'/workflow'">Workflow</button>
-      </div>
-    </div> -->
-
     <!-- 1. KPI SUMMARY ROW -->
     <div class="grid sm:grid-cols-2 md:grid-cols-4">
       <div class="kpi-card review">
@@ -313,102 +64,167 @@
       }
     </div>
 
-    <!-- 2. MAIN DASHBOARD CONTENT (ROW 1) -->
-    <div class="flex flex-col gap-4 mt-4">
-
-      <!-- Today's Schedule -->
-      <!-- <div class="card">
-        <div class="card-header">
-          <div class="flex items-center gap-2">
-            <i class="fa-regular fa-calendar text-[18px]"></i>
-            <h2>Today's Schedule</h2>
-          </div>
-          <button class="btn-text">Open in Google Calendar ↗</button>
+    <!-- SECTION TABS + CONTENT -->
+    <div class="flex flex-col gap-3 mt-4">
+      <!-- CONTENT — 1 card ครอบเนื้อหาทุกหมวด ต่อจาก .k-tabs ด้านบน -->
+      <div class="card">
+        <div class="card k-tabs mb-2" style="overflow-y: hidden;">
+          <button type="button" class="k-tab" [class.active]="activeSection() === 'todo'"
+            (click)="activeSection.set('todo')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            <span>Task</span>
+            <span class="k-tab-badge">{{ todoBoardRef.totalCount() }}</span>
+          </button>
+          <button type="button" class="k-tab" [class.active]="activeSection() === 'ticket'"
+            (click)="activeSection.set('ticket')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            <span>Ticket</span>
+            <span class="k-tab-badge">{{ ticketBoardRef.totalCount() }}</span>
+          </button>
+          <button type="button" class="k-tab" [class.active]="activeSection() === 'calendar'"
+            (click)="activeSection.set('calendar')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span>Calendar</span>
+          </button>
+          <button type="button" class="k-tab" [class.active]="activeSection() === 'systemTypes'"
+            (click)="activeSection.set('systemTypes')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <span>System Types Breakdown</span>
+          </button>
         </div>
 
-        <div class="calendar-agenda" style="flex: 1;">
-          <div class="agenda-item urgent">
-            <div class="agenda-time">09:00 AM <span>1 hr</span></div>
-            <div class="agenda-details">
-              <h4>Site Survey: ABC Corp</h4>
-              <p>Bangkok • Assigned to: Mark</p>
-              <span class="badge mt-2" style="background: #f8d7da; color: var(--k-red);">Pending
-                Estimate</span>
+        <!-- 2. MAIN DASHBOARD CONTENT (ROW 1) -->
+        <!-- app-todo-board/app-ticket-board อยู่เสมอ (ไม่ใช้ @if) เพื่อให้ totalCount() ของทั้งคู่อ่านได้ตลอดสำหรับ badge บน tab ด้านบน แม้ไม่ได้เปิดดูอยู่ -->
+        <div [hidden]="activeSection() !== 'todo'">
+          <div class="flex flex-col gap-4">
+
+            <!-- Today's Schedule -->
+            <!-- <div class="card">
+            <div class="card-header">
+              <div class="flex items-center gap-2">
+                <i class="fa-regular fa-calendar text-[18px]"></i>
+                <h2>Today's Schedule</h2>
+              </div>
+              <button class="btn-text">Open in Google Calendar ↗</button>
             </div>
-          </div>
 
-          <div class="agenda-item">
-            <div class="agenda-time">11:30 AM <span>30 min</span></div>
-            <div class="agenda-details">
-              <h4>Client Call: John Doe Residence</h4>
-              <p>Reviewing battery options for hybrid system.</p>
+            <div class="calendar-agenda" style="flex: 1;">
+              <div class="agenda-item urgent">
+                <div class="agenda-time">09:00 AM <span>1 hr</span></div>
+                <div class="agenda-details">
+                  <h4>Site Survey: ABC Corp</h4>
+                  <p>Bangkok • Assigned to: Mark</p>
+                  <span class="badge mt-2" style="background: #f8d7da; color: var(--k-red);">Pending
+                    Estimate</span>
+                </div>
+              </div>
+
+              <div class="agenda-item">
+                <div class="agenda-time">11:30 AM <span>30 min</span></div>
+                <div class="agenda-details">
+                  <h4>Client Call: John Doe Residence</h4>
+                  <p>Reviewing battery options for hybrid system.</p>
+                </div>
+              </div>
+
+              <div class="agenda-item success">
+                <div class="agenda-time">02:00 PM <span>4 hrs</span></div>
+                <div class="agenda-details">
+                  <h4>Installation Kickoff</h4>
+                  <p>Pattaya Branch • 10kW On-Grid System</p>
+                  <span class="badge mt-2" style="background: #d4edda; color: #155724;">Confirmed</span>
+                </div>
+              </div>
             </div>
-          </div>
+          </div> -->
 
-          <div class="agenda-item success">
-            <div class="agenda-time">02:00 PM <span>4 hrs</span></div>
-            <div class="agenda-details">
-              <h4>Installation Kickoff</h4>
-              <p>Pattaya Branch • 10kW On-Grid System</p>
-              <span class="badge mt-2" style="background: #d4edda; color: #155724;">Confirmed</span>
-            </div>
-          </div>
-        </div>
-      </div> -->
+            <app-todo-board #todoBoardRef [customers]="customers()" />
 
-      <app-todo-board [customers]="customers()" />
-
-      @if (kpiError(); as error) {
-      <p class="todo-error" role="alert">{{ error }}</p>
-      }
-    </div>
-
-    <!-- 3. FULL WEEKLY CALENDAR -->
-    <div class="card mt-2">
-      <div class="card-header">
-        <h2>Team Weekly Calendar</h2>
-        <a class="btn btn-text" href="https://calendar.google.com/calendar" target="_blank">Open Full Screen ↗</a>
-      </div>
-      <div class="calendar-container">
-        <iframe
-          src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Asia%2FBangkok&showPrint=0&src=aW5mb0BrdW5pbmkuY29t&src=Y182YTdhNzdhN2VlZmJhMTAwNTIyY2EzYjc1MGRlYzliZGNiMGM4MGYwNjRhZGU3NDZkMjBiNWNkMDgwN2U4Mjk3QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y18yOTY4M2QyMGY0MjFiOTdjZDMyNDc1NDcwZmVkNmNjMmU5ZmYxODA1OWZmMmFkOGYyM2Y2ZDk5N2I1YmU0OGQ0QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19lNjIxOWE1YmFhNDYzZjlmYTg2ZTRlNDEzOGVkMjg0YWZhMGNlOTI4OTg3YzIzN2NkNDA2OWUxMzZmNDM5ZTQxQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19jNWYyZjMwYTFhYmI1YWViYWVkOWIzMTc5MmY3OWFiMThiZDVlNGM4Mzk3NDgxODY1MjVhODUwNzQ3NGJmZTAxQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19jYjE2YWMxNGRmN2IzYmZkNGQwZDY1OGNiMjEwNmM3YjU5Y2IxMDY2ZjUyYWVlMGM0MzBlNTRhNTQ3MjE5NDcwQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19jNzBmOTM2NmYwZmU1YWFlMTI3NmU2ZDFmZDk1YzIzYzFhMDJlYTA0MzliMzAzNzFiMTg5Y2NiOWExOGNkZDBiQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19kYmUzZGY3YjVmNTQ3MjE1YmQyMzQ0ODRiNjM0ZjVhMWQzOTkzOTAwYzU3ODBlY2Y3YTE1NGNiZTAyZWYzNDhlQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y184OWEzYWQwNmFkOGJlODQ1MDRlYTU1MDhmNzJjZTliNzhmZmEyMjg0MTA5M2Q2MzgwMmViYTkxYjc5NTc5ZWZlQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&color=%23039be5&color=%23009688&color=%23a79b8e&color=%23ef6c00&color=%23ad1457&color=%239e69af&color=%23039be5&color=%23e67c73&color=%23c0ca33"
-          style="border-width:0" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
-      </div>
-    </div>
-
-
-    <!-- 4. MAIN DASHBOARD CONTENT (ROW 2) -->
-    <div class="grid mt-2">
-
-      <!-- Systems Type Donut Chart -->
-      <div class="card" style="height: 100%;">
-        <div class="card-header">
-          <h2>System Types Breakdown</h2>
-          <span style="font-size: 12px; color: var(--k-mid-grey); font-weight: bold;">All time (excl. Rejected)</span>
-        </div>
-
-        <div class="donut-wrapper" style="flex: 1;">
-          <div class="donut-chart" [style.background]="systemTypeGradient()">
-            <div class="donut-hole">
-              <span style="font-size: 28px; font-weight: 700; color: var(--k-black);">{{ kpiLoading() || kpiError() ?
-                '–' : systemTypeTotal() }}</span>
-              <span
-                style="font-size: 11px; font-weight: 700; color: var(--k-mid-grey); text-transform: uppercase;">Total</span>
-            </div>
-          </div>
-
-          <div class="donut-legend">
-            @for (slice of systemTypeSlices(); track slice.label) {
-            <div class="legend-item">
-              <div class="legend-color" [style.background]="slice.color"></div>
-              {{ slice.label }}
-              <span class="legend-sub">
-                {{ kpiLoading() || kpiError() ? '–' : (slice.percent | number:'1.0-0') + '% (' + slice.count + ')' }}
-              </span>
-            </div>
+            @if (kpiError(); as error) {
+            <p class="todo-error" role="alert">{{ error }}</p>
             }
           </div>
         </div>
+
+        <!-- TICKET BOARD -->
+        <div [hidden]="activeSection() !== 'ticket'">
+          <div class="flex flex-col gap-4">
+            <app-ticket-board #ticketBoardRef [customers]="customers()" />
+          </div>
+        </div>
+
+        <!-- 3. FULL WEEKLY CALENDAR -->
+        @if (activeSection() === 'calendar') {
+        <div>
+          <div class="card-header">
+            <h2>Team Weekly Calendar</h2>
+            <a class="btn btn-text" href="https://calendar.google.com/calendar" target="_blank">Open Full Screen
+              ↗</a>
+          </div>
+          <div class="calendar-container">
+            <iframe
+              src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Asia%2FBangkok&showPrint=0&src=aW5mb0BrdW5pbmkuY29t&src=Y182YTdhNzdhN2VlZmJhMTAwNTIyY2EzYjc1MGRlYzliZGNiMGM4MGYwNjRhZGU3NDZkMjBiNWNkMDgwN2U4Mjk3QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y18yOTY4M2QyMGY0MjFiOTdjZDMyNDc1NDcwZmVkNmNjMmU5ZmYxODA1OWZmMmFkOGYyM2Y2ZDk5N2I1YmU0OGQ0QGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19lNjIxOWE1YmFhNDYzZjlmYTg2ZTRlNDEzOGVkMjg0YWZhMGNlOTI4OTg3YzIzN2NkNDA2OWUxMzZmNDM5ZTQxQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19jNWYyZjMwYTFhYmI1YWViYWVkOWIzMTc5MmY3OWFiMThiZDVlNGM4Mzk3NDgxODY1MjVhODUwNzQ3NGJmZTAxQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19jYjE2YWMxNGRmN2IzYmZkNGQwZDY1OGNiMjEwNmM3YjU5Y2IxMDY2ZjUyYWVlMGM0MzBlNTRhNTQ3MjE5NDcwQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19jNzBmOTM2NmYwZmU1YWFlMTI3NmU2ZDFmZDk1YzIzYzFhMDJlYTA0MzliMzAzNzFiMTg5Y2NiOWExOGNkZDBiQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y19kYmUzZGY3YjVmNTQ3MjE1YmQyMzQ0ODRiNjM0ZjVhMWQzOTkzOTAwYzU3ODBlY2Y3YTE1NGNiZTAyZWYzNDhlQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&src=Y184OWEzYWQwNmFkOGJlODQ1MDRlYTU1MDhmNzJjZTliNzhmZmEyMjg0MTA5M2Q2MzgwMmViYTkxYjc5NTc5ZWZlQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20&color=%23039be5&color=%23009688&color=%23a79b8e&color=%23ef6c00&color=%23ad1457&color=%239e69af&color=%23039be5&color=%23e67c73&color=%23c0ca33"
+              style="border-width:0" width="100%" height="100%" frameborder="0" scrolling="no"></iframe>
+          </div>
+        </div>
+        }
+
+        <!-- 4. MAIN DASHBOARD CONTENT (ROW 2) -->
+        @if (activeSection() === 'systemTypes') {
+        <div>
+          <div class="card-header">
+            <h2>System Types Breakdown</h2>
+            <span style="font-size: 12px; color: var(--k-mid-grey); font-weight: bold;">All time (excl.
+              Rejected)</span>
+          </div>
+
+          <div class="donut-wrapper">
+            <div class="donut-chart" [style.background]="systemTypeGradient()">
+              <div class="donut-hole">
+                <span style="font-size: 28px; font-weight: 700; color: var(--k-black);">{{ kpiLoading() || kpiError() ?
+                  '–' : systemTypeTotal() }}</span>
+                <span
+                  style="font-size: 11px; font-weight: 700; color: var(--k-mid-grey); text-transform: uppercase;">Total</span>
+              </div>
+            </div>
+
+            <div class="donut-legend">
+              @for (slice of systemTypeSlices(); track slice.label) {
+              <div class="legend-item">
+                <div class="legend-color" [style.background]="slice.color"></div>
+                {{ slice.label }}
+                <span class="legend-sub">
+                  {{ kpiLoading() || kpiError() ? '–' : (slice.percent | number:'1.0-0') + '% (' + slice.count + ')' }}
+                </span>
+              </div>
+              }
+            </div>
+          </div>
+        </div>
+        }
       </div>
     </div>
   </div>

@@ -1,5 +1,32 @@
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
 @if (me()) {
-<!-- ceo/admin: การ์ดเดียว กรองตามทีม/คนได้ | role อื่น: My To-Do + Team To-Do (ดู cards ใน .ts) -->
+<!-- ฟอร์มเพิ่มงานอยู่บนสุดนอก card เสมอ ไม่ว่าจะยุบ/ขยายการ์ดไหนอยู่ — ใช้ร่วมกันทุกการ์ด (มีแค่ข้อมูล newCustomerId ฯลฯ ชุดเดียวต่อ component) -->
+<div class="add-todo-form">
+  <div class="add-todo-heading">Add task</div>
+  <input #titleInput type="text" class="add-todo-input mb-2" placeholder="Task title"
+    (keyup.enter)="addTask(titleInput, descInput)">
+  <textarea #descInput class="add-todo-input add-todo-textarea" rows="3"
+    placeholder="Description (optional)"></textarea>
+  <div class="add-todo-row">
+    @if (!customerId) {
+    <p-select [options]="customerOptions" optionLabel="name" optionValue="id"
+      [(ngModel)]="newCustomerId" appendTo="body" placeholder="Customer" [filter]="true" filterBy="name"
+      [showClear]="true" class="add-todo-assignee" />
+    }
+    <p-datepicker [(ngModel)]="newStartDate" dateFormat="dd/mm/yy" appendTo="body"
+      placeholder="Start date" class="add-todo-date" />
+    <input type="number" min="0" class="add-todo-input add-todo-days" placeholder="Days allotted"
+      [(ngModel)]="newDaysAllotted">
+    <p-multiselect [options]="assigneeOptions()" optionLabel="label" optionValue="id"
+      [(ngModel)]="newAssigneeIds" appendTo="body" placeholder="Assign to..." [filter]="true"
+      filterBy="label" [maxSelectedLabels]="1" selectedItemsLabel="{0} people"
+      class="add-todo-assignee" />
+    <button type="button" class="k-btn-sm k-btn-primary add-todo-confirm" [disabled]="isSubmitting()"
+      (click)="addTask(titleInput, descInput)">{{ isSubmitting() ? 'Adding…' : 'Add' }}</button>
+  </div>
+</div>
+
 <div class="grid">
   @for (card of cards(); track card.key) {
   <div class="card">
@@ -60,7 +87,7 @@
                 }
                 <th class="th-cell">Status</th>
                 <th class="th-cell">Start Date</th>
-                <th class="th-cell">Days Allotted</th>
+                <th class="th-cell"># Days</th>
                 <th class="th-cell">Days Overdue</th>
                 <th class="th-cell">Close Date</th>
                 <th class="th-cell">Who's Task</th>
@@ -77,7 +104,7 @@
                 </td>
                 <td class="td-cell todo-task-cell">
                   <div class="todo-title-row">
-                    <div class="todo-title">{{ todo.title }}</div>
+                    <div class="todo-title" (click)="openTaskDrawer(todo)" title="Open task details">{{ todo.title }}</div>
                     @if (canModify(todo)) {
                     <button type="button" class="todo-inline-edit" (click)="startEditField(todo, 'task')"
                       title="Edit">
@@ -88,10 +115,6 @@
                   @if (todo.description) {
                   <div class="todo-details" [title]="todo.description">{{ todo.description }}</div>
                   }
-                  <button type="button" class="todo-comment-toggle" [class.active]="isCommentsOpen(card.key, todo.id)"
-                    (click)="toggleComments(card.key, todo.id)" title="Comments">
-                    <i class="fa-regular fa-comment"></i> {{ todo.commentCount }}
-                  </button>
                 </td>
                 @if (!customerId) {
                 <td class="td-cell">
@@ -106,7 +129,7 @@
                   </button>
                   }
                   } @else if (canModify(todo)) {
-                  <button type="button" class="k-btn-sm k-btn-outline" (click)="startEditField(todo, 'customer')">
+                  <button type="button" class="k-btn-sm k-btn-outline btn-link-cus" (click)="startEditField(todo, 'customer')">
                     <i class="fa-solid fa-link"></i> Link Customer
                   </button>
                   } @else {
@@ -131,7 +154,8 @@
                 <td class="td-cell">
                   <!-- คลิกช่องแล้วเปิด panel เลือกวันที่ได้ทันที เลือกแล้ว save เลย ไม่ต้องกด Edit/Save ก่อนเหมือน field อื่น (เหมือน Status) -->
                   <p-datepicker [ngModel]="toDate(todo.startDate)" (onSelect)="setTodoStartDate(todo, $event)"
-                    dateFormat="dd/mm/yy" appendTo="body" placeholder="—"
+                    (onClear)="confirmClearTodoStartDate(todo)" [showClear]="true" dateFormat="dd/mm/yy"
+                    appendTo="body" placeholder="—"
                     [disabled]="!canModify(todo) || isTodoPending(todo.id)" class="todo-cell-date" />
                 </td>
                 <td class="td-cell">
@@ -149,10 +173,11 @@
                 </td>
                 <td class="td-cell">
                   <p-datepicker [ngModel]="toDate(todo.closeDate)" (onSelect)="setTodoCloseDate(todo, $event)"
-                    dateFormat="dd/mm/yy" appendTo="body" placeholder="—"
+                    (onClear)="confirmClearTodoCloseDate(todo)" [showClear]="true" dateFormat="dd/mm/yy"
+                    appendTo="body" placeholder="—"
                     [disabled]="!canModify(todo) || isTodoPending(todo.id)" class="todo-cell-date" />
                 </td>
-                <td class="td-cell">
+                <td class="td-cell todo-assignee-cell">
                   @if (todo.assignees.length) {
                   <span [title]="assigneeNames(todo)">
                     @for (assignee of todo.assignees; track assignee.id; let last = $last) {
@@ -190,7 +215,7 @@
                   <div class="todo-edit-card todo-edit-card-task">
                     <span class="todo-edit-card-label">Task</span>
                     <div class="todo-edit-card-fields">
-                      <input type="text" class="add-todo-input" placeholder="Task title" [(ngModel)]="editTitle"
+                      <input type="text" class="add-todo-input" placeholder="Title" [(ngModel)]="editTitle"
                         [disabled]="isTodoPending(todo.id)" (keyup.enter)="saveEditField(todo, 'task')">
                       <textarea class="add-todo-input add-todo-textarea" rows="2"
                         placeholder="Description (optional)" [(ngModel)]="editDescription"
@@ -251,14 +276,6 @@
                 </td>
               </tr>
               }
-              @if (isCommentsOpen(card.key, todo.id)) {
-              <tr class="todo-comments-row">
-                <td class="todo-edit-row-cell" [attr.colspan]="columnCount">
-                  <app-todo-comments [todoId]="todo.id" [me]="me()" [mentionOptions]="commentMentionOptions(todo)"
-                    (commentsChanged)="onCommentsChanged()" />
-                </td>
-              </tr>
-              }
               } @empty {
               <tr>
                 <td class="td-cell todo-empty" [attr.colspan]="columnCount">{{ searchText()[card.key].trim() ? 'No matching tasks'
@@ -289,43 +306,129 @@
         </div>
         }
 
-        @if (card.showForm) {
-        <div class="add-todo-form" (click)="$event.stopPropagation()">
-          <div class="add-todo-heading">Add task</div>
-          <input #titleInput type="text" class="add-todo-input mb-2" placeholder="Task title"
-            (keyup.enter)="addTask(titleInput, descInput)">
-          <textarea #descInput class="add-todo-input add-todo-textarea" rows="3"
-            placeholder="Description (optional)"></textarea>
-          <div class="add-todo-row">
-            @if (!customerId) {
-            <p-select [options]="customerOptions" optionLabel="name" optionValue="id"
-              [(ngModel)]="newCustomerId" appendTo="body" placeholder="Customer" [filter]="true" filterBy="name"
-              [showClear]="true" class="add-todo-assignee" />
-            }
-            <p-datepicker [(ngModel)]="newStartDate" dateFormat="dd/mm/yy" appendTo="body"
-              placeholder="Start date" class="add-todo-date" />
-            <input type="number" min="0" class="add-todo-input add-todo-days" placeholder="Days allotted"
-              [(ngModel)]="newDaysAllotted">
-            <p-multiselect [options]="assigneeOptions()" optionLabel="label" optionValue="id"
-              [(ngModel)]="newAssigneeIds" appendTo="body" placeholder="Assign to..." [filter]="true"
-              filterBy="label" [maxSelectedLabels]="1" selectedItemsLabel="{0} people"
-              class="add-todo-assignee" />
-            <button type="button" class="k-btn-sm k-btn-primary add-todo-confirm" [disabled]="isSubmitting()"
-              (click)="addTask(titleInput, descInput)">{{ isSubmitting() ? 'Adding…' : 'Add task' }}</button>
-          </div>
-        </div>
-        }
       </div>
     </div>
   </div>
   }
 </div>
+
+<p-dialog [visible]="!!drawerTodo()" (visibleChange)="onDrawerVisibleChange($event)" [modal]="true"
+  [dismissableMask]="true" [draggable]="false" [resizable]="false" [style]="{ width: '50vw' }"
+  [contentStyle]="{ 'max-height': '80vh', 'overflow-y': 'auto' }" styleClass="task-detail-drawer">
+  @if (drawerTodo(); as todo) {
+  <ng-template #header>
+    <div class="task-drawer-header">
+      <span class="task-drawer-eyebrow">Task Detail</span>
+      <h2 class="task-drawer-title">{{ todo.title }}</h2>
+    </div>
+  </ng-template>
+
+  <div class="task-drawer-info">
+    <div class="task-drawer-summary">
+      <span [class]="'task-drawer-status status-badge-' + todo.status">
+        <span class="status-dot" [style.background]="statusMeta(todo.status).color"></span>
+        {{ statusMeta(todo.status).label }}
+      </span>
+
+      @if (dueSummary(todo); as due) {
+      <span class="task-drawer-summary-divider"></span>
+      <div class="task-drawer-due-summary" [class.overdue]="due.overdue">
+        <i class="fa-regular fa-calendar"></i>
+        <div>
+          <div class="task-drawer-due-text">{{ due.text }}</div>
+          <div class="task-drawer-due-date">{{ formatDate(dueDate(todo)) }}</div>
+        </div>
+      </div>
+      }
+    </div>
+
+    @if (!customerId) {
+    <div class="task-drawer-section">
+      <span class="task-drawer-label">Customer</span>
+      @if (todo.customerName) {
+      <a [routerLink]="['/detail', todo.customerId]" class="task-drawer-customer">
+        <i class="fa-regular fa-folder-open"></i>
+        <span class="task-drawer-customer-name">{{ todo.customerName }}</span>
+        <i class="fa-solid fa-chevron-right"></i>
+      </a>
+      } @else {
+      <span class="text-slate-400">—</span>
+      }
+    </div>
+    }
+
+    <div class="task-drawer-section">
+      <span class="task-drawer-label">Details</span>
+      <div class="task-drawer-details">
+        <div class="task-drawer-detail">
+          <i class="fa-regular fa-calendar"></i>
+          <div>
+            <span class="task-drawer-label">Start Date</span>
+            <span class="task-drawer-detail-value">{{ formatDate(todo.startDate) }}</span>
+          </div>
+        </div>
+
+        <div class="task-drawer-detail">
+          <i class="fa-solid fa-flag"></i>
+          <div>
+            <span class="task-drawer-label">Due Date</span>
+            <span class="task-drawer-detail-value">{{ formatDate(dueDate(todo)) }}</span>
+          </div>
+          @if (dueSummary(todo); as due) {
+          <span class="badge badge-overdue task-drawer-due-chip"><i class="fa-regular fa-clock"></i>{{ due.text }}</span>
+          }
+        </div>
+
+        <div class="task-drawer-detail">
+          <i class="fa-solid fa-user-group"></i>
+          <div>
+            <span class="task-drawer-label">Assignees</span>
+            @if (todo.assignees.length) {
+            <div class="task-drawer-avatars">
+              @for (assignee of todo.assignees; track assignee.id) {
+              <span class="task-drawer-avatar" [class.task-drawer-avatar-me]="assignee.id === me()?.id">
+                <span class="task-drawer-avatar-badge">{{ initials(assignee.name) }}</span>
+                {{ assignee.name }}
+              </span>
+              }
+            </div>
+            } @else {
+            <span class="task-drawer-detail-value text-slate-400">—</span>
+            }
+          </div>
+        </div>
+
+        <div class="task-drawer-detail">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>
+            <span class="task-drawer-label">Days Overdue</span>
+            @if (daysOverdue(todo); as overdue) {
+            <span class="task-drawer-detail-value task-drawer-overdue-value">{{ overdue }} days overdue</span>
+            } @else {
+            <span class="task-drawer-detail-value text-slate-400">—</span>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    @if (todo.description) {
+    <div class="task-drawer-section">
+      <span class="task-drawer-label">Description</span>
+      <p class="task-drawer-desc">{{ todo.description }}</p>
+    </div>
+    }
+  </div>
+
+  <div class="task-drawer-comments">
+    <h3 class="task-drawer-comments-heading">Comments</h3>
+    <app-todo-comments [todoId]="todo.id" [me]="me()" [mentionOptions]="commentMentionOptions(todo)"
+      (commentsChanged)="onCommentsChanged()" />
+  </div>
+  }
+</p-dialog>
 } @else if (todosLoading()) {
 <div class="card">
   <div class="todo-empty" role="status">Loading tasks…</div>
 </div>
-}
-
-@if (todoError(); as error) {
-<p class="todo-error" role="alert">{{ error }}</p>
 }

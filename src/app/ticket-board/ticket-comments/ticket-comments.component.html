@@ -1,0 +1,105 @@
+<div class="comments-panel">
+  <p-confirmDialog></p-confirmDialog>
+  @if (loading()) {
+  <div class="comments-loading"><p-progress-spinner ariaLabel="loading" strokeWidth="6"
+      [style]="{ width: '18px', height: '18px' }" /> Loading comments…</div>
+  } @else {
+  <div class="comments-list">
+    @for (comment of comments(); track comment.id) {
+    <div class="comment-item">
+      <div class="comment-avatar">{{ initials(comment.author.name) }}</div>
+      <div class="comment-body">
+        <div class="comment-meta">
+          <span class="comment-author">{{ comment.author.name }}</span>
+          <span class="comment-date" [title]="formatDateTime(comment.createdAt)">{{ formatDate(comment.createdAt)
+            }}</span>
+          @if (canDelete(comment)) {
+          <button type="button" class="comment-delete" [disabled]="isPendingDelete(comment.id)"
+            (click)="deleteComment(comment)" title="Delete comment">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+          }
+        </div>
+        @if (comment.body) {
+        <p class="comment-text">
+          @for (segment of segmentsFor(comment.body); track $index) {
+          @if (segment.mention) {
+          <span class="comment-mention">{{ segment.text }}</span>
+          } @else {
+          <span>{{ segment.text }}</span>
+          }
+          }
+        </p>
+        }
+        @if (comment.attachments.length) {
+        <div class="comment-attachments">
+          @for (attachment of comment.attachments; track attachment.id) {
+          <a [href]="attachment.url" target="_blank" rel="noopener" class="comment-attachment"
+            [title]="attachment.fileName">
+            <i class="fa-solid" [class.fa-file-pdf]="attachment.mimeType === 'application/pdf'"
+              [class.fa-image]="attachment.mimeType !== 'application/pdf'"></i>
+            {{ attachment.fileName }}
+          </a>
+          }
+        </div>
+        }
+      </div>
+    </div>
+    } @empty {
+    <p class="comments-empty">No comments yet</p>
+    }
+  </div>
+  }
+
+  @if (error(); as message) {
+  <p class="comments-error" role="alert">{{ message }}</p>
+  }
+
+  <div class="comment-composer">
+    <div class="comment-composer-input">
+      <textarea #commentInput class="comment-textarea" rows="2" maxlength="4000" placeholder="Add a comment…"
+        [ngModel]="newBody" (input)="onBodyInput(commentInput)" [disabled]="isSubmitting()"></textarea>
+
+      @if (filteredMentionOptions().length) {
+      <div class="mention-dropdown">
+        @for (option of filteredMentionOptions(); track option.id) {
+        <button type="button" class="mention-option" (click)="selectMention(option, commentInput)">
+          <span class="comment-avatar comment-avatar-sm">{{ initials(option.name) }}</span>
+          {{ option.name }}
+        </button>
+        }
+      </div>
+      }
+
+      @if (selectedFiles().length) {
+      <div class="comment-file-chips">
+        @for (file of selectedFiles(); track $index; let i = $index) {
+        <span class="comment-file-chip">
+          {{ file.name }}
+          <button type="button" (click)="removeFile(i)" title="Remove file">✕</button>
+        </span>
+        }
+      </div>
+      }
+    </div>
+
+    <div class="comment-composer-actions">
+      <label class="icon-btn comment-attach-btn" title="Attach file">
+        <i class="fa-solid fa-paperclip"></i>
+        <input type="file" hidden multiple accept="image/jpeg,image/png,image/webp,application/pdf"
+          (change)="onFilesSelected($event)">
+      </label>
+      <button type="button" class="icon-btn" title="Mention someone" (click)="insertMentionTrigger(commentInput)">
+        <i class="fa-solid fa-at"></i>
+      </button>
+      <button type="button" class="icon-btn comment-send-btn" [disabled]="isSubmitting()" title="Send"
+        (click)="submitComment(commentInput)">
+        @if (isSubmitting()) {
+        <p-progress-spinner ariaLabel="sending" strokeWidth="6" [style]="{ width: '14px', height: '14px' }" />
+        } @else {
+        <i class="fa-solid fa-arrow-up"></i>
+        }
+      </button>
+    </div>
+  </div>
+</div>

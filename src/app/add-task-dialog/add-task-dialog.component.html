@@ -1,0 +1,18 @@
+<p-dialog header="Task & Ticket" [(visible)]="visible" (visibleChange)="onVisibleChange($event)" [modal]="true"
+  [style]="{ width: '90vw', height: '90vh' }" [draggable]="false" [resizable]="false"
+  styleClass="add-task-dialog">
+  <p-tabs value="todo">
+    <p-tablist>
+      <p-tab value="todo">Task</p-tab>
+      <p-tab value="ticket">Ticket</p-tab>
+    </p-tablist>
+    <p-tabpanels>
+      <p-tabpanel value="todo">
+        <app-todo-board [customers]="customers()" />
+      </p-tabpanel>
+      <p-tabpanel value="ticket">
+        <app-ticket-board [customers]="customers()" />
+      </p-tabpanel>
+    </p-tabpanels>
+  </p-tabs>
+</p-dialog>

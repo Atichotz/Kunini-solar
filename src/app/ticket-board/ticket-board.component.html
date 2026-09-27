@@ -1,0 +1,420 @@
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
+@if (me()) {
+<!-- ฟอร์มเพิ่ม ticket อยู่บนสุดนอก card เสมอ ไม่ว่าจะยุบ/ขยายการ์ดอยู่ -->
+<div class="add-ticket-form">
+  <div class="add-ticket-heading">Add ticket</div>
+  <input #titleInput type="text" class="add-ticket-input mb-2" placeholder="Task title"
+    (keyup.enter)="addTask(titleInput, descInput)">
+  <textarea #descInput class="add-ticket-input add-ticket-textarea" rows="3"
+    placeholder="Description (optional)"></textarea>
+  <div class="add-ticket-row">
+    <p-select [options]="customerOptions" optionLabel="name" optionValue="id" [(ngModel)]="newCustomerId"
+      appendTo="body" placeholder="Customer" [filter]="true" filterBy="name" [showClear]="true"
+      class="add-ticket-assignee" />
+    <p-datepicker [(ngModel)]="newStartDate" dateFormat="dd/mm/yy" appendTo="body" placeholder="Start date"
+      class="add-ticket-date" />
+    <input type="number" min="0" class="add-ticket-input add-ticket-days" placeholder="Days allotted"
+      [(ngModel)]="newDaysAllotted">
+    <p-multiselect [options]="assigneeOptions()" optionLabel="label" optionValue="id"
+      [(ngModel)]="newAssigneeIds" appendTo="body" placeholder="Assign to..." [filter]="true" filterBy="label"
+      [maxSelectedLabels]="1" selectedItemsLabel="{0} people" class="add-ticket-assignee" />
+    <button type="button" class="k-btn-sm k-btn-primary add-ticket-confirm" [disabled]="isSubmitting()"
+      (click)="addTask(titleInput, descInput)">{{ isSubmitting() ? 'Adding…' : 'Add' }}</button>
+  </div>
+</div>
+
+<!-- ตารางเดียวใช้ร่วมกันทุก role (ต่างจาก Todo ที่แยก My/Team) — สิทธิ์มองเห็นกรองที่ backend แล้ว -->
+<div class="card">
+  <div class="card-header" style="cursor: pointer;" (click)="toggleCollapsed()">
+    <div class="flex items-center gap-2">
+      <i class="fa-regular fa-file-lines text-[18px]" style="color: var(--k-red);"></i>
+      <h2>Ticket</h2>
+      <span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background: #fde8ea; color: var(--k-red);">
+        {{ board().tickets.length }}
+      </span>
+    </div>
+    <i class="fa-solid text-xs transition-transform duration-200" [class.fa-chevron-up]="!collapsed()"
+      [class.fa-chevron-down]="collapsed()" style="color: var(--k-mid-grey);"></i>
+  </div>
+
+  <div class="collapsible-content" [class.expanded]="!collapsed()">
+    <div class="collapsible-inner">
+      <div class="ticket-filters" (click)="$event.stopPropagation()">
+        <span class="ticket-filters-label"><i class="fa-solid fa-filter"></i>Filter</span>
+        <div class="ticket-search">
+          <i class="fa-solid fa-magnifying-glass ticket-search-icon"></i>
+          <input type="text" class="ticket-search-input" placeholder="Search tickets..." autocomplete="off"
+            [ngModel]="searchText()" (ngModelChange)="setSearchText($event)">
+          @if (searchText()) {
+          <button type="button" class="ticket-search-clear" title="Clear search"
+            (click)="setSearchText('')">✕</button>
+          }
+        </div>
+        @if (isManager()) {
+        <p-select [options]="teamOptions" optionLabel="label" optionValue="role" [ngModel]="teamFilter()"
+          (ngModelChange)="setTeamFilter($event)" appendTo="body" placeholder="All teams" [showClear]="true"
+          class="ticket-filter" />
+        <p-select [options]="personOptions()" optionLabel="label" optionValue="id" [ngModel]="personFilter()"
+          (ngModelChange)="setPersonFilter($event)" appendTo="body" placeholder="All people" [filter]="true"
+          filterBy="name" [showClear]="true" class="ticket-filter" />
+        }
+      </div>
+
+      @if (board().tickets.length > pageSizeOptions[0]) {
+      <div class="ticket-page-size ticket-page-size-top mb-2" (click)="$event.stopPropagation()">
+        <span class="ticket-pager-label">Show</span>
+        @for (size of pageSizeOptions; track size) {
+        <button type="button" class="ticket-pager-btn" [class.active]="pageSize() === size"
+          (click)="setPageSize(size)">{{ size }}</button>
+        }
+      </div>
+      }
+
+      <div class="ticket-table-wrap">
+        <table class="ticket-table">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-100">
+              <th class="th-cell">Done</th>
+              <th class="th-cell">Task</th>
+              <th class="th-cell">Customer</th>
+              <th class="th-cell">Status</th>
+              <th class="th-cell">Start Date</th>
+              <th class="th-cell"># Days</th>
+              <th class="th-cell">Days Overdue</th>
+              <th class="th-cell">Close Date</th>
+              <th class="th-cell">Who's Task</th>
+              <th class="th-cell"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (ticket of board().visibleTickets; track ticket.id) {
+            <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors" [class.done]="ticket.isDone">
+              <td class="td-cell">
+                <input #ticketCheckbox type="checkbox" class="ticket-checkbox" [checked]="ticket.isDone"
+                  [disabled]="!canModify(ticket) || isTicketPending(ticket.id)"
+                  (change)="toggleTask(ticket, ticketCheckbox)">
+              </td>
+              <td class="td-cell ticket-task-cell">
+                <div class="ticket-title-row">
+                  <div class="ticket-title" (click)="openTaskDrawer(ticket)" title="Open ticket details">{{ ticket.title }}</div>
+                  @if (canModify(ticket)) {
+                  <button type="button" class="ticket-inline-edit" (click)="startEditField(ticket, 'task')"
+                    title="Edit">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                  }
+                </div>
+                @if (ticket.description) {
+                <div class="ticket-details" [title]="ticket.description">{{ ticket.description }}</div>
+                }
+              </td>
+              <td class="td-cell">
+                @if (ticket.customerName) {
+                <a [routerLink]="['/detail', ticket.customerId]" class="k-btn-text k-btn-text-ticket"
+                  title="View customer detail">
+                  <i class="fa-regular fa-folder-open"></i> {{ ticket.customerName }}</a>
+                @if (canModify(ticket)) {
+                <button type="button" class="ticket-inline-edit" (click)="startEditField(ticket, 'customer')"
+                  title="Edit">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                }
+                } @else if (canModify(ticket)) {
+                <button type="button" class="k-btn-sm k-btn-outline btn-link-cus" (click)="startEditField(ticket, 'customer')">
+                  <i class="fa-solid fa-link"></i> Link Customer
+                </button>
+                } @else {
+                <span class="text-slate-400">—</span>
+                }
+              </td>
+              <td class="td-cell">
+                <!-- ไม่ผูกกับ isEditingField เหมือน field อื่น — คลิก badge เปลี่ยนสถานะได้ทันที ไม่ต้องกด Edit ก่อน -->
+                <p-select [options]="statusOptions" optionLabel="label" optionValue="value"
+                  [ngModel]="ticket.status" (ngModelChange)="setTicketStatus(ticket, $event)" appendTo="body"
+                  [disabled]="!canModify(ticket) || isTicketPending(ticket.id)"
+                  [class]="'ticket-status-select status-badge-' + ticket.status">
+                  <ng-template #selectedItem let-option>
+                    <span class="status-dot" [style.background]="option.color"></span>{{ option.label }}
+                  </ng-template>
+                  <ng-template #item let-option>
+                    <span class="status-dot" [style.background]="option.color"></span>{{ option.label }}
+                  </ng-template>
+                </p-select>
+              </td>
+              <td class="td-cell">
+                <!-- คลิกช่องแล้วเปิด panel เลือกวันที่ได้ทันที เลือกแล้ว save เลย ไม่ต้องกด Edit/Save ก่อนเหมือน field อื่น (เหมือน Status) -->
+                <p-datepicker [ngModel]="toDate(ticket.startDate)" (onSelect)="setTicketStartDate(ticket, $event)"
+                  (onClear)="confirmClearTicketStartDate(ticket)" [showClear]="true" dateFormat="dd/mm/yy"
+                  appendTo="body" placeholder="—"
+                  [disabled]="!canModify(ticket) || isTicketPending(ticket.id)" class="ticket-cell-date" />
+              </td>
+              <td class="td-cell">
+                <!-- พิมพ์เสร็จแล้ว blur/Enter ถึง save (change event) ไม่ต้องกด Edit/Save ก่อนเหมือน field อื่น -->
+                <input type="number" min="0" class="ticket-cell-number" placeholder="—"
+                  [value]="ticket.daysAllotted ?? ''" [disabled]="!canModify(ticket) || isTicketPending(ticket.id)"
+                  (change)="setTicketDaysAllotted(ticket, $event)">
+              </td>
+              <td class="td-cell">
+                @if (daysOverdue(ticket); as overdue) {
+                <span class="badge badge-overdue">{{ overdue }} days overdue</span>
+                } @else {
+                <span class="text-slate-400">—</span>
+                }
+              </td>
+              <td class="td-cell">
+                <p-datepicker [ngModel]="toDate(ticket.closeDate)" (onSelect)="setTicketCloseDate(ticket, $event)"
+                  (onClear)="confirmClearTicketCloseDate(ticket)" [showClear]="true" dateFormat="dd/mm/yy"
+                  appendTo="body" placeholder="—"
+                  [disabled]="!canModify(ticket) || isTicketPending(ticket.id)" class="ticket-cell-date" />
+              </td>
+              <td class="td-cell ticket-assignee-cell">
+                @if (ticket.assignees.length) {
+                <span [title]="assigneeNames(ticket)">
+                  @for (assignee of ticket.assignees; track assignee.id; let last = $last) {
+                  <span [class.ticket-assignee-me]="assignee.id === me()?.id">{{ assignee.name }}</span>@if
+                  (!last) {<span>, </span>}
+                  }
+                </span>
+                } @else {
+                <span class="text-slate-400">—</span>
+                }
+                @if (canModify(ticket)) {
+                <button type="button" class="ticket-inline-edit" (click)="startEditField(ticket, 'assignees')"
+                  title="Edit">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                }
+              </td>
+              <td class="td-cell">
+                @if (canModify(ticket)) {
+                @if(isTicketPending(ticket.id)){
+                <button class="ticket-delete" [disabled]="isTicketPending(ticket.id)" title="Delete ticket">
+                  <p-progress-spinner ariaLabel="loading" strokeWidth="6"
+                    [style]="{ width: '14px', height: '14px' }" /></button>
+                }
+                @else {
+                <button class="ticket-delete" (click)="deleteTask(ticket.id)" title="Delete ticket"><i
+                    class="fa-solid fa-trash"></i></button>
+                }
+                }
+              </td>
+            </tr>
+            @if (isEditingField(ticket.id, 'task')) {
+            <tr class="ticket-edit-row">
+              <td class="ticket-edit-row-cell" [attr.colspan]="columnCount">
+                <div class="ticket-edit-card ticket-edit-card-task">
+                  <span class="ticket-edit-card-label">Task</span>
+                  <div class="ticket-edit-card-fields">
+                    <input type="text" class="add-ticket-input" placeholder="Title" [(ngModel)]="editTitle"
+                      [disabled]="isTicketPending(ticket.id)" (keyup.enter)="saveEditField(ticket, 'task')">
+                    <textarea class="add-ticket-input add-ticket-textarea" rows="2"
+                      placeholder="Description (optional)" [(ngModel)]="editDescription"
+                      [disabled]="isTicketPending(ticket.id)"></textarea>
+                  </div>
+                  <button class="ticket-inline-save" [disabled]="isTicketPending(ticket.id)"
+                    (click)="saveEditField(ticket, 'task')" title="Save">
+                    <i class="fa-solid fa-check"></i>
+                  </button>
+                  <button class="ticket-inline-cancel" [disabled]="isTicketPending(ticket.id)"
+                    (click)="cancelEditField()" title="Cancel">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            }
+            @if (isEditingField(ticket.id, 'customer')) {
+            <!-- การ์ดลอยแยกแถวใต้ task ที่กำลังแก้ — เลือก customer ในนี้แทนที่จะยัด p-select ลงช่องแคบๆ ในตาราง -->
+            <tr class="ticket-edit-row">
+              <td class="ticket-edit-row-cell" [attr.colspan]="columnCount">
+                <div class="ticket-edit-card">
+                  <span class="ticket-edit-card-label">Customer</span>
+                  <p-select [options]="customerOptions" optionLabel="name" optionValue="id"
+                    [(ngModel)]="editCustomerId" appendTo="body" placeholder="Select customer" [filter]="true"
+                    filterBy="name" [showClear]="true" [disabled]="isTicketPending(ticket.id)"
+                    class="ticket-edit-card-select" />
+                  <button class="ticket-inline-save" [disabled]="isTicketPending(ticket.id)"
+                    (click)="saveEditField(ticket, 'customer')" title="Save">
+                    <i class="fa-solid fa-check"></i>
+                  </button>
+                  <button class="ticket-inline-cancel" [disabled]="isTicketPending(ticket.id)"
+                    (click)="cancelEditField()" title="Cancel">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            }
+            @if (isEditingField(ticket.id, 'assignees')) {
+            <tr class="ticket-edit-row">
+              <td class="ticket-edit-row-cell" [attr.colspan]="columnCount">
+                <div class="ticket-edit-card">
+                  <span class="ticket-edit-card-label">Who's Task</span>
+                  <p-multiselect [options]="assigneeOptions()" optionLabel="label" optionValue="id"
+                    [(ngModel)]="editAssigneeIds" appendTo="body" placeholder="Assign to..." [filter]="true"
+                    filterBy="label" [maxSelectedLabels]="1" selectedItemsLabel="{0} people"
+                    [disabled]="isTicketPending(ticket.id)" class="ticket-edit-card-select" />
+                  <button class="ticket-inline-save" [disabled]="isTicketPending(ticket.id)"
+                    (click)="saveEditField(ticket, 'assignees')" title="Save">
+                    <i class="fa-solid fa-check"></i>
+                  </button>
+                  <button class="ticket-inline-cancel" [disabled]="isTicketPending(ticket.id)"
+                    (click)="cancelEditField()" title="Cancel">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            }
+            } @empty {
+            <tr>
+              <td class="td-cell ticket-empty" [attr.colspan]="columnCount">{{ searchText().trim() ? 'No matching tickets'
+                : 'No tickets' }}</td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (board().tickets.length > pageSizeOptions[0]) {
+      <div class="ticket-pager" (click)="$event.stopPropagation()">
+        <div class="ticket-page-size">
+          <span class="ticket-pager-label">Show</span>
+          @for (size of pageSizeOptions; track size) {
+          <button type="button" class="ticket-pager-btn" [class.active]="pageSize() === size"
+            (click)="setPageSize(size)">{{ size }}</button>
+          }
+        </div>
+        <div class="ticket-page-nav">
+          <button type="button" class="ticket-pager-btn" title="Previous page" [disabled]="board().currentPage <= 1"
+            (click)="setPage(board().currentPage - 1)">‹</button>
+          <span class="ticket-pager-label">{{ board().currentPage }} / {{ board().totalPages }}</span>
+          <button type="button" class="ticket-pager-btn" title="Next page"
+            [disabled]="board().currentPage >= board().totalPages"
+            (click)="setPage(board().currentPage + 1)">›</button>
+        </div>
+      </div>
+      }
+    </div>
+  </div>
+</div>
+
+<p-dialog [visible]="!!drawerTicket()" (visibleChange)="onDrawerVisibleChange($event)" [modal]="true"
+  [dismissableMask]="true" [draggable]="false" [resizable]="false" [style]="{ width: '50vw' }"
+  [contentStyle]="{ 'max-height': '80vh', 'overflow-y': 'auto' }" styleClass="task-detail-drawer">
+  @if (drawerTicket(); as ticket) {
+  <ng-template #header>
+    <div class="task-drawer-header">
+      <span class="task-drawer-eyebrow">Ticket Detail</span>
+      <h2 class="task-drawer-title">{{ ticket.title }}</h2>
+    </div>
+  </ng-template>
+
+  <div class="task-drawer-info">
+    <div class="task-drawer-summary">
+      <span [class]="'task-drawer-status status-badge-' + ticket.status">
+        <span class="status-dot" [style.background]="statusMeta(ticket.status).color"></span>
+        {{ statusMeta(ticket.status).label }}
+      </span>
+
+      @if (dueSummary(ticket); as due) {
+      <span class="task-drawer-summary-divider"></span>
+      <div class="task-drawer-due-summary" [class.overdue]="due.overdue">
+        <i class="fa-regular fa-calendar"></i>
+        <div>
+          <div class="task-drawer-due-text">{{ due.text }}</div>
+          <div class="task-drawer-due-date">{{ formatDate(dueDate(ticket)) }}</div>
+        </div>
+      </div>
+      }
+    </div>
+
+    <div class="task-drawer-section">
+      <span class="task-drawer-label">Customer</span>
+      @if (ticket.customerName) {
+      <a [routerLink]="['/detail', ticket.customerId]" class="task-drawer-customer">
+        <i class="fa-regular fa-folder-open"></i>
+        <span class="task-drawer-customer-name">{{ ticket.customerName }}</span>
+        <i class="fa-solid fa-chevron-right"></i>
+      </a>
+      } @else {
+      <span class="text-slate-400">—</span>
+      }
+    </div>
+
+    <div class="task-drawer-section">
+      <span class="task-drawer-label">Details</span>
+      <div class="task-drawer-details">
+        <div class="task-drawer-detail">
+          <i class="fa-regular fa-calendar"></i>
+          <div>
+            <span class="task-drawer-label">Start Date</span>
+            <span class="task-drawer-detail-value">{{ formatDate(ticket.startDate) }}</span>
+          </div>
+        </div>
+
+        <div class="task-drawer-detail">
+          <i class="fa-solid fa-flag"></i>
+          <div>
+            <span class="task-drawer-label">Due Date</span>
+            <span class="task-drawer-detail-value">{{ formatDate(dueDate(ticket)) }}</span>
+          </div>
+          @if (dueSummary(ticket); as due) {
+          <span class="badge badge-overdue task-drawer-due-chip"><i class="fa-regular fa-clock"></i>{{ due.text }}</span>
+          }
+        </div>
+
+        <div class="task-drawer-detail">
+          <i class="fa-solid fa-user-group"></i>
+          <div>
+            <span class="task-drawer-label">Assignees</span>
+            @if (ticket.assignees.length) {
+            <div class="task-drawer-avatars">
+              @for (assignee of ticket.assignees; track assignee.id) {
+              <span class="task-drawer-avatar" [class.task-drawer-avatar-me]="assignee.id === me()?.id">
+                <span class="task-drawer-avatar-badge">{{ initials(assignee.name) }}</span>
+                {{ assignee.name }}
+              </span>
+              }
+            </div>
+            } @else {
+            <span class="task-drawer-detail-value text-slate-400">—</span>
+            }
+          </div>
+        </div>
+
+        <div class="task-drawer-detail">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>
+            <span class="task-drawer-label">Days Overdue</span>
+            @if (daysOverdue(ticket); as overdue) {
+            <span class="task-drawer-detail-value task-drawer-overdue-value">{{ overdue }} days overdue</span>
+            } @else {
+            <span class="task-drawer-detail-value text-slate-400">—</span>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    @if (ticket.description) {
+    <div class="task-drawer-section">
+      <span class="task-drawer-label">Description</span>
+      <p class="task-drawer-desc">{{ ticket.description }}</p>
+    </div>
+    }
+  </div>
+
+  <div class="task-drawer-comments">
+    <h3 class="task-drawer-comments-heading">Comments</h3>
+    <app-ticket-comments [ticketId]="ticket.id" [me]="me()" [mentionOptions]="commentMentionOptions(ticket)"
+      (commentsChanged)="onCommentsChanged()" />
+  </div>
+  }
+</p-dialog>
+} @else if (ticketsLoading()) {
+<div class="card">
+  <div class="ticket-empty" role="status">Loading tickets…</div>
+</div>
+}

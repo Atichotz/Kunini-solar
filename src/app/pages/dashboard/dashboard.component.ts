@@ -6,6 +6,7 @@ import { TodoService } from '../../services/todo.service';
 import { Customer, WORKFLOW_STATUS, WorkflowService } from '../../services/workflow.service';
 import type { TodoAssignee } from '../../dto/todo.dto';
 import { TodoBoardComponent } from '../../todo-board/todo-board.component';
+import { TicketBoardComponent } from '../../ticket-board/ticket-board.component';
 
 interface SystemTypeSlice {
   label: string;
@@ -13,6 +14,8 @@ interface SystemTypeSlice {
   percent: number;
   color: string;
 }
+
+type DashboardSection = 'todo' | 'ticket' | 'calendar' | 'systemTypes';
 
 // ชื่อต้องตรงกับ customers.type_of_system_name ใน DB (เทียบแบบไม่สนตัวพิมพ์เล็กใหญ่) — ชนิดอื่น/ไม่ระบุรวมเป็น Other
 const SYSTEM_TYPE_DEFS = [
@@ -55,13 +58,16 @@ interface SizeBar {
 
 @Component({
   selector: 'app-dashboard',
-  imports: [DecimalPipe, DatePipe, RouterLink, TodoBoardComponent],
+  imports: [DecimalPipe, DatePipe, RouterLink, TodoBoardComponent, TicketBoardComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss'
 })
 export class DashboardComponent implements OnInit {
   private readonly todoService = inject(TodoService);
   private readonly workflowService = inject(WorkflowService);
+
+  // toggle เลือกดูได้ทีละหมวด (tab) — default เปิดมาที่ Todo
+  activeSection = signal<DashboardSection>('todo');
 
   // KPI cards (Need Analysis / Waiting Install) นับจาก statusId ของ customer เดียวกับที่หน้า workflow ใช้
   customers = signal<Customer[]>([]);

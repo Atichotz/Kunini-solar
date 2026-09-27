@@ -1,14 +1,16 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { RouterLink } from "@angular/router";
+import { RouterLink, RouterLinkActive } from "@angular/router";
 import { AuthService } from '../services/auth.service';
 import { salesRepNameOf } from '../quotation-snapshot.util';
 import { Tooltip } from "primeng/tooltip";
+import { Popover } from 'primeng/popover';
 import { CustomerListDrawerComponent } from '../customer-list-drawer/customer-list-drawer.component';
+import { AddTaskDialogComponent } from '../add-task-dialog/add-task-dialog.component';
 
 @Component({
   selector: 'app-header-brand',
-  imports: [RouterLink, Tooltip, CustomerListDrawerComponent],
+  imports: [RouterLink, RouterLinkActive, Tooltip, Popover, CustomerListDrawerComponent, AddTaskDialogComponent],
   templateUrl: './header-brand.component.html',
   styleUrl: './header-brand.component.scss'
 })

@@ -18,26 +18,62 @@
     </div>
     <span class="user-divider" aria-hidden="true"></span>
     }
-    <a class="solar-guide-link" [routerLink]="'/dashboard'">
-      Dashboard
-    </a>
-    <a class="solar-guide-link" [routerLink]="'/workflow'">
-      Workflow
-    </a>
-    <span class="user-divider" aria-hidden="true"></span>
-    <button type="button" class="solar-guide-link" (click)="customerListDrawer.open()">
-      <i class="pi pi-users"></i>
-      Customer List
+    <nav class="brand-nav-links">
+      <a class="solar-guide-link" [routerLink]="'/dashboard'">
+        Dashboard
+      </a>
+      <span class="user-divider" aria-hidden="true"></span>
+
+      <a class="solar-guide-link" [routerLink]="'/workflow'">
+        Workflow
+      </a>
+      <button type="button" class="solar-guide-link" (click)="customerListDrawer.open()">
+        Customer List
+      </button>
+      <span class="user-divider" aria-hidden="true"></span>
+
+      <button type="button" class="solar-guide-link" (click)="addTaskDialog.open()">
+        Task & Ticket
+      </button>
+    </nav>
+    <button type="button" class="menu-toggle-btn" (click)="mobileMenu.toggle($event)" aria-haspopup="true"
+      aria-label="เปิดเมนู">
+      <i class="pi pi-bars"></i>
     </button>
     <!-- <a class="solar-guide-link">
       <i class="pi pi-bell"></i>
     </a> -->
+    <span class="user-divider" aria-hidden="true"></span>
     <a class="solar-guide-link" [routerLink]="'/setting'">
       <i class="pi pi-cog"></i>
     </a>
-    <a class="solar-guide-link cursor-pointer"  tooltipPosition="bottom"  [pTooltip]="'Logout'" (click)="logout()" [class.opacity-50]="isLoggingOut" [attr.aria-disabled]="isLoggingOut">
+    <a class="solar-guide-link cursor-pointer" tooltipPosition="bottom" [pTooltip]="'Logout'" (click)="logout()"
+      [class.opacity-50]="isLoggingOut" [attr.aria-disabled]="isLoggingOut">
       <i class="fa-solid fa-right-from-bracket"></i>
     </a>
   </div>
 </header>
+
+<p-popover #mobileMenu styleClass="mobile-nav-popover">
+  <nav class="mobile-nav-links">
+    <a class="mobile-nav-link" [routerLink]="'/dashboard'" routerLinkActive="active" (click)="mobileMenu.hide()">
+      <span class="mobile-nav-icon"><i class="pi pi-th-large"></i></span>
+      Dashboard
+    </a>
+    <a class="mobile-nav-link" [routerLink]="'/workflow'" routerLinkActive="active" (click)="mobileMenu.hide()">
+      <span class="mobile-nav-icon"><i class="pi pi-sitemap"></i></span>
+      Workflow
+    </a>
+    <button type="button" class="mobile-nav-link" (click)="mobileMenu.hide(); customerListDrawer.open()">
+      <span class="mobile-nav-icon"><i class="pi pi-users"></i></span>
+      Customer List
+    </button>
+    <button type="button" class="mobile-nav-link" (click)="mobileMenu.hide(); addTaskDialog.open()">
+      <span class="mobile-nav-icon"><i class="pi pi-plus"></i></span>
+      Add Task
+    </button>
+  </nav>
+</p-popover>
+
 <app-customer-list-drawer #customerListDrawer></app-customer-list-drawer>
+<app-add-task-dialog #addTaskDialog></app-add-task-dialog>

@@ -6,6 +6,10 @@ import { SelectModule } from 'primeng/select';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { DatePickerModule } from 'primeng/datepicker';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { DialogModule } from 'primeng/dialog';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ToastModule } from 'primeng/toast';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { TodoService } from '../services/todo.service';
 import { TodoCommentsComponent } from './todo-comments/todo-comments.component';
 import type { Customer } from '../services/workflow.service';
@@ -34,7 +38,6 @@ interface TodoCardView {
   currentPage: number;
   totalPages: number;
   showFilters: boolean;
-  showForm: boolean;
 }
 
 const ROLE_LABELS: Record<TodoRole, string> = {
@@ -59,12 +62,15 @@ const PRIVILEGED_ROLES: readonly TodoRole[] = ['ceo', 'admin'];
 
 @Component({
   selector: 'app-todo-board',
-  imports: [RouterLink, FormsModule, SelectModule, MultiSelectModule, DatePickerModule, ProgressSpinnerModule, TodoCommentsComponent],
+  imports: [RouterLink, FormsModule, SelectModule, MultiSelectModule, DatePickerModule, ProgressSpinnerModule, DialogModule, ConfirmDialogModule, ToastModule, TodoCommentsComponent],
   templateUrl: './todo-board.component.html',
-  styleUrl: './todo-board.component.scss'
+  styleUrl: './todo-board.component.scss',
+  providers: [ConfirmationService, MessageService]
 })
 export class TodoBoardComponent implements OnInit {
   private readonly todoService = inject(TodoService);
+  private readonly confirmationService = inject(ConfirmationService);
+  private readonly messageService = inject(MessageService);
 
   // ล็อกงานให้เป็นของลูกค้ารายนี้เมื่อฝังในหน้า customer detail
   @Input() customerId: string | null = null;
@@ -83,10 +89,11 @@ export class TodoBoardComponent implements OnInit {
   me = signal<TodoAssignee | null>(null);
   todos = signal<TodoCard[]>([]);
   assignees = signal<TodoAssignee[]>([]);
-  todoError = signal<string | null>(null);
   isSubmitting = signal(false);
   // true จนกว่าโหลด me + รายการงานครั้งแรกเสร็จ (หรือพัง) — กันการ์ดว่างที่ดูเหมือน "ไม่มีงาน"
   todosLoading = signal(true);
+  // จำนวนงานทั้งหมด (ไม่ผ่าน filter) — ใช้แสดง badge บน tab ของ dashboard
+  readonly totalCount = computed<number>(() => this.todos().length);
   // id งานที่กำลัง toggle/ลบอยู่ — กันกดซ้ำระหว่างรอ request + refetch
   private readonly pendingTodoIds = signal<ReadonlySet<string>>(new Set());
   // field ที่กำลังแก้ไขอยู่ (แยกอิสระต่อ field ไม่ใช่ทั้งแถว) — แก้ได้ทีละ field ทั้งระบบ, null = ไม่มี field ไหนกำลังแก้
@@ -98,8 +105,13 @@ export class TodoBoardComponent implements OnInit {
   editAssigneeIds: string[] = [];
   collapsed = signal<Record<TodoCardKey, boolean>>({ all: false, mine: false, team: false });
 
-  // แถว comment ที่เปิดอยู่ (todo.id -> เปิด/ปิด) — เปิดได้ทีละหลายแถวพร้อมกัน ต่างจาก editField ที่เปิดได้ทีละอัน
-  openComments = signal<Record<string, boolean>>({});
+  // id ของ task ที่เปิด drawer รายละเอียด/comment อยู่ (null = ปิด) — เก็บแค่ id แล้ว lookup จาก todos() สดทุกครั้ง
+  // กัน object ค้างเก่าหลัง loadTodos() (เช่น commentCount/field อื่นเปลี่ยนระหว่างเปิด drawer อยู่)
+  private readonly drawerTodoId = signal<string | null>(null);
+  readonly drawerTodo = computed<TodoCard | null>(() => {
+    const id = this.drawerTodoId();
+    return id ? (this.todos().find(todo => todo.id === id) ?? null) : null;
+  });
 
   // filter ของ ceo/admin (กรองฝั่ง client — backend ส่งทุกงานมาให้ ceo/admin อยู่แล้ว)
   teamFilter = signal<TodoRole | null>(null);
@@ -162,14 +174,14 @@ export class TodoBoardComponent implements OnInit {
     return team ? this.assigneeOptions().filter(option => option.role === team) : this.assigneeOptions();
   });
 
-  // manager: การ์ดเดียวพร้อม filter | role อื่น: My To-Do (อ่าน/ติ๊กอย่างเดียว) + Team To-Do (มีฟอร์มเพิ่มงาน)
+  // manager: การ์ดเดียวพร้อม filter | role อื่น: My To-Do (อ่าน/ติ๊กอย่างเดียว) + Team To-Do
   // งานที่ assign ให้ตัวเองจะอยู่ทั้งสองการ์ด เพราะ Team คือทุกงานของทีมรวมงานของเราด้วย
   readonly cards = computed<TodoCardView[]>(() =>
     this.isManager()
-      ? [this.toCardView('all', 'To-Do', this.filteredTodos(), true, true)]
+      ? [this.toCardView('all', 'Task', this.filteredTodos(), true)]
       : [
-        this.toCardView('mine', 'My To-Do', this.myTodos(), false, false),
-        this.toCardView('team', 'Team To-Do', this.todos(), false, true)
+        this.toCardView('mine', 'My Task', this.myTodos(), false),
+        this.toCardView('team', 'Team Task', this.todos(), false)
       ]
   );
 
@@ -186,7 +198,7 @@ export class TodoBoardComponent implements OnInit {
         this.loadAssignees();
       },
       error: err => {
-        this.todoError.set(this.errorMessage(err, 'Unable to load your To-Do profile'));
+        this.notifyError('Load Failed', this.errorMessage(err, 'Unable to load your To-Do profile'));
         this.todosLoading.set(false);
       }
     });
@@ -198,12 +210,11 @@ export class TodoBoardComponent implements OnInit {
       next: list => {
         // getAll() ไม่มี param กรองตาม customer — ล็อก customerId แล้วกรองฝั่ง client เอา
         this.todos.set(this.customerId ? list.filter(todo => todo.customerId === this.customerId) : list);
-        this.todoError.set(null);
         this.todosLoading.set(false);
         onSettled?.();
       },
       error: err => {
-        this.todoError.set(this.errorMessage(err, 'Unable to load tasks'));
+        this.notifyError('Load Failed', this.errorMessage(err, 'Unable to load tasks'));
         this.todosLoading.set(false);
         onSettled?.();
       }
@@ -260,7 +271,7 @@ export class TodoBoardComponent implements OnInit {
       case 'task': {
         const title = this.editTitle.trim();
         if (!title) {
-          this.todoError.set('Title is required');
+          this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Title is required' });
           return;
         }
         patch.title = title;
@@ -272,7 +283,7 @@ export class TodoBoardComponent implements OnInit {
         break;
       case 'assignees':
         if (!this.editAssigneeIds.length) {
-          this.todoError.set('Select at least one assignee');
+          this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Select at least one assignee' });
           return;
         }
         patch.assignee_ids = this.editAssigneeIds;
@@ -287,7 +298,7 @@ export class TodoBoardComponent implements OnInit {
       }),
       error: err => {
         this.setTodoPending(todo.id, false);
-        this.todoError.set(this.errorMessage(err, 'Unable to update task'));
+        this.notifyError('Update Failed', this.errorMessage(err, 'Unable to update task'));
       }
     });
   }
@@ -295,8 +306,13 @@ export class TodoBoardComponent implements OnInit {
   private loadAssignees(): void {
     this.todoService.getAssignees().subscribe({
       next: list => this.assignees.set(list),
-      error: err => this.todoError.set(this.errorMessage(err, 'Unable to load assignees'))
+      error: err => this.notifyError('Load Failed', this.errorMessage(err, 'Unable to load assignees'))
     });
+  }
+
+  // แจ้ง error จาก API เป็น toast มุมจอ — แทนที่ข้อความ error แบบ inline เดิมที่ค้างอยู่บนหน้าจอจนกว่าจะลองใหม่
+  private notifyError(summary: string, detail: string): void {
+    this.messageService.add({ severity: 'error', summary, detail });
   }
 
   // input: error จาก HttpClient, ข้อความ fallback — output: message จาก backend ถ้ามี (string หรือ array จาก class-validator) ไม่งั้น fallback
@@ -360,6 +376,35 @@ export class TodoBoardComponent implements OnInit {
     return diffDays > 0 ? diffDays : null;
   }
 
+  // input: todo — output: Date กำหนดส่ง (startDate + daysAllotted) หรือ null ถ้าข้อมูลไม่ครบ — ใช้แสดง "Due Date" ใน drawer
+  dueDate(todo: TodoCard): Date | null {
+    if (!todo.startDate || todo.daysAllotted === null) return null;
+    const deadline = this.parseDateString(todo.startDate);
+    deadline.setDate(deadline.getDate() + todo.daysAllotted);
+    return deadline;
+  }
+
+  // input: todo — output: ป้ายนับถอยหลังกำหนดส่งสำหรับ drawer ("Due in N days" / "Due today" / "N days overdue"), null ถ้าไม่มีกำหนด
+  // ต่างจาก daysOverdue() ที่คืนค่าเฉพาะตอนเลยกำหนดแล้ว — ตัวนี้ครอบคลุมทั้งก่อน/หลังกำหนด
+  dueSummary(todo: TodoCard): { text: string; overdue: boolean } | null {
+    const deadline = this.dueDate(todo);
+    if (!deadline) return null;
+
+    const end = todo.closeDate ? this.parseDateString(todo.closeDate) : new Date();
+    end.setHours(0, 0, 0, 0);
+    deadline.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.round((deadline.getTime() - end.getTime()) / 86400000);
+    if (diffDays > 0) return { text: `Due in ${diffDays} day${diffDays === 1 ? '' : 's'}`, overdue: false };
+    if (diffDays === 0) return { text: 'Due today', overdue: false };
+    return { text: `${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? '' : 's'} overdue`, overdue: true };
+  }
+
+  // input: ชื่อเต็มของ assignee — output: อักษรแรกตัวเดียวตัวใหญ่ ใช้ทำ avatar ย่อใน drawer (Assignees)
+  initials(name: string): string {
+    return name.trim().charAt(0).toUpperCase() || '?';
+  }
+
   // สมาชิกทีมเห็นงานเพื่อนร่วมทีมได้แต่แก้ไม่ได้ — backend บังคับเช่นเดียวกัน ตรงนี้แค่ซ่อนปุ่มไม่ให้กดแล้วเจอ 403
   canModify(todo: TodoCard): boolean {
     const me = this.me();
@@ -382,15 +427,15 @@ export class TodoBoardComponent implements OnInit {
     });
   }
 
-  // input: การ์ด, งานที่ผ่าน filter ทีม/คนแล้ว, flag แสดง filter/ฟอร์ม — output: view ของการ์ดพร้อมค้นหาและแบ่งหน้า
+  // input: การ์ด, งานที่ผ่าน filter ทีม/คนแล้ว, flag แสดง filter — output: view ของการ์ดพร้อมค้นหาและแบ่งหน้า
   // หน้าปัจจุบันถูก clamp เพราะลบงาน/ค้นหาแล้วจำนวนหน้าอาจลดลง ไม่งั้นจะเจอหน้าว่าง
-  private toCardView(key: TodoCardKey, title: string, source: TodoCard[], showFilters: boolean, showForm: boolean): TodoCardView {
+  private toCardView(key: TodoCardKey, title: string, source: TodoCard[], showFilters: boolean): TodoCardView {
     const todos = this.searchTodos(key, source);
     const size = this.pageSize()[key];
     const totalPages = Math.max(1, Math.ceil(todos.length / size));
     const currentPage = Math.min(this.page()[key], totalPages);
     const start = (currentPage - 1) * size;
-    return { key, title, todos, visibleTodos: todos.slice(start, start + size), currentPage, totalPages, showFilters, showForm };
+    return { key, title, todos, visibleTodos: todos.slice(start, start + size), currentPage, totalPages, showFilters };
   }
 
   setPage(key: TodoCardKey, page: number): void {
@@ -422,19 +467,33 @@ export class TodoBoardComponent implements OnInit {
     this.collapsed.update(current => ({ ...current, [key]: !current[key] }));
   }
 
-  // key ผูกกับ card.key ด้วย ไม่ใช่แค่ todo.id — งานที่ assign ให้ตัวเองโผล่ทั้งใน My To-Do และ Team To-Do
-  // (เป็น TodoCard คนละ object แต่ id เดียวกัน) ถ้า key แค่ todo.id เปิด comment ในการ์ดหนึ่งจะเปิดอีกการ์ดตามไปด้วย
-  private commentPanelKey(cardKey: TodoCardKey, todoId: string): string {
-    return `${cardKey}:${todoId}`;
+  // เปิด drawer รายละเอียด + comment ของ task นี้ (คลิกที่ title)
+  openTaskDrawer(todo: TodoCard): void {
+    this.drawerTodoId.set(todo.id);
   }
 
-  isCommentsOpen(cardKey: TodoCardKey, todoId: string): boolean {
-    return !!this.openComments()[this.commentPanelKey(cardKey, todoId)];
+  closeTaskDrawer(): void {
+    this.drawerTodoId.set(null);
   }
 
-  toggleComments(cardKey: TodoCardKey, todoId: string): void {
-    const key = this.commentPanelKey(cardKey, todoId);
-    this.openComments.update(current => ({ ...current, [key]: !current[key] }));
+  // ผูกกับ (visibleChange) ของ p-dialog — ปิดด้วย X/Esc/คลิก mask ก็ต้องเคลียร์ state เหมือนกด close เอง
+  onDrawerVisibleChange(visible: boolean): void {
+    if (!visible) this.closeTaskDrawer();
+  }
+
+  // input: TodoStatus — output: label + สีจุด ใช้แสดง badge สถานะใน drawer (ชุดเดียวกับ statusOptions ที่ผูกกับ p-select ในตาราง)
+  statusMeta(status: TodoStatus): { label: string; color: string } {
+    return STATUS_META[status];
+  }
+
+  // input: "YYYY-MM-DD"/Date/null — output: "dd/mm/yyyy" สำหรับแสดงผลอย่างเดียวใน drawer (ตารางยังใช้ p-datepicker ของมันเองแยกกัน)
+  // รับได้ทั้ง string ดิบจาก TodoCard และ Date ที่คำนวณเอง (เช่น dueDate()) กันโค้ดซ้ำ
+  formatDate(value: string | Date | null): string {
+    if (!value) return '—';
+    const date = typeof value === 'string' ? this.parseDateString(value) : value;
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return `${day}/${month}/${date.getFullYear()}`;
   }
 
   // คนที่ @mention ได้ในแผง comment ของ task นี้ — เฉพาะคนที่มองเห็น task นี้ได้ (privileged + assignee role เดียวกับ task)
@@ -473,7 +532,7 @@ export class TodoBoardComponent implements OnInit {
       error: err => {
         checkbox.checked = todo.isDone;
         this.setTodoPending(todo.id, false);
-        this.todoError.set(this.errorMessage(err, 'Unable to update task'));
+        this.notifyError('Update Failed', this.errorMessage(err, 'Unable to update task'));
       }
     });
   }
@@ -487,7 +546,7 @@ export class TodoBoardComponent implements OnInit {
       next: () => this.loadTodos(() => this.setTodoPending(todo.id, false)),
       error: err => {
         this.setTodoPending(todo.id, false);
-        this.todoError.set(this.errorMessage(err, 'Unable to update task'));
+        this.notifyError('Update Failed', this.errorMessage(err, 'Unable to update task'));
       }
     });
   }
@@ -498,12 +557,41 @@ export class TodoBoardComponent implements OnInit {
   }
 
   // เลือกวันที่จาก p-datepicker แล้ว save ทันที (เหมือน Status) — คลิกช่องเปล่าแล้วเลือกได้เลยไม่ต้องกด Edit ก่อน
-  setTodoStartDate(todo: TodoCard, date: Date): void {
+  // date เป็น null ตอนกดปุ่ม clear (onClear) — ต้องรับ null ได้ ไม่งั้นล้างค่าใน UI ได้แต่ไม่ save
+  setTodoStartDate(todo: TodoCard, date: Date | null): void {
     this.applyTodoUpdate(todo, { start_date: this.toDateString(date) ?? null });
   }
 
-  setTodoCloseDate(todo: TodoCard, date: Date): void {
+  setTodoCloseDate(todo: TodoCard, date: Date | null): void {
     this.applyTodoUpdate(todo, { close_date: this.toDateString(date) ?? null });
+  }
+
+  // input: todo — ก่อนล้างวันที่ทิ้งต้อง confirm ก่อนเสมอ กัน misclick ที่ช่อง datepicker เพราะกดปุ่ม clear ครั้งเดียวลบเลยไม่มีขั้นตอน Save
+  // reject: ต้องลบ dateCache entry ของค่าเดิมทิ้งด้วย ไม่งั้น p-datepicker จะไม่รู้ว่าต้องเซ็ตค่ากลับ (reference เดิมเหมือนก่อน clear เลยไม่ trigger เขียนใหม่)
+  confirmClearTodoStartDate(todo: TodoCard): void {
+    const previous = todo.startDate;
+    this.confirmationService.confirm({
+      header: 'Confirm Delete',
+      message: `Clear start date of "${todo.title}"?`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => this.setTodoStartDate(todo, null),
+      reject: () => { if (previous) this.dateCache.delete(previous); }
+    });
+  }
+
+  confirmClearTodoCloseDate(todo: TodoCard): void {
+    const previous = todo.closeDate;
+    this.confirmationService.confirm({
+      header: 'Confirm Delete',
+      message: `Clear close date of "${todo.title}"?`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => this.setTodoCloseDate(todo, null),
+      reject: () => { if (previous) this.dateCache.delete(previous); }
+    });
   }
 
   // input: event ของ input[type=number] — พิมพ์เสร็จแล้ว blur/Enter ถึง save (change event) ไม่ save ทุก keystroke, ลบค่าจนว่างเปล่า = null
@@ -520,7 +608,7 @@ export class TodoBoardComponent implements OnInit {
       next: () => this.loadTodos(() => this.setTodoPending(id, false)),
       error: err => {
         this.setTodoPending(id, false);
-        this.todoError.set(this.errorMessage(err, 'Unable to delete task'));
+        this.notifyError('Delete Failed', this.errorMessage(err, 'Unable to delete task'));
       }
     });
   }
@@ -530,13 +618,12 @@ export class TodoBoardComponent implements OnInit {
     if (!title || this.isSubmitting()) return;
 
     if (!this.newAssigneeIds.length) {
-      this.todoError.set('Select at least one assignee');
+      this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Select at least one assignee' });
       return;
     }
     const description = descriptionInput.value.trim();
 
     this.isSubmitting.set(true);
-    this.todoError.set(null);
     this.todoService.create({
       title,
       description: description || undefined,
@@ -557,7 +644,7 @@ export class TodoBoardComponent implements OnInit {
         this.isSubmitting.set(false);
       },
       error: err => {
-        this.todoError.set(this.errorMessage(err, 'Unable to add task'));
+        this.notifyError('Add Failed', this.errorMessage(err, 'Unable to add task'));
         this.isSubmitting.set(false);
       }
     });

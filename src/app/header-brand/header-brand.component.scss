@@ -23,6 +23,12 @@
   gap: 0.75rem;
 }
 
+.brand-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .logo-img {
   width: 36px;
   height: 36px;
@@ -119,6 +125,93 @@ button.solar-guide-link {
 @media (max-width: 640px) {
   .user-name {
     display: none;
+  }
+}
+
+.menu-toggle-btn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--k-white);
+  padding: 4px;
+  font-size: 1.15rem;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s;
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+@media (max-width: 705px) {
+  .brand-nav-links {
+    display: none;
+  }
+
+  .menu-toggle-btn {
+    display: flex;
+  }
+}
+
+:host ::ng-deep .mobile-nav-popover.p-popover {
+  min-width: 220px;
+
+  .p-popover-content {
+    padding: 0.5rem;
+  }
+}
+
+.mobile-nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.mobile-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.6rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--k-dark-grey);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--k-transition);
+  width: 100%;
+
+  &:hover,
+  &.active {
+    background: color-mix(in srgb, var(--k-red) 8%, var(--k-white));
+    color: var(--k-red);
+
+    .mobile-nav-icon {
+      background: var(--k-red);
+      color: var(--k-white);
+    }
+  }
+}
+
+.mobile-nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--k-red) 10%, var(--k-white));
+  color: var(--k-red);
+  transition: var(--k-transition);
+
+  .pi {
+    font-size: 0.85rem;
   }
 }
 
