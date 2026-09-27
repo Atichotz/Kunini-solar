@@ -194,7 +194,7 @@
     border-color: var(--k-pattaya);
   }
 
-  &.Up-Country {
+  &.Up.Country {
     background-color: var(--k-up-country);
     border-color: var(--k-up-country);
   }
@@ -307,6 +307,11 @@
   padding: .5rem 1.5rem;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   border-radius: 8px;
+
+  @media (max-width: 1024px) {
+    padding: .5rem 1rem;
+    gap: 0.5rem;
+  }
 }
 
 .wf-nav-main {
@@ -314,12 +319,47 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.5rem 0;
+
+  @media (max-width: 1024px) {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    .k-btn-sm {
+      flex-shrink: 0;
+    }
+  }
 }
 
 .wf-nav-right {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+
+  @media (max-width: 1024px) {
+    flex-shrink: 0;
+  }
+}
+
+.wf-add-customer-icon {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .wf-add-customer-label {
+    display: none;
+  }
+
+  .wf-add-customer-icon {
+    display: inline-block;
+  }
 }
 
 .wf-nav-item {

@@ -1,5 +1,9 @@
 .settings-page {
   padding: 24px;
+
+  @media (max-width: 768px) {
+    padding: 16px;
+  }
 }
 
 .settings-layout {
@@ -10,6 +14,10 @@
 
   > * {
     min-width: 0;
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
   }
 }
 

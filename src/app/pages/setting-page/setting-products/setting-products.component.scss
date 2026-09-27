@@ -7,6 +7,14 @@
 .content-card {
   padding: 24px;
   min-width: 0;
+
+  @media (max-width: 1024px) {
+    padding: 18px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 14px;
+  }
 }
 
 .content-header {
@@ -37,6 +45,16 @@
   gap: 4px;
   border-bottom: 2px solid var(--k-light-grey);
   margin-bottom: 20px;
+
+  @media (max-width: 768px) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
 }
 
 .tab-btn {
@@ -54,6 +72,11 @@
   cursor: pointer;
   transition: var(--k-transition);
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+
+  @media (max-width: 768px) {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
 
   i {
     font-size: 13px;

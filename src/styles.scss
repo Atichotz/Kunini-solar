@@ -13,6 +13,7 @@
   --p-button-danger-border-color: var(--k-red) !important;
   --p-button-outlined-danger-hover-background: var(--k-red) !important;
   --p-button-outlined-danger-hover-border-color: var(--k-red) !important;
+  --p-button-text-danger-color: var(--k-red) !important;
   --p-togglebutton-checked-color: var(--k-white) !important;
   --p-togglebutton-content-checked-background: var(--k-red) !important;
   /* Corporate Colours */
@@ -469,6 +470,8 @@ select:focus {
   border-color: var(--k-red) !important;
 }
 
+
+
 .input-group {
   display: flex;
   flex-direction: column;
@@ -662,7 +665,36 @@ select:focus {
   color: #166534;
 }
 
+/* ===== CATEGORY TOGGLE (p-selectbutton แบบเลือกทีละหมวด — ใช้ซ้ำใน estimate-page, setting-bos, dashboard) ===== */
+.k-category {
+  p-togglebutton:not(.p-togglebutton-checked) .p-togglebutton-content {
+    background: var(--k-white);
+  }
+
+  .p-togglebutton-content {
+    box-shadow: 1px 1px 2px 0px #00000021;
+  }
+
+  // ปุ่มเบียดกันเป็นแถวเดียวจนตัวอักษรตัดคำแตกบรรทัดบน tablet/mobile — สลับเป็นวางทีละปุ่มแทน
+  @media (max-width: 1024px) {
+    display: flex !important;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+
+    .p-togglebutton {
+      width: 100%;
+      border-inline-start-width: 1px !important;
+      border-radius: var(--radius-sm) !important;
+    }
+  }
+}
+
 /* ===== DIALOG (wrapper มาตรฐานสำหรับเนื้อหาใน p-dialog — ใช้ซ้ำหลาย component) ===== */
+.p-dialog-header {
+  border-bottom: 2px solid var(--k-red);
+}
+
 .dialog-body {
   display: flex;
   flex-direction: column;
@@ -1015,9 +1047,37 @@ select:focus {
 
 /* ===== CUSTOMER LIST DRAWER (List View Customers — เมนูสไลด์จากขวา ใน header-brand) ===== */
 .p-drawer.customer-list-drawer {
-  width: 40vw;
+  width: 90vw;
 
   @media (max-width: 1024px) {
     width: 100vw;
   }
+}
+
+/* ===== TAG PILL (single-select filter chip) — ใช้ใน new-customer-page + customer-list-drawer ===== */
+.tag-select-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-pill {
+  padding: 6px 16px;
+  border: 1px solid var(--k-mid-grey);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.tag-pill:hover:not(.selected) {
+  border-color: var(--k-dark-grey);
+  color: var(--k-dark-grey);
+}
+
+.tag-pill.selected {
+  background: var(--k-dark-grey);
+  color: white;
+  border-color: var(--k-dark-grey);
 }

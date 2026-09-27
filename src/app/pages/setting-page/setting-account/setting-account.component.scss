@@ -7,6 +7,14 @@
 
 .content-card {
   padding: 24px;
+
+  @media (max-width: 1024px) {
+    padding: 18px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 14px;
+  }
 }
 
 .content-header {
@@ -88,6 +96,16 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+
+    .k-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
 }
 
 .user-loading {
@@ -103,6 +121,11 @@
   align-items: center;
   gap: 10px;
   margin-bottom: 16px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 .user-search {
@@ -114,6 +137,11 @@
     width: 100%;
     padding-left: 32px;
     padding-right: 28px;
+  }
+
+  @media (max-width: 768px) {
+    flex: 1 1 auto;
+    width: 100%;
   }
 }
 
@@ -147,6 +175,15 @@
 .user-filter-select {
   flex: 0 0 160px;
   min-width: 140px;
+
+  @media (max-width: 1024px) {
+    flex: 1 1 160px;
+  }
+
+  @media (max-width: 768px) {
+    flex: 1 1 auto;
+    width: 100%;
+  }
 }
 
 .user-table td.user-empty {
@@ -174,6 +211,10 @@
     padding: 10px 12px;
     text-align: left;
     border-bottom: 1px solid var(--k-light-grey);
+
+    @media (max-width: 768px) {
+      padding: 8px 10px;
+    }
   }
 
   th {
@@ -402,6 +443,10 @@ tr:hover .edit-btn {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .required {

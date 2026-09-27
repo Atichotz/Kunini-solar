@@ -10,8 +10,11 @@
 }
 
 .card-header {
+  // ดึงกล่อง header ออกไปชนขอบซ้าย/บน/ขวาของ card (หัก padding 24px ของ .card) แล้วใส่ padding กลับเข้าไปแทน
+  // เพื่อให้เส้นใต้หัวข้อ (border-bottom) ยาวเต็มขอบการ์ด โดยตำแหน่งข้อความยังอยู่ที่เดิม
+  margin: -24px -24px 16px;
+  padding: 24px 24px 12px;
   border-bottom: 3px solid var(--k-red);
-  margin-bottom: 16px;
 
   h2 {
     font-size: 18px;

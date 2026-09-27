@@ -135,29 +135,6 @@
      color: white;
  }
 
- /* Tags for Dialog */
- .tag-select-group {
-     display: flex;
-     flex-wrap: wrap;
-     gap: 8px;
- }
-
- .tag-pill {
-     padding: 6px 16px;
-     border: 1px solid var(--k-mid-grey);
-     border-radius: var(--radius-pill);
-     font-size: 12px;
-     cursor: pointer;
-     font-weight: 600;
-     transition: all .3s ease;
- }
-
- .tag-pill.selected {
-     background: var(--k-dark-grey);
-     color: white;
-     border-color: var(--k-dark-grey);
- }
-
  /* Custom Status Select */
  .status-select {
      appearance: none;
