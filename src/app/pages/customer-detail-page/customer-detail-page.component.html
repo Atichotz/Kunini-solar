@@ -14,43 +14,47 @@
         <div class="flex items-center gap-4">
             <div class="k-icon-header"><i class="fa-solid fa-user"></i></div>
             <div>
-                <div class="flex items-center gap-2">
-                    @if (isEditingName) {
-                    <input class="name-input" [(ngModel)]="nameDraft" [maxlength]="customerNameMaxLength"
-                        [disabled]="isSavingName" (keydown.enter)="saveName()" (keydown.escape)="cancelEditName()"
-                        placeholder="Customer name" autofocus />
-                    <button class="k-btn-sm k-btn-primary" [disabled]="isSavingName" (click)="saveName()">
-                        {{ isSavingName ? 'Saving...' : 'Save' }}
-                    </button>
-                    <button class="k-btn-sm k-btn-outline" [disabled]="isSavingName"
-                        (click)="cancelEditName()">Cancel</button>
-                    } @else {
-                    <div class="client-name">{{ customer.displayName }}</div>
-                    @if (canManage()) {
-                    <button class="k-btn-sm k-btn-outline" [disabled]="!customer" (click)="startEditName()">
-                        <i class="fa-solid fa-pen"></i> Edit
-                    </button>
-                    }
-                    }
-                    @if (isEditingCustomerNumber) {
-                    <input class="customer-number-input" [(ngModel)]="customerNumberDraft"
-                        [maxlength]="customerNumberMaxLength" [disabled]="isSavingCustomerNumber"
-                        (keydown.enter)="saveCustomerNumber()" (keydown.escape)="cancelEditCustomerNumber()"
-                        placeholder="Customer #" autofocus />
-                    <button class="k-btn-sm k-btn-primary" [disabled]="isSavingCustomerNumber"
-                        (click)="saveCustomerNumber()">
-                        {{ isSavingCustomerNumber ? 'Saving...' : 'Save' }}
-                    </button>
-                    <button class="k-btn-sm k-btn-outline" [disabled]="isSavingCustomerNumber"
-                        (click)="cancelEditCustomerNumber()">Cancel</button>
-                    } @else {
-                    <span class="customer-number-label">Customer #: {{ customer.customerNumber ?? '—' }}</span>
-                    @if (canManage()) {
-                    <button class="k-btn-sm k-btn-outline" (click)="startEditCustomerNumber()">
-                        <i class="fa-solid fa-pen"></i> Edit
-                    </button>
-                    }
-                    }
+                <div class="flex items-center gap-2 header-name-row">
+                    <div class="flex items-center gap-2 header-name-block">
+                        @if (isEditingName) {
+                        <input class="name-input" [(ngModel)]="nameDraft" [maxlength]="customerNameMaxLength"
+                            [disabled]="isSavingName" (keydown.enter)="saveName()" (keydown.escape)="cancelEditName()"
+                            placeholder="Customer name" autofocus />
+                        <button class="k-btn-sm k-btn-primary" [disabled]="isSavingName" (click)="saveName()">
+                            {{ isSavingName ? 'Saving...' : 'Save' }}
+                        </button>
+                        <button class="k-btn-sm k-btn-outline" [disabled]="isSavingName"
+                            (click)="cancelEditName()">Cancel</button>
+                        } @else {
+                        <div class="client-name">{{ customer.displayName }}</div>
+                        @if (canManage()) {
+                        <button class="k-btn-sm k-btn-outline" [disabled]="!customer" (click)="startEditName()">
+                            <i class="fa-solid fa-pen"></i> Edit
+                        </button>
+                        }
+                        }
+                    </div>
+                    <div class="flex items-center gap-2 header-number-block">
+                        @if (isEditingCustomerNumber) {
+                        <input class="customer-number-input" [(ngModel)]="customerNumberDraft"
+                            [maxlength]="customerNumberMaxLength" [disabled]="isSavingCustomerNumber"
+                            (keydown.enter)="saveCustomerNumber()" (keydown.escape)="cancelEditCustomerNumber()"
+                            placeholder="Customer #" autofocus />
+                        <button class="k-btn-sm k-btn-primary" [disabled]="isSavingCustomerNumber"
+                            (click)="saveCustomerNumber()">
+                            {{ isSavingCustomerNumber ? 'Saving...' : 'Save' }}
+                        </button>
+                        <button class="k-btn-sm k-btn-outline" [disabled]="isSavingCustomerNumber"
+                            (click)="cancelEditCustomerNumber()">Cancel</button>
+                        } @else {
+                        <span class="customer-number-label">Customer #: {{ customer.customerNumber ?? '—' }}</span>
+                        @if (canManage()) {
+                        <button class="k-btn-sm k-btn-outline" (click)="startEditCustomerNumber()">
+                            <i class="fa-solid fa-pen"></i> Edit
+                        </button>
+                        }
+                        }
+                    </div>
                 </div>
                 @if (isEditingName && nameErrorMessage) {
                 <div class="text-sm" style="color: var(--k-red);">{{ nameErrorMessage }}</div>
@@ -71,8 +75,10 @@
             <button class="k-btn-sm k-btn-primary" [routerLink]="'/sow'" [queryParams]="{customerId: customer.id}">Scope
                 Of Work</button>
 
-            <button class="k-btn-sm k-btn-primary" [routerLink]="'/report'"
-                [queryParams]="{customerId: customer.id}">Report</button>
+            <button class="k-btn-sm k-btn-primary" (click)="setReportMenuItems(); reportMenu.toggle($event)">
+                Report <i class="fa-solid fa-caret-down"></i>
+            </button>
+            <p-menu #reportMenu [popup]="true" [model]="reportMenuItems" appendTo="body"></p-menu>
         </div>
     </div>
 
@@ -489,7 +495,7 @@
                             [(ngModel)]="electricBillForm.electricityUsageType" name="electricityUsageType"
                             optionLabel="label" optionValue="value" [filter]="true" [disabled]="!isEditingBill"
                             filterBy="label,value" [showClear]="true" placeholder="Select Electricity Usage Type"
-                            class="w-full">
+                            class="w-full elec-select">
                         </p-select>
                     </div>
                     <div class="input-group">
@@ -539,7 +545,8 @@
 
                     @if (isEditingBill) {
                     <div class="input-group full-width mt-4 flex gap-2">
-                        <button class="k-btn k-btn-primary" [disabled]="isSavingBill" (click)="saveElectricBill()">
+                        <button class="k-btn k-btn-primary btn-save-electric-bill" [disabled]="isSavingBill"
+                            (click)="saveElectricBill()">
                             {{ isSavingBill ? 'Saving...' : 'Save Electric Bill' }}
                         </button>
                         @if (hasSavedElectricBill) {
@@ -601,7 +608,19 @@
                         @for (comment of commentsByNoteId[note.id] ?? []; track comment.id) {
                         <div class="note-comment-item">
                             <div class="note-comment-body">
+                                @if (comment.text) {
                                 <div class="text-sm note-text" [innerHTML]="comment.text | linkify"></div>
+                                }
+                                @if (comment.images.length > 0) {
+                                <div class="note-comment-images">
+                                    @for (image of comment.images; track image.id) {
+                                    <a [href]="image.url" target="_blank" rel="noopener"
+                                        class="note-comment-image-thumb" [title]="image.name">
+                                        <img [src]="image.url" [alt]="image.name" loading="lazy" />
+                                    </a>
+                                    }
+                                </div>
+                                }
                                 <div class="item-meta">{{ comment.createdAt | date:'dd MMM yyyy, HH:mm' }} • by
                                     <strong>{{ comment.createdBy }}</strong>
                                 </div>
@@ -628,11 +647,36 @@
                                 [maxlength]="noteCommentMaxLength" [ngModel]="commentDraftByNoteId[note.id]"
                                 (ngModelChange)="commentDraftByNoteId[note.id] = $event"
                                 [disabled]="!!isSavingCommentForNoteId[note.id]"></textarea>
-                            <button type="button" class="k-btn-sm k-btn-primary"
-                                [disabled]="!(commentDraftByNoteId[note.id] ?? '').trim() || !!isSavingCommentForNoteId[note.id]"
-                                (click)="saveNoteComment(note.id)">
-                                {{ isSavingCommentForNoteId[note.id] ? 'Saving...' : 'Reply' }}
-                            </button>
+
+                            @if ((commentImageDraftByNoteId[note.id] ?? []).length > 0) {
+                            <div class="note-comment-images">
+                                @for (draft of commentImageDraftByNoteId[note.id] ?? []; track draft.previewUrl; let i =
+                                $index) {
+                                <div class="note-comment-image-thumb note-comment-image-draft">
+                                    <img [src]="draft.previewUrl" [alt]="draft.file.name" />
+                                    <button type="button" class="note-comment-image-remove"
+                                        [disabled]="!!isSavingCommentForNoteId[note.id]"
+                                        (click)="removeCommentImageDraft(note.id, i)" title="Remove image">✕</button>
+                                </div>
+                                }
+                            </div>
+                            }
+
+                            <div class="note-comment-form-actions">
+                                <label class="icon-btn note-comment-attach-btn"
+                                    [class.note-comment-attach-btn-disabled]="!!isSavingCommentForNoteId[note.id] || (commentImageDraftByNoteId[note.id] ?? []).length >= noteCommentMaxImages"
+                                    title="Attach images">
+                                    <i class="fa-solid fa-paperclip"></i>
+                                    <input type="file" hidden multiple accept="image/jpeg,image/png,image/webp"
+                                        [disabled]="!!isSavingCommentForNoteId[note.id] || (commentImageDraftByNoteId[note.id] ?? []).length >= noteCommentMaxImages"
+                                        (change)="onCommentImagesSelected(note.id, $event)">
+                                </label>
+                                <button type="button" class="k-btn-sm k-btn-primary"
+                                    [disabled]="(!(commentDraftByNoteId[note.id] ?? '').trim() && (commentImageDraftByNoteId[note.id] ?? []).length === 0) || !!isSavingCommentForNoteId[note.id]"
+                                    (click)="saveNoteComment(note.id)">
+                                    {{ isSavingCommentForNoteId[note.id] ? 'Saving...' : 'Reply' }}
+                                </button>
+                            </div>
                         </div>
                     </div>
                     }

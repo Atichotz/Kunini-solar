@@ -1,0 +1,422 @@
+<div class="max-w-container p-[24px]">
+
+  <!-- Repeating PDF Header -->
+  <div class="print-header">
+    <div class="print-header-brand">KUNINI <span class="print-header-brand-sub">SOLAR</span></div>
+    <div class="print-header-sub">Site Survey Report</div>
+  </div>
+
+  <!-- Repeating PDF Footer -->
+  <div class="print-footer">
+    HUAHIN &bull; PATTAYA &bull; BANGKOK | ELECTRICAL &amp; SOLAR EPC CONTRACTORS | www.kunini.com
+  </div>
+
+  <!-- Page Header (hidden on print) -->
+  <div class="flex justify-between items-start no-print !mb-2 flex-wrap">
+    <div>
+      <h1 class="k-header mb-1">Site Survey Report</h1>
+      @if (!loadErrorMessage) {
+      <div class="item-meta">Draft only — data is not saved to the database yet and will be lost on reload</div>
+      }
+    </div>
+    <div class="flex gap-2 items-center">
+      @if (hasSavedLocally) {
+      <span class="text-sm" style="color: var(--k-accent-green);">Saved locally</span>
+      }
+      <p-button [routerLink]="backLink" [rounded]="true" variant="outlined" severity="danger">
+        <i class="fa-solid fa-xmark"></i>
+      </p-button>
+    </div>
+  </div>
+
+  @if (loadErrorMessage) {
+  <div class="card" style="color: var(--k-red);">{{ loadErrorMessage }}</div>
+  } @else {
+
+  <div class="flex-col gap-6">
+
+    <!-- 1. General Information & Electric Bill -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h2>1. General Information &amp; Electric Bill</h2>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="input-group">
+          <label class="input-label" for="surveyCustomerName">Customer Name / Company</label>
+          <input id="surveyCustomerName" type="text" [(ngModel)]="customerName" disabled readonly
+            placeholder="Customer / site name">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="surveyDateTime">Survey Date &amp; Time</label>
+          <p-datepicker inputId="surveyDateTime" [(ngModel)]="surveyDateTime" appendTo="body" [showIcon]="true"
+            [showTime]="true" [fluid]="true" placeholder="Select date & time" />
+        </div>
+        <div class="input-group full-width">
+          <label class="input-label" for="surveyAddress">Site Address</label>
+          <input id="surveyAddress" type="text" [(ngModel)]="address" disabled readonly placeholder="Site address">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="surveySurveyedBy">Surveyed By (Engineer/Tech)</label>
+          <input id="surveySurveyedBy" type="text" [(ngModel)]="surveyedBy" placeholder="e.g. Mark S.">
+        </div>
+      </div>
+
+      <div class="survey-divider"></div>
+
+      <div class="grid grid-cols-3 gap-4">
+        <div class="input-group">
+          <label class="input-label">Avg. Monthly Bill (฿)</label>
+          <input type="text" [(ngModel)]="avgMonthlyBill" placeholder="e.g. 5,500">
+        </div>
+        <div class="input-group">
+          <label class="input-label">Avg. Usage (kWh)</label>
+          <input type="text" [(ngModel)]="avgUsageKwh" placeholder="e.g. 1,200">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="surveyTariffType">Tariff Type</label>
+          <p-select inputId="surveyTariffType" [(ngModel)]="tariffType" [options]="tariffOptions" optionLabel="label"
+            optionValue="value" appendTo="body" placeholder="Select tariff type" class="w-full" />
+        </div>
+
+        <div class="input-group full-width no-print">
+          <label class="input-label">Upload Electric Bill / PEA App Screenshot</label>
+          @if (photosBySlot.bill.length > 0) {
+          <div class="survey-photo-grid">
+            @for (photo of photosBySlot.bill; track photo.id) {
+            <div class="survey-photo-item">
+              <img [src]="photo.previewUrl" [alt]="photo.file.name">
+              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+                (click)="removePhoto('bill', photo)">
+                <i class="fa-solid fa-times"></i>
+              </button>
+            </div>
+            }
+          </div>
+          }
+          <div class="photo-box" style="height: 100px;" (dragover)="$event.preventDefault()"
+            (drop)="onPhotoDrop('bill', $event)" (click)="billPhotoInput.click()">
+            + Drag &amp; Drop Bill Image
+          </div>
+          <input #billPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
+            (change)="onPhotoFilesSelected('bill', $event)">
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Roof Findings & Structural Assessment -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h2>2. Roof Findings &amp; Structural Assessment</h2>
+      </div>
+
+      <div class="mb-4">
+        <span class="input-label mb-2">Roof Material Type</span>
+        <div class="survey-roof-material-box">
+          <div class="checkbox-grid survey-roof-material-grid">
+            @for (option of roofMaterialOptions; track option) {
+            <label class="checkbox-label">
+              <input type="radio" name="roofMaterialType" [value]="option" [(ngModel)]="roofMaterialType"> {{ option
+              }}
+            </label>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="input-group">
+          <label class="input-label">Roof Condition &amp; Age</label>
+          <input type="text" [(ngModel)]="roofCondition" placeholder="e.g. Good condition, approx 5 years old">
+        </div>
+        <div class="input-group">
+          <label class="input-label">Pitch / Angle (Degrees)</label>
+          <input type="text" [(ngModel)]="roofPitch" placeholder="e.g. 15-20 degrees">
+        </div>
+        <div class="input-group full-width">
+          <label class="input-label">Shading Issues / Obstacles</label>
+          <textarea class="form-textarea" rows="3" [(ngModel)]="shadingIssues"
+            placeholder="Note any chimneys, vents, neighboring trees, or adjacent buildings causing shade..."></textarea>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-4">
+        <div class="input-group no-print">
+          <label class="input-label">Drone Aerial View</label>
+          @if (photosBySlot.drone.length > 0) {
+          <div class="survey-photo-grid">
+            @for (photo of photosBySlot.drone; track photo.id) {
+            <div class="survey-photo-item">
+              <img [src]="photo.previewUrl" [alt]="photo.file.name">
+              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+                (click)="removePhoto('drone', photo)">
+                <i class="fa-solid fa-times"></i>
+              </button>
+            </div>
+            }
+          </div>
+          }
+          <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('drone', $event)"
+            (click)="dronePhotoInput.click()">+ Upload Photo</div>
+          <input #dronePhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
+            (change)="onPhotoFilesSelected('drone', $event)">
+        </div>
+
+        <div class="input-group no-print">
+          <label class="input-label">Roof Surface Close-up</label>
+          @if (photosBySlot.roofSurface.length > 0) {
+          <div class="survey-photo-grid">
+            @for (photo of photosBySlot.roofSurface; track photo.id) {
+            <div class="survey-photo-item">
+              <img [src]="photo.previewUrl" [alt]="photo.file.name">
+              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+                (click)="removePhoto('roofSurface', photo)">
+                <i class="fa-solid fa-times"></i>
+              </button>
+            </div>
+            }
+          </div>
+          }
+          <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('roofSurface', $event)"
+            (click)="roofSurfacePhotoInput.click()">+ Upload Photo</div>
+          <input #roofSurfacePhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
+            (change)="onPhotoFilesSelected('roofSurface', $event)">
+        </div>
+
+        <div class="input-group no-print">
+          <label class="input-label">Obstacles / Shading</label>
+          @if (photosBySlot.shading.length > 0) {
+          <div class="survey-photo-grid">
+            @for (photo of photosBySlot.shading; track photo.id) {
+            <div class="survey-photo-item">
+              <img [src]="photo.previewUrl" [alt]="photo.file.name">
+              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+                (click)="removePhoto('shading', photo)">
+                <i class="fa-solid fa-times"></i>
+              </button>
+            </div>
+            }
+          </div>
+          }
+          <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('shading', $event)"
+            (click)="shadingPhotoInput.click()">+ Upload Photo</div>
+          <input #shadingPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
+            (change)="onPhotoFilesSelected('shading', $event)">
+        </div>
+      </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- 3. Electrical Room & System Layout -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h2>3. Electrical Room &amp; System Layout</h2>
+      </div>
+
+      <div class="grid grid-cols-2 gap-6 mb-4">
+        <div class="flex-col gap-4">
+          <span class="input-label survey-section-label">Main Distribution Board (MDB)</span>
+          <div class="input-group">
+            <label class="input-label" for="surveyElectricalPhase">Electrical Phase</label>
+            <p-select inputId="surveyElectricalPhase" [(ngModel)]="electricalPhase"
+              [options]="electricalPhaseOptions" optionLabel="label" optionValue="value" appendTo="body"
+              placeholder="Select phase" class="w-full" />
+          </div>
+          <div class="input-group">
+            <label class="input-label">Main Breaker Size (Amps)</label>
+            <input type="text" [(ngModel)]="mainBreakerSize" placeholder="e.g. 50A">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Grounding Check</label>
+            <input type="text" [(ngModel)]="groundingCheck" placeholder="e.g. Exists, measured at < 5 Ohms">
+          </div>
+        </div>
+
+        <div class="flex-col gap-4">
+          <span class="input-label survey-section-label">Combiner &amp; Inverter Placement</span>
+          <div class="input-group">
+            <label class="input-label">Proposed Inverter Location</label>
+            <input type="text" [(ngModel)]="inverterLocation" placeholder="e.g. Garage wall, right side">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Est. AC Cable Run (Inverter to MDB)</label>
+            <input type="text" [(ngModel)]="acCableRun" placeholder="e.g. 15 meters">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Est. DC Cable Run (Roof to Inverter)</label>
+            <input type="text" [(ngModel)]="dcCableRun" placeholder="e.g. 20 meters">
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-4">
+        <div class="input-group no-print">
+          <label class="input-label">Main Breaker / MDB Open</label>
+          @if (photosBySlot.mdb.length > 0) {
+          <div class="survey-photo-grid">
+            @for (photo of photosBySlot.mdb; track photo.id) {
+            <div class="survey-photo-item">
+              <img [src]="photo.previewUrl" [alt]="photo.file.name">
+              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+                (click)="removePhoto('mdb', photo)">
+                <i class="fa-solid fa-times"></i>
+              </button>
+            </div>
+            }
+          </div>
+          }
+          <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('mdb', $event)"
+            (click)="mdbPhotoInput.click()">+ Upload Photo</div>
+          <input #mdbPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
+            (change)="onPhotoFilesSelected('mdb', $event)">
+        </div>
+
+        <div class="input-group no-print">
+          <label class="input-label">Proposed Inverter Wall</label>
+          @if (photosBySlot.inverterWall.length > 0) {
+          <div class="survey-photo-grid">
+            @for (photo of photosBySlot.inverterWall; track photo.id) {
+            <div class="survey-photo-item">
+              <img [src]="photo.previewUrl" [alt]="photo.file.name">
+              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+                (click)="removePhoto('inverterWall', photo)">
+                <i class="fa-solid fa-times"></i>
+              </button>
+            </div>
+            }
+          </div>
+          }
+          <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('inverterWall', $event)"
+            (click)="inverterWallPhotoInput.click()">+ Upload Photo</div>
+          <input #inverterWallPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
+            (change)="onPhotoFilesSelected('inverterWall', $event)">
+        </div>
+
+        <div class="input-group no-print">
+          <label class="input-label">Cable Routing Path</label>
+          @if (photosBySlot.cableRouting.length > 0) {
+          <div class="survey-photo-grid">
+            @for (photo of photosBySlot.cableRouting; track photo.id) {
+            <div class="survey-photo-item">
+              <img [src]="photo.previewUrl" [alt]="photo.file.name">
+              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+                (click)="removePhoto('cableRouting', photo)">
+                <i class="fa-solid fa-times"></i>
+              </button>
+            </div>
+            }
+          </div>
+          }
+          <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('cableRouting', $event)"
+            (click)="cableRoutingPhotoInput.click()">+ Upload Photo</div>
+          <input #cableRoutingPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
+            (change)="onPhotoFilesSelected('cableRouting', $event)">
+        </div>
+      </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- 4. PV Layout Suggestions -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h2>4. PV Layout Suggestions</h2>
+        <button type="button" class="k-btn-text no-print" (click)="addLayoutOption()">+ Add Another Layout
+          Option</button>
+      </div>
+
+      @for (option of layoutOptions; track option.id) {
+      <div class="survey-layout-option-box">
+        <div class="survey-layout-option-header">
+          <h3 class="survey-layout-option-title">{{ option.title }}</h3>
+          @if (layoutOptions.length > 1) {
+          <button type="button" class="k-btn-text no-print survey-layout-remove-btn"
+            (click)="removeLayoutOption(option)">Remove</button>
+          }
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="input-group full-width no-print">
+            <label class="input-label">Layout Sketch / Roof Plan</label>
+            @if (option.sketchPhotos.length > 0) {
+            <div class="survey-photo-grid">
+              @for (photo of option.sketchPhotos; track photo.id) {
+              <div class="survey-photo-item">
+                <img [src]="photo.previewUrl" [alt]="photo.file.name">
+                <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+                  (click)="removeLayoutPhoto(option, photo)">
+                  <i class="fa-solid fa-times"></i>
+                </button>
+              </div>
+              }
+            </div>
+            }
+            <div class="photo-box survey-layout-photo-box" (dragover)="$event.preventDefault()"
+              (drop)="onLayoutPhotoDrop(option, $event)" (click)="layoutPhotoInput.click()">
+              + Upload PV Layout Design
+            </div>
+            <input #layoutPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
+              (change)="onLayoutPhotoFilesSelected(option, $event)">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Estimated Capacity (kWp)</label>
+            <input type="text" [(ngModel)]="option.estimatedCapacity" placeholder="e.g. 10.5 kWp (19 Panels)">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Orientation / Azimuth</label>
+            <input type="text" [(ngModel)]="option.orientation" placeholder="e.g. South facing, minor West offset">
+          </div>
+          <div class="input-group full-width">
+            <label class="input-label">Design Rationale</label>
+            <textarea class="form-textarea" rows="3" [(ngModel)]="option.designRationale"
+              placeholder="Brief explanation of why this layout is recommended..."></textarea>
+          </div>
+        </div>
+      </div>
+      }
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- 5. Notes & Remarks -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h2>5. Notes &amp; Remarks</h2>
+      </div>
+
+      <div class="flex-col gap-6">
+        <div class="input-group">
+          <label class="input-label survey-note-label survey-note-label-blue">Client Notes &amp; Requests</label>
+          <p class="survey-note-hint">Information, questions, or concerns raised by the client during the visit.</p>
+          <textarea class="form-textarea" rows="4" [(ngModel)]="clientNotes"
+            placeholder="e.g. Client requested all cabling to be completely hidden. Wants to future-proof for an EV charger..."></textarea>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label survey-note-label survey-note-label-green">Notes For Customer</label>
+          <p class="survey-note-hint">Action items or important structural notices the client needs to be aware of.
+          </p>
+          <textarea class="form-textarea" rows="4" [(ngModel)]="notesForCustomer"
+            placeholder="e.g. Tree on South-West corner requires trimming prior to installation day to prevent shading..."></textarea>
+        </div>
+
+        <div class="input-group no-print">
+          <label class="input-label survey-note-label survey-note-label-red">Internal Team Notes (Do Not Print for
+            Client)</label>
+          <p class="survey-note-hint">Instructions for the design or installation team.</p>
+          <textarea class="form-textarea survey-internal-notes" rows="4" [(ngModel)]="internalNotes"
+            placeholder="e.g. Beware of dog on property. Will need scaffolding on the North side due to narrow walkway..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Actions -->
+    <div class="flex justify-end gap-2 no-print survey-bottom-actions">
+      <button type="button" class="k-btn k-btn-outline" (click)="saveDraft()">Save Report (local only)</button>
+      <button type="button" class="k-btn k-btn-primary" (click)="exportToPdf()">Export to PDF</button>
+    </div>
+
+  </div>
+  }
+</div>

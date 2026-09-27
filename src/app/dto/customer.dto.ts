@@ -46,6 +46,12 @@ export interface CreateNotePayload {
   text: string;
 }
 
+export interface NoteCommentImageDetail {
+  id: string;
+  url: string;
+  name: string;
+}
+
 export interface NoteCommentDetail {
   id: string;
   noteId: string;
@@ -53,10 +59,7 @@ export interface NoteCommentDetail {
   createdAt: string;
   createdBy: string;
   canDelete: boolean;
-}
-
-export interface CreateNoteCommentPayload {
-  text: string;
+  images: NoteCommentImageDetail[];
 }
 
 export interface UpdateCustomerNamePayload {

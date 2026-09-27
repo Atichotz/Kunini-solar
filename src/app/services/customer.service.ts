@@ -10,7 +10,6 @@ import type {
   ContactDetail,
   CreateNotePayload,
   NoteDetail,
-  CreateNoteCommentPayload,
   NoteCommentDetail,
   UpdateCustomerNamePayload,
   UpdateCustomerNumberPayload,
@@ -133,10 +132,13 @@ export class CustomerService {
     return this.http.get<NoteCommentDetail[]>(`${this.baseUrl}/${customerId}/notes/${noteId}/comments`);
   }
 
-  // input: customer UUID + note UUID + ข้อความ comment (author แนบโดย backend จาก JWT)
-  // output: comment ที่สร้างแล้ว
-  addNoteComment(customerId: string, noteId: string, payload: CreateNoteCommentPayload): Observable<NoteCommentDetail> {
-    return this.http.post<NoteCommentDetail>(`${this.baseUrl}/${customerId}/notes/${noteId}/comments`, payload);
+  // input: customer UUID + note UUID + ข้อความ (ว่างได้ถ้ามีรูปแนบ) + รูปแนบ 0-5 รูป (author แนบโดย backend จาก JWT)
+  // output: comment ที่สร้างแล้ว พร้อม signed URL ของรูป
+  addNoteComment(customerId: string, noteId: string, text: string, images: File[]): Observable<NoteCommentDetail> {
+    const formData = new FormData();
+    formData.append('text', text);
+    images.forEach((image) => formData.append('images', image));
+    return this.http.post<NoteCommentDetail>(`${this.baseUrl}/${customerId}/notes/${noteId}/comments`, formData);
   }
 
   // input: customer UUID + note UUID + comment UUID

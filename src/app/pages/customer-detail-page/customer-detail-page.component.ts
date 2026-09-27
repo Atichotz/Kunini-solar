@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
@@ -7,7 +7,8 @@ import { FloatLabelModule } from 'primeng/floatlabel';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { ConfirmationService } from 'primeng/api';
+import { MenuModule } from 'primeng/menu';
+import { ConfirmationService, MenuItem } from 'primeng/api';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { forkJoin, of, map, distinctUntilChanged, takeUntil, skip } from 'rxjs';
 import { CustomerService } from '../../services/customer.service';
@@ -77,6 +78,11 @@ interface CustomerInfoDraft {
 const ELECTRIC_BILL_ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 const ELECTRIC_BILL_MAX_SIZE_BYTES = 10 * 1024 * 1024;
 
+// ต้องตรงกับ NOTE_COMMENT_MAX_IMAGES / NOTE_COMMENT_IMAGE_ALLOWED_MIME_TYPES / NOTE_COMMENT_IMAGE_MAX_SIZE_BYTES ใน backend (customers.service.ts, dto/note-comment.dto.ts)
+const NOTE_COMMENT_MAX_IMAGES = 5;
+const NOTE_COMMENT_IMAGE_ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const NOTE_COMMENT_IMAGE_MAX_SIZE_BYTES = 10 * 1024 * 1024;
+
 interface EstimateHistoryRow {
   id: string;
   title: string;
@@ -118,12 +124,12 @@ interface SystemFigures {
 
 @Component({
   selector: 'app-customer-detail-page',
-  imports: [CommonModule, FormsModule, FloatLabelModule, InputTextModule, SelectModule, ConfirmDialogModule, RouterLink, KLoadingComponent, TodoBoardComponent, ScrollToTopComponent, LinkifyPipe],
+  imports: [CommonModule, FormsModule, FloatLabelModule, InputTextModule, SelectModule, ConfirmDialogModule, MenuModule, RouterLink, KLoadingComponent, TodoBoardComponent, ScrollToTopComponent, LinkifyPipe],
   providers: [ConfirmationService],
   templateUrl: './customer-detail-page.component.html',
   styleUrl: './customer-detail-page.component.scss'
 })
-export class CustomerDetailPageComponent implements OnInit {
+export class CustomerDetailPageComponent implements OnInit, OnDestroy {
   private readonly confirmationService = inject(ConfirmationService);
   private readonly route = inject(ActivatedRoute);
   private readonly customerService = inject(CustomerService);
@@ -136,6 +142,19 @@ export class CustomerDetailPageComponent implements OnInit {
   readonly canSeePrice = this.permission.canSeePrice;
   readonly isCeo = this.permission.isCeo;
   private readonly destroyRef = inject(DestroyRef);
+
+  // เมนูของปุ่ม Report — แยกไปหน้า Install report เดิม กับ Survey Report ใหม่
+  // ต้องเป็น field ธรรมดา ไม่ใช่ getter — ถ้าเป็น getter จะสร้าง array ใหม่ทุกรอบ change detection
+  // แล้ว [model] ของ p-menu เห็นว่า input เปลี่ยน reference ตลอด ทำให้วน re-process จนหน้าค้าง
+  reportMenuItems: MenuItem[] = [];
+
+  setReportMenuItems(): void {
+    const customerId = this.customer?.id;
+    this.reportMenuItems = [
+      { label: 'Installation Report', icon: 'fa-solid fa-file-lines', routerLink: '/report', queryParams: { customerId } },
+      { label: 'Site Survey Report', icon: 'fa-solid fa-people-roof', routerLink: '/survey-report', queryParams: { customerId } },
+    ];
+  }
 
   // emit ทุกครั้งที่ id ใน route เปลี่ยน (รวมถึงตอน Angular reuse component instance เดิมข้ามหน้า detail คนละคน)
   // ใช้เป็นทั้ง trigger โหลดข้อมูลใหม่ และ cancel-signal (takeUntil) ให้ request ของ id เก่าที่ยังค้างอยู่ไม่มาเขียนทับข้อมูลของ id ใหม่
@@ -239,6 +258,10 @@ export class CustomerDetailPageComponent implements OnInit {
   deletingCommentId: string | null = null;
   commentErrorByNoteId: Partial<Record<string, string>> = {};
 
+  readonly noteCommentMaxImages = NOTE_COMMENT_MAX_IMAGES;
+  // รูปที่เลือกไว้แต่ยังไม่ส่ง — เก็บคู่กับ object URL ไว้ preview, ต้อง revoke ทิ้งเองตอนลบ/ส่งสำเร็จ/เปลี่ยนลูกค้า กัน memory leak
+  commentImageDraftByNoteId: Partial<Record<string, { file: File; previewUrl: string }[]>> = {};
+
   isEditingName = false;
   isSavingName = false;
   nameDraft = '';
@@ -299,6 +322,10 @@ export class CustomerDetailPageComponent implements OnInit {
     });
   }
 
+  ngOnDestroy(): void {
+    this.revokeAllCommentImageDrafts();
+  }
+
   // input: id ของลูกค้าจาก route param — output: ไม่มี, reset state เดิมทั้งหมดแล้วโหลดข้อมูลลูกค้าคนใหม่
   // ทุก request ผูก takeUntil(customerId$) ไว้ด้วย กัน request ของ id เก่ามาถึงทีหลังแล้วเขียนทับ state ของ id ใหม่
   private loadCustomerData(id: string): void {
@@ -335,6 +362,8 @@ export class CustomerDetailPageComponent implements OnInit {
     this.commentDraftByNoteId = {};
     this.isSavingCommentForNoteId = {};
     this.commentErrorByNoteId = {};
+    this.revokeAllCommentImageDrafts();
+    this.commentImageDraftByNoteId = {};
 
     this.isEditingName = false;
     this.isEditingCustomerNumber = false;
@@ -878,18 +907,21 @@ export class CustomerDetailPageComponent implements OnInit {
     });
   }
 
-  // input: this.commentDraftByNoteId[noteId] — output: ไม่มี, เพิ่ม comment ที่ backend คืนมาไว้ท้าย list และ +1 commentCount บนโน้ต
+  // input: this.commentDraftByNoteId[noteId] + this.commentImageDraftByNoteId[noteId] — output: ไม่มี, เพิ่ม comment ที่ backend คืนมาไว้ท้าย list และ +1 commentCount บนโน้ต
+  // ส่งได้แม้ไม่มีข้อความ ถ้ามีรูปแนบอย่างน้อย 1 รูป
   saveNoteComment(noteId: string): void {
     const trimmed = (this.commentDraftByNoteId[noteId] ?? '').trim();
-    if (!this.customer || !trimmed || this.isSavingCommentForNoteId[noteId]) return;
+    const draftImages = this.commentImageDraftByNoteId[noteId] ?? [];
+    if (!this.customer || (!trimmed && draftImages.length === 0) || this.isSavingCommentForNoteId[noteId]) return;
 
     this.commentErrorByNoteId[noteId] = '';
     this.isSavingCommentForNoteId[noteId] = true;
 
-    this.customerService.addNoteComment(this.customer.id, noteId, { text: trimmed }).subscribe({
+    this.customerService.addNoteComment(this.customer.id, noteId, trimmed, draftImages.map((d) => d.file)).subscribe({
       next: (saved) => {
         this.commentsByNoteId[noteId] = [...(this.commentsByNoteId[noteId] ?? []), saved];
         this.commentDraftByNoteId[noteId] = '';
+        this.clearCommentImageDrafts(noteId);
         this.isSavingCommentForNoteId[noteId] = false;
         const note = this.notes.find(n => n.id === noteId);
         if (note) note.commentCount += 1;
@@ -900,6 +932,60 @@ export class CustomerDetailPageComponent implements OnInit {
         this.commentErrorByNoteId[noteId] = 'Failed to save comment. Please try again';
       },
     });
+  }
+
+  // input: note id + FileList จาก <input type="file" multiple> — output: ไม่มี, validate แล้วเพิ่มเข้า draft ของโน้ตนั้น (เก็บ object URL ไว้ preview)
+  onCommentImagesSelected(noteId: string, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (files.length === 0) return;
+
+    const existing = this.commentImageDraftByNoteId[noteId] ?? [];
+    this.commentErrorByNoteId[noteId] = '';
+
+    if (existing.length + files.length > NOTE_COMMENT_MAX_IMAGES) {
+      this.commentErrorByNoteId[noteId] = `You can attach up to ${NOTE_COMMENT_MAX_IMAGES} images per comment`;
+      return;
+    }
+
+    for (const file of files) {
+      if (!NOTE_COMMENT_IMAGE_ACCEPTED_TYPES.includes(file.type)) {
+        this.commentErrorByNoteId[noteId] = 'Only JPEG, PNG, or WebP images are supported';
+        return;
+      }
+      if (file.size > NOTE_COMMENT_IMAGE_MAX_SIZE_BYTES) {
+        this.commentErrorByNoteId[noteId] = 'Each image must not exceed 10MB';
+        return;
+      }
+    }
+
+    const added = files.map((file) => ({ file, previewUrl: URL.createObjectURL(file) }));
+    this.commentImageDraftByNoteId[noteId] = [...existing, ...added];
+  }
+
+  // input: note id + index ในรายการรูปที่ยังไม่ส่ง — output: ไม่มี, ลบออกจาก draft และ revoke object URL กัน memory leak
+  removeCommentImageDraft(noteId: string, index: number): void {
+    const existing = this.commentImageDraftByNoteId[noteId] ?? [];
+    const target = existing[index];
+    if (!target) return;
+    URL.revokeObjectURL(target.previewUrl);
+    this.commentImageDraftByNoteId[noteId] = existing.filter((_, i) => i !== index);
+  }
+
+  private clearCommentImageDrafts(noteId: string): void {
+    for (const draft of this.commentImageDraftByNoteId[noteId] ?? []) {
+      URL.revokeObjectURL(draft.previewUrl);
+    }
+    delete this.commentImageDraftByNoteId[noteId];
+  }
+
+  private revokeAllCommentImageDrafts(): void {
+    for (const drafts of Object.values(this.commentImageDraftByNoteId)) {
+      for (const draft of drafts ?? []) {
+        URL.revokeObjectURL(draft.previewUrl);
+      }
+    }
   }
 
   // input: note id + comment id — output: ไม่มี

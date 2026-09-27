@@ -42,6 +42,12 @@ a:hover {
     font-size: 12px;
     color: var(--k-mid-grey);
     margin-left: 4px;
+    white-space: nowrap;
+}
+
+.header-name-row {
+    flex-wrap: wrap;
+    row-gap: 8px;
 }
 
 // base input/border/padding มาจาก global — override เฉพาะขนาดให้เข้ากับ label เล็ก
@@ -195,6 +201,21 @@ button.tag-item {
     padding: 0 !important;
 }
 
+::ng-deep .elec-select {
+    &.p-select {
+        height: 43px;
+        border: 1px solid var(--k-mid-grey);
+    }
+
+    .p-select-label {
+        padding-top: 10px;
+    }
+
+    .p-select-label {
+        font-size: 14px;
+    }
+}
+
 .status-select:focus {
     --k-light-grey: var(--k-red);
 }
@@ -215,7 +236,7 @@ button.tag-item {
 }
 
 .info-value {
-    font-size: 15px;
+    font-size: 13px;
     color: var(--k-black);
 }
 
@@ -283,7 +304,7 @@ button.tag-item {
 
     th {
         text-align: left;
-        font-size: 11px;
+        font-size: 13px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.05em;
@@ -393,7 +414,7 @@ button.tag-item {
 /* Electric Bill Grid */
 .grid {
     display: grid;
-    gap: 16px;
+    gap: 10px;
 }
 
 .grid-cols-3 {
@@ -538,6 +559,66 @@ button.tag-item {
     }
 }
 
+.note-comment-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.note-comment-image-thumb {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--k-light-grey);
+    display: block;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+}
+
+.note-comment-image-remove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: none;
+    background: var(--k-red);
+    color: white;
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.note-comment-form-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+// เหมือน .comment-attach-btn ของ todo-comments — label ครอบ input[type=file] ไว้แทนปุ่ม + click() เพื่อความเรียบง่าย
+.note-comment-attach-btn {
+    display: inline-flex;
+    cursor: pointer;
+}
+
+.note-comment-attach-btn-disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
 /* =========================================
            5. RESPONSIVE
            ========================================= */
@@ -559,4 +640,78 @@ button.tag-item {
     }
 
 
+}
+
+@media (max-width: 768px) {
+    .grid-cols-3 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .status-select {
+        width: 100%;
+        max-width: none;
+    }
+
+    .doc-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+
+        .item-meta {
+            text-align: left;
+        }
+    }
+}
+
+@media (max-width: 480px) {
+    .grid-cols-3 {
+        grid-template-columns: 1fr;
+    }
+
+    .card-header {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .header-buttons .k-btn-sm {
+        flex: 1 1 auto;
+    }
+
+    .name-input,
+    .customer-number-input {
+        max-width: 100%;
+    }
+
+    .header-name-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .header-name-block,
+    .header-number-block {
+        flex-wrap: wrap;
+    }
+
+    .bill-file-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .bill-file-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .sticky-header {
+        padding: 12px 16px;
+    }
+
+    .contact-table {
+        font-size: 12px;
+    }
+}
+
+.btn-save-electric-bill {
+    font-size: 13px;
 }

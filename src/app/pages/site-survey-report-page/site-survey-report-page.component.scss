@@ -1,0 +1,253 @@
+// override เฉพาะ padding/shadow/hover ตาม design-system.md (global .card ให้แค่ bg/border-radius/border)
+.card {
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  transition: all .3s ease;
+}
+
+.card:hover {
+  border: 1.5px solid var(--k-red);
+}
+
+.card-header {
+  border-bottom: 3px solid var(--k-red);
+  margin-bottom: 16px;
+
+  h2 {
+    font-size: 18px;
+    font-weight: 700;
+  }
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+
+.survey-divider {
+  height: 1px;
+  background: var(--k-light-grey);
+  margin: 20px 0;
+}
+
+.survey-section-label {
+  color: var(--k-accent-blue);
+}
+
+/* =========================================
+   Roof material radio grid
+   ========================================= */
+.survey-roof-material-box {
+  background: var(--bg-color);
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+}
+
+.survey-roof-material-grid {
+  grid-template-columns: repeat(3, 1fr);
+  row-gap: 16px;
+}
+
+/* =========================================
+   Slot / layout-option photo previews
+   ========================================= */
+.survey-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.survey-photo-item {
+  position: relative;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--k-light-grey);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.survey-photo-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+}
+
+/* =========================================
+   PV Layout Suggestions
+   ========================================= */
+.survey-layout-option-box {
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  margin-bottom: 20px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.survey-layout-option-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.survey-layout-option-title {
+  font-size: 15px;
+  color: var(--k-black);
+}
+
+.survey-layout-remove-btn {
+  color: var(--k-red);
+}
+
+.survey-layout-photo-box {
+  height: 180px;
+}
+
+/* =========================================
+   Notes & Remarks
+   ========================================= */
+.survey-note-label {
+  &-blue {
+    color: var(--k-accent-blue);
+  }
+
+  &-green {
+    color: var(--k-accent-green);
+  }
+
+  &-red {
+    color: var(--k-red);
+  }
+}
+
+.survey-note-hint {
+  font-size: 12px;
+  color: var(--k-mid-grey);
+  margin: -2px 0 4px 0;
+}
+
+.survey-internal-notes {
+  border-color: var(--k-red);
+}
+
+.survey-bottom-actions {
+  padding-top: 24px;
+  border-top: 1px solid var(--k-light-grey);
+}
+
+/* =========================================
+   PDF print styles
+   ========================================= */
+.print-header,
+.print-footer {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 25mm 15mm;
+  }
+
+  .print-header {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--k-red);
+  }
+
+  .print-header-brand {
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--k-black);
+  }
+
+  .print-header-brand-sub {
+    font-weight: 400;
+  }
+
+  .print-header-sub {
+    font-size: 12px;
+    color: var(--k-dark-grey);
+  }
+
+  .print-footer {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 10px;
+    color: var(--k-mid-grey);
+    padding-top: 10px;
+    border-top: 1px solid var(--k-light-grey);
+  }
+
+  .max-w-container {
+    width: 100%;
+    max-width: 100%;
+    margin-top: 20px;
+  }
+
+  .card {
+    box-shadow: none;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  input,
+  select,
+  textarea {
+    border: none;
+    border-bottom: 1px solid var(--k-light-grey);
+    border-radius: 0;
+    padding: 4px 0;
+    background: transparent;
+    resize: none;
+  }
+
+  // p-datepicker / p-select render their input deep inside their own component template —
+  // global encapsulation means the plain "input" rule above can't reach it, so target it explicitly
+  ::ng-deep .p-datepicker-input,
+  ::ng-deep .p-select-label {
+    border: none;
+    border-bottom: 1px solid var(--k-light-grey);
+    border-radius: 0;
+    padding: 4px 0;
+    background: transparent;
+  }
+
+  ::ng-deep .p-datepicker-dropdown,
+  ::ng-deep .p-select-dropdown {
+    display: none;
+  }
+
+  .photo-box {
+    border: 1px solid var(--k-light-grey);
+    background: transparent;
+  }
+}
