@@ -331,7 +331,16 @@
                                 Final }
                             </button>
                             }
-                            @if (!row.isDraft && isCeo()) {
+                            @if (row.isDraft && canCreateQuotation()) {
+                            <button type="button" class="k-btn-sm k-btn-outline"
+                                style="margin-left: 8px; color: var(--k-red); border-color: var(--k-red);"
+                                [disabled]="deletingEstimateId === row.id" (click)="onDeleteEstimate(row.id)"
+                                title="Delete this draft permanently">
+                                @if (deletingEstimateId === row.id) { <i class="fas fa-spinner fa-spin"></i> } @else {
+                                Delete }
+                            </button>
+                            }
+                            @if (!row.isDraft && !row.isSuperseded && !row.hasOpenRevision && isCeo()) {
                             <button type="button" class="k-btn-sm k-btn-outline" style="margin-left: 8px;"
                                 [disabled]="finalizingEstimateId === row.id" (click)="onUnfinalizeEstimate(row.id)"
                                 title="Revert to draft">
@@ -342,6 +351,19 @@
                         </div>
                         } @else {
                         <a [routerLink]="'/survey'" [queryParams]="{customerId: customer.id, surveyId: row.id}"
+                            @if (!row.isDraft && !row.isSuperseded && row.hasOpenRevision && isCeo()) {
+                            <span class="badge" style="margin-left: 8px;"
+                                title="This quotation has a pending draft revision — finalize or delete it first to revert this one to draft">
+                                Has Revision
+                            </span>
+                            }
+                            @if (row.canCreateRevision && canCreateQuotation()) {
+                            <a class="k-btn-sm k-btn-outline" style="margin-left: 8px;" [routerLink]="'/estimate'"
+                                [queryParams]="{ customerId: customer.id, reviseFrom: row.id }"
+                                title="Create a new draft from this quotation, keeping the original untouched">
+                                Create Revision
+                            </a>
+                            }
                             class="doc-item-title">
                             <i class="fa-solid fa-people-roof"></i> Site Survey
                             <span class="badge">{{ row.photoCount }} photos • {{ row.noteCount }} notes</span>

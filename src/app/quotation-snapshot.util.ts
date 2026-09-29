@@ -22,6 +22,20 @@ export function splitRemarkLines(text: string | null | undefined): string[] {
     .filter((line) => line.length > 0);
 }
 
+export const DEFAULT_VALIDITY_DAYS = 7;
+const MIN_VALIDITY_DAYS = 1;
+const MAX_VALIDITY_DAYS = 365;
+
+/**
+ * ทำให้ค่า Validity ที่ผู้ใช้กรอกเป็นจำนวนเต็มในช่วงที่ DB/backend ยอมรับ
+ * @param value ค่าจากช่อง number — ช่องว่างได้ null, พิมพ์ e/ทศนิยม/ติดลบได้ทั้งหมด
+ * @returns จำนวนเต็ม 1–365; ว่าง/NaN/Infinity → 7 (ไม่ใช่ clamp เป็น 1 เพราะช่องว่างแปลว่า "ไม่ได้ตั้งใจเปลี่ยน")
+ */
+export function normalizeValidityDays(value: number | null | undefined): number {
+  if (value == null || !Number.isFinite(value)) return DEFAULT_VALIDITY_DAYS;
+  return Math.min(MAX_VALIDITY_DAYS, Math.max(MIN_VALIDITY_DAYS, Math.trunc(value)));
+}
+
 /**
  * ชื่อ Sales Rep จาก profile ของผู้ใช้ที่ login อยู่
  * @returns displayName → username → email ตามลำดับ, '' ถ้า profile ยังโหลดไม่เสร็จ (กันเอกสารล้ม แต่เว้นว่าง)
@@ -46,12 +60,15 @@ const orderIndex = (order: string[], category: string): number => {
  * @param detail estimate ที่ finalize แล้ว (EstimateDetail จาก GET /estimates/:id)
  * @param contactPersonName ชื่อผู้ติดต่อ — ไม่ได้เก็บใน estimate จึงให้ผู้เรียกดึงมาจาก customer (ส่ง '' ได้)
  * @param extras ที่อยู่/location ปัจจุบันของลูกค้า + ชื่อผู้กด Export — ไม่ freeze ใน estimate จึงให้ผู้เรียกส่งมา (ส่ง '' ได้)
+ * @param originalIssuedDateIso วันที่ finalize ของใบต้นฉบับ — ส่งมาเฉพาะตอน detail.revisedFromId มีค่า (ผู้เรียกไปดึงมาเอง)
+ * ไม่ส่ง/null = ใบนี้ไม่ใช่ revision หรือดึงใบต้นฉบับไม่สำเร็จ (export ต่อได้โดยไม่มี REV. แทนที่จะทำให้ทั้งใบล้ม)
  * @returns snapshot พร้อมส่งให้ QuotationPreviewService หรือ null ถ้าไม่มีรายการอุปกรณ์เลย (กันเอกสารที่มีแต่ยอด Documentation)
  */
 export function buildQuotationSnapshot(
   detail: EstimateDetail,
   contactPersonName: string,
-  extras: QuotationExtras
+  extras: QuotationExtras,
+  originalIssuedDateIso: string | null = null
 ): QuotationSnapshot | null {
   const HC = QUOTATION_HARDCODE;
 
@@ -185,11 +202,14 @@ export function buildQuotationSnapshot(
     systemTitle,
     customerName: detail.customerDisplayName ?? '',
     contactPersonName,
-    issuedDateIso: new Date().toISOString(),
+    // final → ล็อกวันที่ตอน finalize (เปิดดูซ้ำวันหลังแล้ววันหมดอายุต้องไม่ขยับ); draft → วันนี้
+    issuedDateIso: detail.finalizedAt ?? new Date().toISOString(),
+    originalIssuedDateIso,
     customerAddress: extras.customerAddress,
     projectLocation: extras.projectLocation,
     salesRepName: extras.salesRepName,
     quotationNo: detail.quotationNo,
+    validityDays: normalizeValidityDays(detail.validityDays),
     rows,
     solarPvKitTotal,
     documentationTotal,

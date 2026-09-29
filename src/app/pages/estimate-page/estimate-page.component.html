@@ -72,10 +72,27 @@
           <i class="fa-solid fa-xmark"></i>
         </p-button>
       </div>
+      <!-- Revision banner: เห็นเฉพาะตอนกด "Create Revision" มาจากใบ final เดิม (?reviseFrom=) -->
+      @if (revisedFromId) {
+      <div class="revision-banner">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>
+          Creating a new revision from <strong>{{ revisedFromQuotationNo ?? ('v' + revisedFromVersionNo) }}</strong> —
+          all prefilled prices are recalculated from today's catalog, not the original quotation. Saving will create
+          a new draft; the original stays unchanged until this one is finalized.
+        </span>
+      </div>
+      }
       <!-- 1. Customer Information -->
       <div class="card" id="sec-1">
         <div class="card-header">
           <h2 class="font-bold">Customer Information</h2>
+          @if (revisedFromId) {
+          <span class="flex items-center gap-2">
+            <span class="badge badge-final">REV</span>
+            <span class="badge">of {{ revisedFromQuotationNo ?? ('v' + revisedFromVersionNo) }}</span>
+          </span>
+          }
         </div>
         <div class="grid grid-cols-2">
           <div class="input-group">
@@ -108,6 +125,11 @@
             <textarea id="pdf-remarks" class="form-textarea" rows="4" maxlength="1000" [(ngModel)]="pdfRemarks"
               placeholder="Type remark"></textarea>
             <span class="input-label">{{ pdfRemarks.length }} / 1000</span>
+          </div>
+          <div class="input-group full-width">
+            <label class="input-label" for="pdf-validity-days">Validity (days, shown on PDF)</label>
+            <input id="pdf-validity-days" type="number" min="1" max="365" step="1" [(ngModel)]="validityDays"
+              (blur)="onValidityDaysBlur()" placeholder="7">
           </div>
         </div>
       </div>

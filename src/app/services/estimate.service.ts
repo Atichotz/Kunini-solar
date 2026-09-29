@@ -41,4 +41,9 @@ export class EstimateService {
   getOne(id: string): Observable<EstimateDetail> {
     return this.http.get<EstimateDetail>(`${this.baseUrl}/${id}`);
   }
+
+  // input: estimate UUID ของ draft (รวม draft ที่เป็น revision ค้างอยู่ด้วย) — output: void, throw ถ้าเป็น final แล้วหรือไม่มีสิทธิ์
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${id}`);
+  }
 }

@@ -22,7 +22,7 @@ import { CustomerService } from '../../services/customer.service';
 import { EstimateService } from '../../services/estimate.service';
 import { QuotationPreviewService } from '../../services/quotation-preview.service';
 import { AuthService } from '../../services/auth.service';
-import { salesRepNameOf, splitRemarkLines } from '../../quotation-snapshot.util';
+import { DEFAULT_VALIDITY_DAYS, normalizeValidityDays, salesRepNameOf, splitRemarkLines } from '../../quotation-snapshot.util';
 import { QUOTATION_HARDCODE } from '../pdf-bos-preview/quotation-hardcode';
 import type { QuotationLineRow, QuotationSnapshot } from '../../dto/quotation.dto';
 import type { CustomerDetail, ContactDetail } from '../../dto/customer.dto';
@@ -111,12 +111,24 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // estimate id — มีตอนเปิด draft เดิมกลับมาแก้ (?estimateId=) หรือหลังจากเจอ draft ค้างของลูกค้าตอนเปิดหน้าเปล่าๆ
   estimateId: string | null = null;
+
+  // มีตอนกด "Create Revision" จากใบ final เดิม (?reviseFrom=) — prefill ข้อมูลจากใบนั้นมาทั้งหมด แต่ estimateId ยังเป็น null
+  // (save แล้วต้องได้ draft ใหม่เสมอ ไม่ทับใบ final เดิม) โชว์ quotationNo/versionNo ไว้ทำ banner เตือนผู้ใช้
+  revisedFromId: string | null = null;
+  revisedFromQuotationNo: string | null = null;
+  revisedFromVersionNo: number | null = null;
+  // วันที่ finalize ของใบต้นฉบับ — ใช้โชว์คู่กับ "REV." ตอน export PDF preview ของ draft revision นี้
+  revisedFromIssuedDateIso: string | null = null;
+
   saving = signal(false);
   // true จนกว่า catalog ทั้ง 14 เส้น (และ draft ที่ต้อง prefill ถ้ามี) จะโหลดเสร็จ
   pageLoading = signal(true);
 
   // หมายเหตุสำหรับ PDF (1 บรรทัด = 1 ข้อ) — save ลง estimates.pdf_remarks
   pdfRemarks = '';
+
+  // จำนวนวันที่ใบเสนอราคายังมีผล — null ได้เพราะ input number คืน null เมื่อผู้ใช้ลบจนว่าง (normalizeValidityDays แปลงเป็น 7 ตอน save/export); save ลง estimates.validity_days
+  validityDays: number | null = DEFAULT_VALIDITY_DAYS;
 
   // ชื่อ Sales Rep บน PDF — เติมชื่อ account ให้ก่อน (แก้ได้) เพราะบางคนใช้ account ร่วมกัน; save ลง estimates.sales_rep_name
   salesRepName = '';
@@ -125,6 +137,11 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onSalesRepInput(): void {
     this.salesRepEdited = true;
+  }
+
+  // blur: ดึงค่าที่พิมพ์ (ว่าง/ทศนิยม/เกินช่วง) กลับเข้า 1–365 ให้ผู้ใช้เห็นค่าจริงที่จะถูก save
+  onValidityDaysBlur(): void {
+    this.validityDays = normalizeValidityDays(this.validityDays);
   }
 
   // ปุ่ม X / Save Draft: กลับไปหน้าลูกค้าเดิมถ้ามี customerId, ถ้าไม่มี (เข้ามาตรงๆ ไม่ผ่าน customer detail) ให้กลับ dashboard แทน
@@ -154,6 +171,7 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
       labour: [this.inHouseLabourRows, this.outsourcedLabourRows, this.machineryRows],
       documentation: this.documentationRows,
       pdfRemarks: this.pdfRemarks,
+      validityDays: normalizeValidityDays(this.validityDays),
     });
   }
 
@@ -221,6 +239,8 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit(): void {
     this.customerId = this.route.snapshot.queryParamMap.get('customerId');
     this.estimateId = this.route.snapshot.queryParamMap.get('estimateId');
+    // reviseFrom มากับ estimateId ไม่ได้พร้อมกัน — ถ้ามาผิดคู่ (มีทั้ง 2 ตัว) ให้ estimateId ชนะ (แก้ draft เดิม สำคัญกว่า)
+    this.revisedFromId = this.estimateId ? null : this.route.snapshot.queryParamMap.get('reviseFrom');
 
     if (this.customerId) {
       this.customerService.getOne(this.customerId)
@@ -302,8 +322,12 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.documentationTypeOptions = catalogs.documentationTypes.map((t) => ({ label: t.name, value: t.id }));
   }
 
-  // โหลด prefill เฉพาะตอนมี estimateId ชัดเจน (มาจาก History) — ไม่ auto เดา draft ล่าสุดของลูกค้า
+  // โหลด prefill เฉพาะตอนมี estimateId/reviseFrom ชัดเจน (มาจาก History) — ไม่ auto เดา draft ล่าสุดของลูกค้า
   private loadEstimateForPrefill(): void {
+    if (this.revisedFromId) {
+      this.loadRevisionSource();
+      return;
+    }
     if (!this.estimateId) {
       this.finishLoading();
       return;
@@ -318,6 +342,12 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
             this.router.navigate(['/detail', detail.customerId, 'estimate', detail.id]);
             return;
           }
+          // draft นี้ถูกสร้างจาก Create Revision ตั้งแต่ตอน save ครั้งแรก (revisedFromId ติดมากับ record ถาวร)
+          // ต้องรู้ทุกครั้งที่เปิดกลับมาแก้ ไม่ใช่แค่ตอนกด Create Revision ครั้งแรก ไม่งั้น badge/banner/REV. ในหัวเอกสารหายไปเงียบๆ
+          if (detail.revisedFromId) {
+            this.revisedFromId = detail.revisedFromId;
+            this.loadRevisionMeta(detail.revisedFromId);
+          }
           this.prefill(detail);
           this.finishLoading();
         },
@@ -329,10 +359,60 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
       });
   }
 
+  // input: this.revisedFromId (ใบ final ที่กด "Create Revision" มา) — output: prefill ฟอร์มจากใบนั้นทั้งหมด
+  // estimateId ยังเป็น null เสมอ (save = สร้าง draft ใหม่ ไม่ทับใบ final เดิม) — เก็บ quotationNo/versionNo ไว้โชว์ banner เตือนราคาคิดใหม่
+  // ถ้าใบต้นทางไม่ final แล้ว (ถูกแก้ที่อื่นไปพร้อมกัน/ไม่เจอ) เตือนแล้วเปิดฟอร์มเปล่าแทน ไม่ปล่อยให้ save แล้วชน 409 เงียบๆ
+  private loadRevisionSource(): void {
+    this.estimateService.getOne(this.revisedFromId!)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (detail) => {
+          if (detail.status !== 'final' || detail.supersededById) {
+            this.revisedFromId = null;
+            this.messageService.add({
+              severity: 'warn', summary: 'Cannot Create Revision',
+              detail: 'This quotation is no longer available to revise from (it may have changed elsewhere). Please reopen from Customer Detail',
+              life: 5000,
+            });
+            this.finishLoading();
+            return;
+          }
+          this.revisedFromQuotationNo = detail.quotationNo;
+          this.revisedFromVersionNo = detail.versionNo;
+          this.revisedFromIssuedDateIso = detail.finalizedAt;
+          this.prefill(detail);
+          this.finishLoading();
+        },
+        error: (err) => {
+          console.error('[API] Failed to load source estimate for revision:', err);
+          this.revisedFromId = null;
+          this.finishLoading();
+          this.messageService.add({ severity: 'error', summary: 'Load Failed', detail: 'Failed to load the quotation to revise. Please reopen the page', life: 4000 });
+        },
+      });
+  }
+
+  // input: sourceId (detail.revisedFromId ของ draft ที่บันทึกไว้แล้ว, เปิดกลับมาแก้ต่อ) — output: เซ็ต quotationNo/versionNo/issuedDate ไว้โชว์ badge/REV. เท่านั้น
+  // ไม่ prefill ฟอร์ม (ฟอร์มใช้ข้อมูลของ draft เองผ่าน prefill(detail) อยู่แล้ว) และไม่ validate เข้มเหมือน loadRevisionSource —
+  // draft นี้ save ผ่านไปแล้ว ต่อให้ใบต้นฉบับเปลี่ยนสถานะไปพร้อมกัน (เช่น CEO unfinalize) ก็แค่โหลด badge ไม่ขึ้น ไม่กระทบข้อมูลที่กำลังแก้อยู่
+  private loadRevisionMeta(sourceId: string): void {
+    this.estimateService.getOne(sourceId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (source) => {
+          this.revisedFromQuotationNo = source.quotationNo;
+          this.revisedFromVersionNo = source.versionNo;
+          this.revisedFromIssuedDateIso = source.finalizedAt;
+        },
+        error: (err) => console.error('[API] Failed to load original quotation meta for REV badge:', err),
+      });
+  }
+
   // เซ็ตค่ากลับเข้า state จาก source_id (ไม่ใช่ค่า freeze) — ราคาที่แสดงจึงเป็นราคาปัจจุบันจาก catalog เสมอ
   private prefill(detail: EstimateDetail): void {
     let skipped = 0;
     this.pdfRemarks = detail.pdfRemarks ?? '';
+    this.validityDays = normalizeValidityDays(detail.validityDays);
     if (detail.salesRepName) {
       this.salesRepName = detail.salesRepName;
       this.salesRepEdited = true;
@@ -571,6 +651,7 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     return {
       customer_id: this.customerId!,
       estimate_id: this.estimateId,
+      revised_from_id: this.revisedFromId,
       head: {
         customer_display_name: this.customer?.displayName ?? null,
         contact_reference: this.primaryContact ? this.contactReference : null,
@@ -580,6 +661,7 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
         // ว่าง/มีแต่ช่องว่าง → null (ไม่เก็บค่าขยะลง DB)
         pdf_remarks: this.pdfRemarks.trim() || null,
         sales_rep_name: this.salesRepName.trim() || null,
+        validity_days: normalizeValidityDays(this.validityDays),
       },
       items: this.buildItemsPayload(),
     };
@@ -790,11 +872,14 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
       customerName: this.customer?.displayName ?? '',
       contactPersonName,
       issuedDateIso: new Date().toISOString(),
+      // ใบนี้กำลังแก้เป็น revision อยู่ (มาจาก Create Revision) — โชว์วันที่ finalize ของใบต้นฉบับคู่กับ "REV." วันนี้ในหัวเอกสาร
+      originalIssuedDateIso: this.revisedFromId ? this.revisedFromIssuedDateIso : null,
       customerAddress: this.customer?.fullAddress ?? '',
       projectLocation: this.customer?.projectLocationName ?? '',
       salesRepName: this.salesRepName.trim(),
       // หน้านี้ export ได้เฉพาะ draft (finalize แยกไปกดที่ History) — เลข quotation ยังไม่ออกจนกว่าจะ finalize
       quotationNo: null,
+      validityDays: normalizeValidityDays(this.validityDays),
       rows,
       solarPvKitTotal,
       documentationTotal,

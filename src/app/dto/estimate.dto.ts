@@ -8,6 +8,8 @@ export interface EstimateHeadPayload {
   type_of_system_name: string | null;
   pdf_remarks: string | null;
   sales_rep_name: string | null;
+  /** จำนวนวันที่ใบเสนอราคายังมีผล (1–365) */
+  validity_days: number;
 }
 
 export interface EstimatePanelItemPayload {
@@ -87,6 +89,8 @@ export interface SaveEstimatePayload {
   customer_id: string;
   // มีค่า = แก้ draft เดิมของ id นี้, null = สร้าง draft ใหม่
   estimate_id: string | null;
+  // มีค่าเฉพาะตอนกด Create Revision จากใบ final เดิม (คู่กับ estimate_id: null เสมอ) — null ปกติ
+  revised_from_id: string | null;
   head: EstimateHeadPayload;
   items: EstimateItemsPayload;
 }
@@ -110,6 +114,12 @@ export interface EstimateSummary {
   id: string;
   status: 'draft' | 'final';
   versionNo: number | null;
+  // เลขที่ใบเสนอราคา ฟอร์แมต QT-YYYY-#### — null จนกว่าจะ finalize; History list โชว์เลขนี้แทน "v{versionNo}"
+  quotationNo: string | null;
+  // มีค่า = ใบนี้เป็น revision ของใบ final อื่น — ใช้เช็คว่ามี draft revision ค้างอยู่หรือยัง (ปุ่ม Create Revision, badge "Draft REV")
+  revisedFromId: string | null;
+  // มีค่า = ใบ final นี้ถูก revision อื่นแทนที่แล้ว — โชว์ badge "Superseded" แทน "Final" และไม่นับใน currentSystem
+  supersededById: string | null;
   // null = backend ซ่อนราคาตาม role (technician)
   grandTotal: number | null;
   totalKw: number;
@@ -189,6 +199,10 @@ export interface EstimateDetail {
   versionNo: number | null;
   /** เลขที่ใบเสนอราคา รันต่อเนื่องทั้งบริษัท ฟอร์แมต QT-YYYY-#### — null จนกว่าจะ finalize */
   quotationNo: string | null;
+  /** มีค่า = ใบนี้เป็น revision ที่สร้างมาจากใบ final อื่น (ปุ่ม Create Revision) */
+  revisedFromId: string | null;
+  /** มีค่า = ใบ final นี้ถูก revision อื่นแทนที่แล้ว — ห้าม unfinalize ตรงๆ, ไม่นับใน currentSystem */
+  supersededById: string | null;
 
   customerDisplayName: string | null;
   contactReference: string | null;
@@ -199,6 +213,8 @@ export interface EstimateDetail {
   pdfRemarks: string | null;
   /** ชื่อ Sales Rep ที่ผู้ใช้กรอก — null = estimate เก่า/ไม่ได้กรอก */
   salesRepName: string | null;
+  /** จำนวนวันที่ใบเสนอราคายังมีผล — estimate เก่าได้ 7 จาก default ของ DB */
+  validityDays: number;
 
   totalKw: number;
   panelTotal: number;

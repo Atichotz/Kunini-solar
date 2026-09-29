@@ -37,7 +37,10 @@
           </tr>
           <tr>
             <td class="q-cell" rowspan="3">Address : <strong>{{ snap.customerAddress }}</strong></td>
-            <td class="q-cell">Date : {{ snap.issuedDateIso | date: 'dd/MM/yyyy' }}</td>
+            <td class="q-cell">
+              Date : {{ (snap.originalIssuedDateIso ?? snap.issuedDateIso) | date: 'dd/MM/yyyy' }}
+              @if (snap.originalIssuedDateIso) { REV.{{ snap.issuedDateIso | date: 'dd/MM/yyyy' }} }
+            </td>
             <td class="q-cell">Sales Rep : <strong>{{ snap.salesRepName }}</strong></td>
           </tr>
           <tr>
@@ -48,8 +51,8 @@
           <tr>
             <!-- ออกเลขตอน finalize เท่านั้น (ดู quotation-snapshot.util.ts) — draft ยังไม่มีเลขจึงโชว์ค่าว่าง -->
             <td class="q-cell">Quotation # : <strong>{{ snap.quotationNo ?? '—' }}</strong></td>
-            <!-- ⚠️ HARDCODE (เว้นว่าง): Validity -->
-            <td class="q-cell">Validity :</td>
+            <!-- วันหมดอายุ = วันที่ออกเอกสาร + จำนวนวันที่กรอกในหน้า estimate (draft นับจากวันนี้, final นับจากวัน finalize) -->
+            <td class="q-cell">Validity : <strong>{{ validityUntil() | date: 'dd/MM/yyyy' }} ({{ snap.validityDays }} {{ snap.validityDays === 1 ? 'Day' : 'Days' }})</strong></td>
           </tr>
         </tbody>
       </table>

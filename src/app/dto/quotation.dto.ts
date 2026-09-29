@@ -25,8 +25,10 @@ export interface QuotationSnapshot {
   customerName: string;
   /** ชื่อผู้ติดต่อ (firstname + lastname) — ไม่ใช่เบอร์/อีเมลแบบ contactReference */
   contactPersonName: string;
-  /** วันที่ออกเอกสาร (ISO) — auto = วันที่กดปุ่ม Export */
+  /** วันที่ออกเอกสาร (ISO) — draft = วันที่กดปุ่ม Export, final = วันที่ finalize (ใบที่เป็น revision คือวันที่ finalize ของ "ใบนี้เอง" ไม่ใช่ใบต้นฉบับ) */
   issuedDateIso: string;
+  /** null = ใบนี้ไม่ใช่ revision — มีค่า = วันที่ finalize ของใบต้นฉบับ (ก่อน revise) โชว์เป็น "Date: <นี่> REV.<issuedDateIso>" */
+  originalIssuedDateIso: string | null;
   /** ที่อยู่ลูกค้า (customer.fullAddress) — '' ถ้าไม่มี */
   customerAddress: string;
   /** Location ของโครงการ (tag project location ของลูกค้า เช่น Pattaya) — '' ถ้าไม่มี */
@@ -35,6 +37,8 @@ export interface QuotationSnapshot {
   salesRepName: string;
   /** เลขที่ใบเสนอราคา (ออกตอน finalize เท่านั้น) — null = ยังเป็น draft */
   quotationNo: string | null;
+  /** จำนวนวันที่ใบเสนอราคายังมีผล (1–365) — วันหมดอายุ = issuedDateIso + validityDays คำนวณตอน render */
+  validityDays: number;
 
   // ---- ตารางรายการ ----
   rows: QuotationLineRow[];

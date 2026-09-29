@@ -46,7 +46,16 @@
       <div class="card" id="sec-1">
         <div class="card-header">
           <h2 class="font-bold">Customer Information</h2>
-          <span class="badge badge-final">Quotation v{{ detail.versionNo }}</span>
+          <span class="flex items-center gap-2">
+            <span class="badge badge-final">Quotation v{{ detail.versionNo }}</span>
+            @if (detail.supersededById) {
+            <span class="badge" title="A newer revision of this quotation was created and finalized">Superseded</span>
+            }
+            @if (detail.revisedFromId) {
+            <span class="badge badge-final" title="This quotation was created as a revision of an earlier one">REV</span>
+            <span class="badge">of {{ revisedFromQuotationNo ?? ('v' + revisedFromVersionNo) }}</span>
+            }
+          </span>
         </div>
         <div class="grid grid-cols-2">
           <div class="input-group">

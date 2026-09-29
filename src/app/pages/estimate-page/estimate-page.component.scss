@@ -35,6 +35,25 @@
   grid-column: 1 / -1;
 }
 
+// Banner เตือนตอนกำลังสร้าง revision จากใบ final เดิม — unique กับหน้านี้ ไม่ซ้ำ pattern ที่ไหน จึงไม่เข้า global styles.scss
+.revision-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--k-accent-blue) 8%, var(--k-white));
+  border: 1px solid var(--k-accent-blue);
+  font-size: 13px;
+  color: var(--k-dark-grey);
+
+  i {
+    color: var(--k-accent-blue);
+    margin-top: 2px;
+  }
+}
+
 ::ng-deep .p-button {
   transition: all 0.2s ease;
 

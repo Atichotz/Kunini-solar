@@ -38,6 +38,18 @@ export class PdfBosPreviewComponent {
     return customerId ? ['/detail', customerId] : ['/dashboard'];
   });
 
+  /**
+   * วันหมดอายุ = issuedDateIso + validityDays
+   * บวกด้วย setDate (ไม่บวก ms) เพื่อไม่ให้ DST/timezone ทำวันเลื่อน; date pipe แสดงเป็น local เหมือนช่อง Date
+   */
+  readonly validityUntil = computed<Date | null>(() => {
+    const snap = this.snapshot();
+    if (!snap) return null;
+    const until = new Date(snap.issuedDateIso);
+    until.setDate(until.getDate() + snap.validityDays);
+    return until;
+  });
+
   /** Remarks: ใช้เฉพาะหมายเหตุที่ผู้ใช้กรอก (แทนที่ข้อความมาตรฐานใน quotation-hardcode.ts) */
   readonly remarks = computed<string[]>(() => this.snapshot()?.remarkLines ?? []);
 

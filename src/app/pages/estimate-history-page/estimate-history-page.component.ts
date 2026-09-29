@@ -6,7 +6,7 @@ import { ButtonModule } from 'primeng/button';
 import { Tooltip } from 'primeng/tooltip';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
-import { of } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { ScrollSpy } from '../../scroll-spy.util';
 import { ScrollToTopComponent } from '../../scroll-to-top/scroll-to-top.component';
@@ -78,6 +78,11 @@ export class EstimateHistoryPageComponent implements OnInit, AfterViewInit, OnDe
   notFound = false;
   exporting = false;
 
+  // ใบนี้เป็น revision ของใบอื่น (detail.revisedFromId) — เลขที่ใบเสนอราคาเดิมไว้โชว์คู่กับ badge "REV" ใน Customer Information
+  // โหลดแบบ background ไม่บล็อกหน้าหลัก (badge โผล่ทีหลังได้ ถ้าโหลดไม่ได้ก็ไม่แสดง ไม่ทำให้ทั้งหน้าใช้ไม่ได้)
+  revisedFromQuotationNo: string | null = null;
+  revisedFromVersionNo: number | null = null;
+
   // ตารางสรุปคำนวณครั้งเดียวตอนโหลด detail — ไม่ให้ template เรียก getter ซ้ำทุก change detection
   panelSummaryRows: SectionSummaryRow[] = [];
   inverterSummaryRows: SectionSummaryRow[] = [];
@@ -123,6 +128,18 @@ export class EstimateHistoryPageComponent implements OnInit, AfterViewInit, OnDe
         this.detail = detail;
         this.buildSummaries(detail);
         this.loading = false;
+
+        if (detail.revisedFromId) {
+          this.estimateService.getOne(detail.revisedFromId)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+              next: (source) => {
+                this.revisedFromQuotationNo = source.quotationNo;
+                this.revisedFromVersionNo = source.versionNo;
+              },
+              error: (err) => console.error('[API] Failed to load original quotation for REV badge:', err),
+            });
+        }
       },
       error: (err) => {
         console.error('[API] Failed to load estimate:', err);
@@ -160,7 +177,7 @@ export class EstimateHistoryPageComponent implements OnInit, AfterViewInit, OnDe
     // ชื่อผู้ติดต่อ + ที่อยู่ไม่ได้เก็บใน estimate — ดึงจาก customer ปัจจุบัน; ดึงไม่ได้ก็ export ต่อโดยเว้นว่าง ไม่ให้ทั้งใบล้มเพราะข้อมูลเสริม
     // Sales Rep = ชื่อที่กรอกไว้ตอน save; estimate เก่าที่ไม่มีค่า → fallback เป็นชื่อ account ของคนที่กด Export
     const salesRepName = detail.salesRepName?.trim() || salesRepNameOf(this.authService.currentProfile$.value);
-    this.customerService
+    const customer$ = this.customerService
       .getOne(detail.customerId)
       .pipe(
         map((customer) => ({
@@ -182,12 +199,26 @@ export class EstimateHistoryPageComponent implements OnInit, AfterViewInit, OnDe
             } satisfies QuotationExtras,
           });
         }),
-        takeUntilDestroyed(this.destroyRef)
-      )
-      .subscribe(({ contactPersonName, extras }) => {
+      );
+
+    // ใบนี้เป็น revision ของใบอื่น (Create Revision) — ต้องรู้วันที่ finalize ของใบต้นทางมาโชว์คู่กับ "REV." ในหัวเอกสาร
+    // ดึงไม่ได้ก็ export ต่อโดยไม่มี REV. แทนที่จะทำให้ export ทั้งใบล้ม
+    const originalIssuedDateIso$ = detail.revisedFromId
+      ? this.estimateService.getOne(detail.revisedFromId).pipe(
+          map((source) => source.finalizedAt),
+          catchError((err) => {
+            console.error('[API] Failed to load original quotation date for REV.:', err);
+            return of(null as string | null);
+          }),
+        )
+      : of(null as string | null);
+
+    forkJoin({ customerData: customer$, originalIssuedDateIso: originalIssuedDateIso$ })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ customerData: { contactPersonName, extras }, originalIssuedDateIso }) => {
         this.exporting = false;
         try {
-          const snapshot = buildQuotationSnapshot(detail, contactPersonName, extras);
+          const snapshot = buildQuotationSnapshot(detail, contactPersonName, extras, originalIssuedDateIso);
           if (!snapshot) {
             this.messageService.add({
               severity: 'warn',
