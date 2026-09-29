@@ -34,12 +34,18 @@
         @if (comment.attachments.length) {
         <div class="comment-attachments">
           @for (attachment of comment.attachments; track attachment.id) {
+          @if (attachment.mimeType.startsWith('image/') && attachment.url) {
+          <!-- รูปแสดง thumbnail กดดูใหญ่ได้ (มี zoom/rotate ในตัว) — PDF/ไฟล์อื่น (และรูปที่ signed URL ว่าง) ยังเป็นลิงก์ชื่อไฟล์ -->
+          <p-image class="attachment-image" [src]="attachment.url" [alt]="attachment.fileName" [preview]="true"
+            appendTo="body" imageClass="attachment-thumb" />
+          } @else {
           <a [href]="attachment.url" target="_blank" rel="noopener" class="comment-attachment"
             [title]="attachment.fileName">
             <i class="fa-solid" [class.fa-file-pdf]="attachment.mimeType === 'application/pdf'"
               [class.fa-image]="attachment.mimeType !== 'application/pdf'"></i>
             {{ attachment.fileName }}
           </a>
+          }
           }
         </div>
         }
@@ -55,6 +61,7 @@
   <p class="comments-error" role="alert">{{ message }}</p>
   }
 
+  @if (!readOnly) {
   <div class="comment-composer">
     <div class="comment-composer-input">
       <textarea #commentInput class="comment-textarea" rows="2" maxlength="4000" placeholder="Add a comment…"
@@ -72,11 +79,17 @@
       }
 
       @if (selectedFiles().length) {
-      <div class="comment-file-chips">
+      <div class="file-chips">
         @for (file of selectedFiles(); track $index; let i = $index) {
-        <span class="comment-file-chip">
-          {{ file.name }}
-          <button type="button" (click)="removeFile(i)" title="Remove file">✕</button>
+        <span class="file-chip" [class.file-chip-image]="filePreviews.urlFor(file)" [title]="file.name">
+          @if (filePreviews.urlFor(file); as previewUrl) {
+          <!-- คลิก thumbnail เปิดดูรูปใหญ่ (มี zoom/rotate ในตัว) — appendTo="body" กัน overlay โดน overflow ของ dialog ตัด -->
+          <p-image [src]="previewUrl" [alt]="file.name" [preview]="true" appendTo="body" imageClass="file-chip-thumb" />
+          } @else {
+          <i class="fa-solid fa-file-pdf"></i>
+          }
+          <span class="file-chip-name">{{ file.name }}</span>
+          <button type="button" [disabled]="isSubmitting()" (click)="removeFile(i)" title="Remove file">✕</button>
         </span>
         }
       </div>
@@ -102,4 +115,5 @@
       </button>
     </div>
   </div>
+  }
 </div>

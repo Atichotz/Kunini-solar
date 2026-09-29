@@ -289,6 +289,17 @@ button.tag-item {
     text-decoration: underline;
 }
 
+/* แถว ticket เป็น <button> (เปิด dialog ไม่ใช่ลิงก์) — ล้างสไตล์ native ให้หน้าตาเหมือน <a> ของแถวอื่น */
+button.doc-item-title {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
 /* Divider */
 .divider {
     height: 1px;

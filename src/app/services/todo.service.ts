@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import type { TodoCard, TodoAssignee, CreateTodoPayload, UpdateTodoPayload, TodoComment, AddTodoCommentPayload } from '../dto/todo.dto';
+import type { TodoCard, TodoAssignee, CreateTodoPayload, UpdateTodoPayload, TodoComment, AddTodoCommentPayload, TodoAttachment } from '../dto/todo.dto';
 
 @Injectable({ providedIn: 'root' })
 export class TodoService {
@@ -20,7 +20,7 @@ export class TodoService {
     return this.http.get<TodoAssignee>(`${this.baseUrl}/me`);
   }
 
-  // output: รายชื่อที่ user มอบงานให้ได้ (ceo/admin ได้ทุกคน, role อื่นได้เฉพาะ role เดียวกัน)
+  // output: รายชื่อที่ user มอบงานให้ได้ (ทุก role มอบให้ใครก็ได้ในระบบ — แต่ role ที่ไม่ใช่ ceo/admin จะมองเห็นเฉพาะงานที่มี assignee role เดียวกับตัวเอง)
   getAssignees(): Observable<TodoAssignee[]> {
     return this.http.get<TodoAssignee[]>(`${this.baseUrl}/assignees`);
   }
@@ -44,6 +44,19 @@ export class TodoService {
   // input: todo UUID (เฉพาะ assignee/ceo/admin)
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
+  }
+
+  // output: ไฟล์แนบของ task เอง (แนบตอน Add) พร้อม signed URL — เฉพาะคนที่มองเห็น task นี้ได้ (URL หมดอายุใน 1 ชม.)
+  getAttachments(todoId: string): Observable<TodoAttachment[]> {
+    return this.http.get<TodoAttachment[]>(`${this.baseUrl}/${todoId}/attachments`);
+  }
+
+  // input: todo UUID, ไฟล์ (1-3 ไฟล์) — ส่งเป็น multipart, ผู้สร้างแนบได้แม้ไม่เห็น task ในลิสต์
+  // output: ไฟล์แนบทั้งหมดของ task หลังเพิ่ม
+  addAttachments(todoId: string, files: File[]): Observable<TodoAttachment[]> {
+    const form = new FormData();
+    files.forEach(file => form.append('files', file));
+    return this.http.post<TodoAttachment[]>(`${this.baseUrl}/${todoId}/attachments`, form);
   }
 
   // output: comment ของ task นี้ เรียงเก่า→ใหม่ (เฉพาะคนที่มองเห็น task นี้ได้)

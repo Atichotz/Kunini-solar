@@ -116,6 +116,7 @@
 .comment-attachments {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: 6px;
   margin-top: 6px;
 }
@@ -192,36 +193,6 @@
 
   &:hover {
     background: var(--bg-color);
-  }
-}
-
-.comment-file-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
-}
-
-.comment-file-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  background: var(--bg-color);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  color: var(--k-dark-grey);
-
-  button {
-    background: none;
-    border: none;
-    color: var(--k-mid-grey);
-    cursor: pointer;
-    font-size: 11px;
-
-    &:hover {
-      color: var(--k-red);
-    }
   }
 }
 

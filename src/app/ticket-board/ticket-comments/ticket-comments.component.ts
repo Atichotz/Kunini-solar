@@ -1,9 +1,11 @@
-import { Component, EventEmitter, Input, OnInit, Output, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ConfirmationService } from 'primeng/api';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ImageModule } from 'primeng/image';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { FilePreviewCache } from '../../attachment-files.util';
 import { TicketService } from '../../services/ticket.service';
 import type { TicketAssignee, TicketComment } from '../../dto/ticket.dto';
 import type { AssigneeOption } from '../ticket-board.component';
@@ -17,12 +19,12 @@ const MAX_FILES = 3;
 // <p-confirmDialog> ผูกกับ instance เดียวที่ inject มา ถ้าไปพึ่ง provider ระดับ root จะไม่มี dialog ให้เปิด
 @Component({
   selector: 'app-ticket-comments',
-  imports: [FormsModule, ProgressSpinnerModule, ConfirmDialogModule],
+  imports: [FormsModule, ImageModule, ProgressSpinnerModule, ConfirmDialogModule],
   providers: [ConfirmationService],
   templateUrl: './ticket-comments.component.html',
   styleUrl: './ticket-comments.component.scss'
 })
-export class TicketCommentsComponent implements OnInit {
+export class TicketCommentsComponent implements OnInit, OnDestroy {
   private readonly ticketService = inject(TicketService);
   private readonly confirmationService = inject(ConfirmationService);
 
@@ -30,6 +32,8 @@ export class TicketCommentsComponent implements OnInit {
   @Input({ required: true }) me!: TicketAssignee | null;
   // คนที่มองเห็น ticket นี้ได้เท่านั้น (privileged + assignee ที่ role ตรงกับ ticket) — คำนวณจาก parent ต่อ ticket
   @Input({ required: true }) mentionOptions!: AssigneeOption[];
+  // true = อ่านอย่างเดียว: ซ่อนช่องพิมพ์และปุ่มลบ (backend จะตอบ 403 ถ้ายิงมาอยู่ดี)
+  @Input() readOnly = false;
   // แจ้ง parent ให้ reload tickets list เพื่ออัปเดตจำนวน comment บน badge (parent เก็บ commentCount รวมไว้ที่ TicketCard)
   @Output() commentsChanged = new EventEmitter<void>();
 
@@ -41,6 +45,8 @@ export class TicketCommentsComponent implements OnInit {
 
   newBody = '';
   selectedFiles = signal<File[]>([]);
+  // thumbnail ของรูปที่เลือกไว้รอแนบ — PDF ไม่มี preview (urlFor คืน null)
+  readonly filePreviews = new FilePreviewCache();
   // ตัวอักษรหลัง "@" ที่กำลังพิมพ์ — null = ไม่ได้กำลังเลือก mention อยู่
   mentionQuery = signal<string | null>(null);
 
@@ -67,7 +73,7 @@ export class TicketCommentsComponent implements OnInit {
   }
 
   canDelete(comment: TicketComment): boolean {
-    if (!this.me) return false;
+    if (!this.me || this.readOnly) return false;
     return comment.author.id === this.me.id || this.me.role === 'ceo' || this.me.role === 'admin';
   }
 
@@ -203,7 +209,13 @@ export class TicketCommentsComponent implements OnInit {
   }
 
   removeFile(index: number): void {
+    const removed = this.selectedFiles()[index];
+    if (removed) this.filePreviews.release(removed);
     this.selectedFiles.update(files => files.filter((_, i) => i !== index));
+  }
+
+  ngOnDestroy(): void {
+    this.filePreviews.releaseAll();
   }
 
   submitComment(textarea: HTMLTextAreaElement): void {
@@ -220,6 +232,7 @@ export class TicketCommentsComponent implements OnInit {
       next: () => {
         this.newBody = '';
         this.selectedFiles.set([]);
+        this.filePreviews.releaseAll();
         this.mentionQuery.set(null);
         this.isSubmitting.set(false);
         this.loadComments();

@@ -893,7 +893,7 @@ input.add-todo-input {
   font-size: 13px;
 }
 
-// กล่อง 2x2 เส้นแบ่งกากบาท (Start Date / Due Date / Assignees / Days Overdue)
+// กล่อง 2 คอลัมน์ (Start Date / Due Date / Close Date / Days Overdue) + แถว Assignees เต็มความกว้างด้านล่าง
 .task-drawer-details {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -923,18 +923,54 @@ input.add-todo-input {
     min-width: 0;
   }
 
-  &:nth-child(odd) {
+  &:nth-child(odd):not(.task-drawer-detail-wide) {
     border-right: 1px solid var(--k-light-grey);
   }
 
-  &:nth-child(-n+2) {
+  &:nth-child(-n+4) {
     border-bottom: 1px solid var(--k-light-grey);
+  }
+}
+
+// แถว Assignees กว้างเต็ม 2 คอลัมน์ — p-multiselect ตอนแก้ต้องการความกว้างมากกว่าครึ่งกล่อง
+.task-drawer-detail-wide {
+  grid-column: 1 / -1;
+
+  >div {
+    flex: 1;
   }
 }
 
 .task-drawer-detail-value {
   font-size: 13px;
   color: var(--k-dark-grey);
+}
+
+// ปุ่ม Edit / Cancel / Save ชิดขวาของแถวสรุปบนสุด
+.task-drawer-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.task-drawer-edit-select {
+  width: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.task-drawer-date {
+  width: 140px;
+
+  ::ng-deep .p-datepicker-input {
+    padding-inline: 8px;
+    font-size: 13px;
+  }
+}
+
+.task-drawer-days-input {
+  width: 80px;
+  font-size: 13px;
+  padding-inline: 8px;
 }
 
 .task-drawer-overdue-value {

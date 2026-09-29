@@ -1,9 +1,11 @@
-import { Component, EventEmitter, Input, OnInit, Output, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ConfirmationService } from 'primeng/api';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ImageModule } from 'primeng/image';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { FilePreviewCache } from '../../attachment-files.util';
 import { TodoService } from '../../services/todo.service';
 import type { TodoAssignee, TodoComment } from '../../dto/todo.dto';
 import type { AssigneeOption } from '../todo-board.component';
@@ -17,12 +19,12 @@ const MAX_FILES = 3;
 // <p-confirmDialog> ผูกกับ instance เดียวที่ inject มา ถ้าไปพึ่ง provider ระดับ root จะไม่มี dialog ให้เปิด
 @Component({
   selector: 'app-todo-comments',
-  imports: [FormsModule, ProgressSpinnerModule, ConfirmDialogModule],
+  imports: [FormsModule, ImageModule, ProgressSpinnerModule, ConfirmDialogModule],
   providers: [ConfirmationService],
   templateUrl: './todo-comments.component.html',
   styleUrl: './todo-comments.component.scss'
 })
-export class TodoCommentsComponent implements OnInit {
+export class TodoCommentsComponent implements OnInit, OnDestroy {
   private readonly todoService = inject(TodoService);
   private readonly confirmationService = inject(ConfirmationService);
 
@@ -41,6 +43,8 @@ export class TodoCommentsComponent implements OnInit {
 
   newBody = '';
   selectedFiles = signal<File[]>([]);
+  // thumbnail ของรูปที่เลือกไว้รอแนบ — PDF ไม่มี preview (urlFor คืน null)
+  readonly filePreviews = new FilePreviewCache();
   // ตัวอักษรหลัง "@" ที่กำลังพิมพ์ — null = ไม่ได้กำลังเลือก mention อยู่
   mentionQuery = signal<string | null>(null);
 
@@ -203,7 +207,13 @@ export class TodoCommentsComponent implements OnInit {
   }
 
   removeFile(index: number): void {
+    const removed = this.selectedFiles()[index];
+    if (removed) this.filePreviews.release(removed);
     this.selectedFiles.update(files => files.filter((_, i) => i !== index));
+  }
+
+  ngOnDestroy(): void {
+    this.filePreviews.releaseAll();
   }
 
   submitComment(textarea: HTMLTextAreaElement): void {
@@ -220,6 +230,7 @@ export class TodoCommentsComponent implements OnInit {
       next: () => {
         this.newBody = '';
         this.selectedFiles.set([]);
+        this.filePreviews.releaseAll();
         this.mentionQuery.set(null);
         this.isSubmitting.set(false);
         this.loadComments();

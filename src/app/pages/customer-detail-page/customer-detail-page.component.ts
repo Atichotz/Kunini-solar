@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
@@ -17,11 +17,13 @@ import { SurveyService } from '../../services/survey.service';
 import { PermissionService } from '../../services/permission.service';
 import { KLoadingComponent } from '../../k-loading/k-loading.component';
 import { TodoBoardComponent } from '../../todo-board/todo-board.component';
+import { STATUS_META as TICKET_STATUS_META, TicketBoardComponent } from '../../ticket-board/ticket-board.component';
 import { ScrollToTopComponent } from '../../scroll-to-top/scroll-to-top.component';
 import { LinkifyPipe } from '../../pipes/linkify.pipe';
 import type { CustomerDetail, ElectricBillDetail, NoteDetail, NoteCommentDetail, StatusOption, UpsertContactPayload } from '../../dto/customer.dto';
 import type { EstimateDetail, EstimateSummary } from '../../dto/estimate.dto';
 import type { SurveyHistoryItem } from '../../dto/survey.dto';
+import type { TicketCard } from '../../dto/ticket.dto';
 
 interface Contact {
   id: string;
@@ -88,8 +90,6 @@ interface EstimateHistoryRow {
   title: string;
   badgeLabel: string;
   isDraft: boolean;
-  dateIso: string;
-  author: string;
   // final ใบนี้ถูก revision อื่นแทนที่แล้ว — ซ่อนปุ่ม Cancel Final/Create Revision เพราะ backend ปฏิเสธทั้งคู่
   isSuperseded: boolean;
   // final ใบนี้มี draft revision (Create Revision) ค้างอยู่ — ซ่อนปุ่ม Cancel Final ด้วย (backend บล็อก) กันใบต้นฉบับหลุดไปเป็น draft
@@ -97,6 +97,8 @@ interface EstimateHistoryRow {
   hasOpenRevision: boolean;
   // final, ยังไม่ถูกแทนที่, และไม่มี draft revision ค้างอยู่แล้ว — โชว์ปุ่ม Create Revision ได้
   canCreateRevision: boolean;
+  dateIso: string;
+  author: string;
   grandTotal: number | null;
 }
 
@@ -109,10 +111,24 @@ interface SurveyHistoryRow {
   wasUpdated: boolean;
 }
 
+interface TicketHistoryRow {
+  id: string;
+  // ส่ง ticket ตัวเต็มไปให้ TicketBoardComponent.openTaskDrawer() ตอนคลิกแถว
+  ticket: TicketCard;
+  title: string;
+  statusLabel: string;
+  isDone: boolean;
+  dateIso: string;
+  createdByName: string;
+  assigneeNames: string;
+  commentCount: number;
+}
+
 // เพิ่ม field `kind` ให้ template แยกประเภทด้วย @if ได้โดยไม่ต้อง cast
 type HistoryTimelineRow =
   | ({ kind: 'estimate' } & EstimateHistoryRow)
-  | ({ kind: 'survey' } & SurveyHistoryRow);
+  | ({ kind: 'survey' } & SurveyHistoryRow)
+  | ({ kind: 'ticket' } & TicketHistoryRow);
 
 // in: ISO date string → out: epoch ms (parse ไม่ได้คืน 0 เพราะ NaN ทำให้ sort ได้ลำดับไม่คงที่)
 function toTimestamp(iso: string): number {
@@ -131,7 +147,7 @@ interface SystemFigures {
 
 @Component({
   selector: 'app-customer-detail-page',
-  imports: [CommonModule, FormsModule, FloatLabelModule, InputTextModule, SelectModule, ConfirmDialogModule, MenuModule, RouterLink, KLoadingComponent, TodoBoardComponent, ScrollToTopComponent, LinkifyPipe],
+  imports: [CommonModule, FormsModule, FloatLabelModule, InputTextModule, SelectModule, ConfirmDialogModule, MenuModule, RouterLink, KLoadingComponent, TodoBoardComponent, TicketBoardComponent, ScrollToTopComponent, LinkifyPipe],
   providers: [ConfirmationService],
   templateUrl: './customer-detail-page.component.html',
   styleUrl: './customer-detail-page.component.scss'
@@ -184,6 +200,7 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
   isLoadingEstimates = true;
   isLoadingSurveys = true;
   isLoadingNotes = true;
+  isLoadingTickets = true;
 
   estimates: EstimateSummary[] = [];
 
@@ -196,6 +213,8 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
 
   // id ของ estimate ที่กำลังกด Final หรือ Cancel Finalization อยู่ — กันกดซ้ำระหว่างรอ backend ตอบ
   finalizingEstimateId: string | null = null;
+  // id ของ draft ที่กำลังลบอยู่ — แยกจาก finalizingEstimateId เพราะเป็นคนละ action กัน
+  deletingEstimateId: string | null = null;
   estimateActionErrorMessage = '';
 
   get estimateHistoryRows(): EstimateHistoryRow[] {
@@ -230,8 +249,6 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
   surveyHistoryErrorMessage = '';
 
   get surveyHistoryRows(): SurveyHistoryRow[] {
-  // id ของ draft ที่กำลังลบอยู่ — แยกจาก finalizingEstimateId เพราะเป็นคนละ action กัน
-  deletingEstimateId: string | null = null;
     return this.surveys.map((s) => ({
       id: s.id,
       dateIso: s.updatedAt !== s.createdAt ? s.updatedAt : s.createdAt,
@@ -242,15 +259,50 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
     }));
   }
 
-  // รวม estimate + survey เป็น timeline เดียว เรียงใหม่→เก่า (in: estimateHistoryRows, surveyHistoryRows / out: HistoryTimelineRow[])
+  // ticket ของลูกค้ารายนี้ — ไม่ได้โหลดเอง แต่รับจาก <app-ticket-board> ผ่าน (ticketsChange)
+  // เพราะบอร์ดต้องโหลด list เดียวกันไว้ให้ dialog รายละเอียด/แท็บ Ticket อยู่แล้ว จะได้ไม่ยิง getAll() ซ้ำ
+  tickets: TicketCard[] = [];
+  ticketHistoryErrorMessage = '';
+
+  // แท็บ Task/Ticket ในการ์ด "Add Task" — ทั้งสอง board ยัง render ตลอด (ไม่ผูกกับแท็บ) เพื่อให้ totalCount() ขึ้น badge ได้แม้ไม่ได้เปิดดูอยู่ (เหมือน dashboard)
+  activeTaskTab = signal<'task' | 'ticket'>('task');
+
+  get ticketHistoryRows(): TicketHistoryRow[] {
+    return this.tickets.map((t) => ({
+      id: t.id,
+      ticket: t,
+      title: t.title,
+      statusLabel: TICKET_STATUS_META[t.status].label,
+      isDone: t.status === 'done',
+      dateIso: t.updatedAt,
+      createdByName: t.createdByName ?? '—',
+      assigneeNames: t.assignees.map((assignee) => assignee.name).join(', ') || '—',
+      commentCount: t.commentCount,
+    }));
+  }
+
+  // in: list ที่ board กรองตาม customerId แล้ว (emit ทุกครั้งที่ reload รวมหลังเพิ่ม/ลบ comment)
+  onTicketsChange(tickets: TicketCard[]): void {
+    this.tickets = tickets;
+    this.ticketHistoryErrorMessage = '';
+    this.isLoadingTickets = false;
+  }
+
+  onTicketsLoadFailed(): void {
+    this.isLoadingTickets = false;
+    this.ticketHistoryErrorMessage = 'Failed to load ticket history';
+  }
+
+  // รวม estimate + survey + ticket เป็น timeline เดียว เรียงใหม่→เก่า (in: estimateHistoryRows, surveyHistoryRows, ticketHistoryRows / out: HistoryTimelineRow[])
   get historyTimelineRows(): HistoryTimelineRow[] {
     const estimateRows = this.estimateHistoryRows.map((row) => ({ kind: 'estimate' as const, ...row }));
     const surveyRows = this.surveyHistoryRows.map((row) => ({ kind: 'survey' as const, ...row }));
-    return [...estimateRows, ...surveyRows].sort((a, b) => toTimestamp(b.dateIso) - toTimestamp(a.dateIso));
+    const ticketRows = this.ticketHistoryRows.map((row) => ({ kind: 'ticket' as const, ...row }));
+    return [...estimateRows, ...surveyRows, ...ticketRows].sort((a, b) => toTimestamp(b.dateIso) - toTimestamp(a.dateIso));
   }
 
   get isLoadingHistory(): boolean {
-    return this.isLoadingEstimates || this.isLoadingSurveys;
+    return this.isLoadingEstimates || this.isLoadingSurveys || this.isLoadingTickets;
   }
 
   contacts: Contact[] = [];
@@ -361,10 +413,13 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
     this.isLoadingEstimates = true;
     this.isLoadingSurveys = true;
     this.isLoadingNotes = true;
+    this.isLoadingTickets = true;
     this.estimates = [];
     this.surveys = [];
+    this.tickets = [];
     this.notes = [];
     this.surveyHistoryErrorMessage = '';
+    this.ticketHistoryErrorMessage = '';
     this.noteErrorMessage = '';
 
     this.currentSystem = null;
@@ -470,6 +525,7 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
   // (mark โดย finalize_estimate() RPC) จึงถูกกรองออกจากผลรวมตรงนี้ แต่ finalizedEstimateCount ยังนับรวมทุกใบไว้เป็นตัวช่วยสังเกตความผิดปกติเหมือนเดิม
   private loadSystemDetails(estimates: EstimateSummary[]): void {
     const finalSummaries = estimates.filter((e) => e.status === 'final');
+    const activeFinalSummaries = finalSummaries.filter((e) => !e.supersededById);
     const draftSummaries = estimates.filter((e) => e.status === 'draft');
     this.finalizedEstimateCount = finalSummaries.length;
 
@@ -526,7 +582,6 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
       kwp: detail.totalKw > 0 ? detail.totalKw / 1000 : null,
       inverterKw: inverterKw > 0 ? inverterKw : null,
       batteryKwh: batteryKwh > 0 ? batteryKwh : null,
-    const activeFinalSummaries = finalSummaries.filter((e) => !e.supersededById);
       systemPrice: detail.grandTotal > 0 ? detail.grandTotal : null,
       typeOfSystemName: detail.typeOfSystemName,
     };
@@ -579,6 +634,13 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
             estimate.versionNo = result.versionNo;
             estimate.finalizedAt = result.finalizedAt;
             estimate.finalizedBy = result.finalizedBy;
+
+            // ใบนี้เป็น revision ของใบอื่น (มาจากปุ่ม Create Revision) — RPC mark ใบต้นทางว่าถูกแทนที่แล้วในทรานแซกชันเดียวกัน
+            // สะท้อนผลข้างเคียงนั้นเข้า this.estimates ตรงนี้เลย ไม่ต้อง refetch ทั้ง list
+            if (estimate.revisedFromId) {
+              const source = this.estimates.find((e) => e.id === estimate.revisedFromId);
+              if (source) source.supersededById = id;
+            }
           }
           this.loadSystemDetails(this.estimates);
         },
@@ -620,12 +682,19 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
             estimate.versionNo = result.versionNo;
             estimate.finalizedAt = result.finalizedAt;
             estimate.finalizedBy = result.finalizedBy;
+
+            // ใบนี้เป็น revision ของใบอื่น — unfinalize คืนสถานะ "ยังไม่ถูกแทนที่" ให้ใบต้นทางด้วย (RPC ฝั่ง DB ทำแล้ว, sync ฝั่ง UI ตาม)
+            if (estimate.revisedFromId) {
+              const source = this.estimates.find((e) => e.id === estimate.revisedFromId);
+              if (source) source.supersededById = null;
+            }
           }
           this.loadSystemDetails(this.estimates);
         },
         error: (err) => {
           this.finalizingEstimateId = null;
           console.error('[API] Failed to unfinalize estimate:', err);
+          // 409 ตอนนี้ครอบคลุม 3 เคส: ไม่ใช่ final แล้ว / ถูก superseded ไปแล้ว / มี draft revision ค้างอยู่ (ปกติปุ่มถูกซ่อนไว้ก่อนแล้ว เจอเฉพาะ race condition)
           this.estimateActionErrorMessage = err?.status === 409
             ? 'Cannot revert this quotation to draft right now — it may have changed elsewhere (already superseded, or has a pending revision). Please refresh and try again'
             : 'Failed to revert estimate to draft. Please try again';
@@ -633,15 +702,44 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
       });
   }
 
+  // input: id ของ draft ในแถว History (รวม draft ที่เป็น revision ค้างอยู่ด้วย) — output: ไม่มี, confirm ก่อนเพราะลบแล้วกู้คืนไม่ได้
+  onDeleteEstimate(id: string): void {
+    if (this.finalizingEstimateId || this.deletingEstimateId) return;
+    this.confirmationService.confirm({
+      header: 'Confirm Delete',
+      message: 'This draft will be permanently deleted and cannot be undone. Continue?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => this.deleteEstimate(id),
+    });
+  }
+
+  private deleteEstimate(id: string): void {
+    this.estimateActionErrorMessage = '';
+    this.deletingEstimateId = id;
+
+    this.estimateService.delete(id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.deletingEstimateId = null;
+          // ลบออกจาก local list ตรงๆ แทนการ refetch — estimateHistoryRows/loadSystemDetails คำนวณจาก this.estimates ใหม่ทุกครั้งอยู่แล้ว
+          this.estimates = this.estimates.filter((e) => e.id !== id);
+          this.loadSystemDetails(this.estimates);
+        },
+        error: (err) => {
+          this.deletingEstimateId = null;
+          console.error('[API] Failed to delete estimate:', err);
+          this.estimateActionErrorMessage = err?.status === 409
+            ? 'This estimate was already finalized and cannot be deleted'
+            : 'Failed to delete draft. Please try again';
+        },
+      });
+  }
+
   // input: status id ที่ผู้ใช้เลือกใน dropdown — output: ไม่มี, บันทึกลง backend; ถ้าพลาดคืนค่า dropdown กลับเป็นค่าที่บันทึกไว้
   onStatusChange(newStatusId: number | null): void {
-
-            // ใบนี้เป็น revision ของใบอื่น (มาจากปุ่ม Create Revision) — RPC mark ใบต้นทางว่าถูกแทนที่แล้วในทรานแซกชันเดียวกัน
-            // สะท้อนผลข้างเคียงนั้นเข้า this.estimates ตรงนี้เลย ไม่ต้อง refetch ทั้ง list
-            if (estimate.revisedFromId) {
-              const source = this.estimates.find((e) => e.id === estimate.revisedFromId);
-              if (source) source.supersededById = id;
-            }
     if (!this.customer || newStatusId === null || this.isSavingStatus) return;
     if (newStatusId === this.savedStatusId) return;
 
@@ -683,19 +781,12 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
     if (contact.isSaving) return;
     contact.editSnapshot = {
       firstname: contact.firstname,
-
-            // ใบนี้เป็น revision ของใบอื่น — unfinalize คืนสถานะ "ยังไม่ถูกแทนที่" ให้ใบต้นทางด้วย (RPC ฝั่ง DB ทำแล้ว, sync ฝั่ง UI ตาม)
-            if (estimate.revisedFromId) {
-              const source = this.estimates.find((e) => e.id === estimate.revisedFromId);
-              if (source) source.supersededById = null;
-            }
       lastname: contact.lastname,
       phone: contact.phone,
       email: contact.email,
     };
     this.contactErrorMessage = '';
     contact.isEditing = true;
-          // 409 ตอนนี้ครอบคลุม 3 เคส: ไม่ใช่ final แล้ว / ถูก superseded ไปแล้ว / มี draft revision ค้างอยู่ (ปกติปุ่มถูกซ่อนไว้ก่อนแล้ว เจอเฉพาะ race condition)
   }
 
   // input: contact ที่กำลัง edit อยู่ (save แล้วเท่านั้น — แถวใหม่ใช้ removeContact ลบทิ้งแทน)
@@ -703,42 +794,6 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
   cancelEditContact(contact: Contact): void {
     if (contact.isSaving) return;
     if (contact.editSnapshot) {
-  // input: id ของ draft ในแถว History (รวม draft ที่เป็น revision ค้างอยู่ด้วย) — output: ไม่มี, confirm ก่อนเพราะลบแล้วกู้คืนไม่ได้
-  onDeleteEstimate(id: string): void {
-    if (this.finalizingEstimateId || this.deletingEstimateId) return;
-    this.confirmationService.confirm({
-      header: 'Confirm Delete',
-      message: 'This draft will be permanently deleted and cannot be undone. Continue?',
-      icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'Delete',
-      rejectLabel: 'Cancel',
-      accept: () => this.deleteEstimate(id),
-    });
-  }
-
-  private deleteEstimate(id: string): void {
-    this.estimateActionErrorMessage = '';
-    this.deletingEstimateId = id;
-
-    this.estimateService.delete(id)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => {
-          this.deletingEstimateId = null;
-          // ลบออกจาก local list ตรงๆ แทนการ refetch — estimateHistoryRows/loadSystemDetails คำนวณจาก this.estimates ใหม่ทุกครั้งอยู่แล้ว
-          this.estimates = this.estimates.filter((e) => e.id !== id);
-          this.loadSystemDetails(this.estimates);
-        },
-        error: (err) => {
-          this.deletingEstimateId = null;
-          console.error('[API] Failed to delete estimate:', err);
-          this.estimateActionErrorMessage = err?.status === 409
-            ? 'This estimate was already finalized and cannot be deleted'
-            : 'Failed to delete draft. Please try again';
-        },
-      });
-  }
-
       contact.firstname = contact.editSnapshot.firstname;
       contact.lastname = contact.editSnapshot.lastname;
       contact.phone = contact.editSnapshot.phone;

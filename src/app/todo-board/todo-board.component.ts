@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -7,19 +7,31 @@ import { MultiSelectModule } from 'primeng/multiselect';
 import { DatePickerModule } from 'primeng/datepicker';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { DialogModule } from 'primeng/dialog';
+import { ImageModule } from 'primeng/image';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { TodoService } from '../services/todo.service';
 import { TodoCommentsComponent } from './todo-comments/todo-comments.component';
+import { ATTACHMENT_ACCEPT, FilePreviewCache, mergeAttachmentFiles } from '../attachment-files.util';
 import type { Customer } from '../services/workflow.service';
-import type { TodoCard, TodoAssignee, TodoRole, TodoStatus, UpdateTodoPayload } from '../dto/todo.dto';
+import type { TodoAttachment, TodoCard, TodoAssignee, TodoRole, TodoStatus, UpdateTodoPayload } from '../dto/todo.dto';
 
 // การ์ด To-Do ที่ collapse ได้: manager เห็น 'all' ใบเดียว, role อื่นเห็น 'mine' + 'team'
 type TodoCardKey = 'all' | 'mine' | 'team';
 
 // field ที่แก้ไขแบบ inline ได้ทีละอัน (Status/startDate/daysAllotted/closeDate ไม่รวม เพราะคลิกแล้วเปลี่ยน/save ได้ทันทีอยู่แล้วเหมือน badge dropdown)
 type EditableField = 'task' | 'customer' | 'assignees';
+
+// ค่า draft ของโหมดแก้ไขใน drawer (ปุ่ม Edit ปุ่มเดียวแก้ทุก field พร้อมกัน แล้ว Save ครั้งเดียว)
+interface DrawerDraft {
+  description: string;
+  customerId: string | null;
+  startDate: Date | null;
+  daysAllotted: number | null;
+  closeDate: Date | null;
+  assigneeIds: string[];
+}
 
 export interface AssigneeOption extends TodoAssignee {
   label: string;
@@ -62,12 +74,12 @@ const PRIVILEGED_ROLES: readonly TodoRole[] = ['ceo', 'admin'];
 
 @Component({
   selector: 'app-todo-board',
-  imports: [RouterLink, FormsModule, SelectModule, MultiSelectModule, DatePickerModule, ProgressSpinnerModule, DialogModule, ConfirmDialogModule, ToastModule, TodoCommentsComponent],
+  imports: [RouterLink, FormsModule, SelectModule, MultiSelectModule, DatePickerModule, ProgressSpinnerModule, DialogModule, ImageModule, ConfirmDialogModule, ToastModule, TodoCommentsComponent],
   templateUrl: './todo-board.component.html',
   styleUrl: './todo-board.component.scss',
   providers: [ConfirmationService, MessageService]
 })
-export class TodoBoardComponent implements OnInit {
+export class TodoBoardComponent implements OnInit, OnDestroy {
   private readonly todoService = inject(TodoService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
@@ -108,10 +120,17 @@ export class TodoBoardComponent implements OnInit {
   // id ของ task ที่เปิด drawer รายละเอียด/comment อยู่ (null = ปิด) — เก็บแค่ id แล้ว lookup จาก todos() สดทุกครั้ง
   // กัน object ค้างเก่าหลัง loadTodos() (เช่น commentCount/field อื่นเปลี่ยนระหว่างเปิด drawer อยู่)
   private readonly drawerTodoId = signal<string | null>(null);
+  // ไฟล์แนบของ task ที่เปิด drawer อยู่ — โหลดตอนเปิดเท่านั้น (ไม่ฝังใน TodoCard เพราะต้อง sign URL ต่อไฟล์)
+  readonly drawerAttachments = signal<TodoAttachment[]>([]);
   readonly drawerTodo = computed<TodoCard | null>(() => {
     const id = this.drawerTodoId();
     return id ? (this.todos().find(todo => todo.id === id) ?? null) : null;
   });
+
+  // โหมดแก้ไขของ drawer — แยกจาก activeEdit/editXxx ของตารางโดยเจตนา: ตารางอยู่หลัง modal ถ้าใช้ state ร่วมกัน
+  // การแก้ใน drawer จะเปิด edit-row หลังฉากด้วย และ draft ที่พิมพ์ค้างไว้ในตารางจะถูกทับเงียบๆ
+  readonly drawerEditing = signal(false);
+  drawerDraft: DrawerDraft = { description: '', customerId: null, startDate: null, daysAllotted: null, closeDate: null, assigneeIds: [] };
 
   // filter ของ ceo/admin (กรองฝั่ง client — backend ส่งทุกงานมาให้ ceo/admin อยู่แล้ว)
   teamFilter = signal<TodoRole | null>(null);
@@ -130,6 +149,11 @@ export class TodoBoardComponent implements OnInit {
   newStartDate: Date | null = null;
   newDaysAllotted: number | null = null;
   newAssigneeIds: string[] = [];
+  // ไฟล์ที่เลือกไว้รอแนบ — อัปโหลดเป็นไฟล์แนบของ task (แสดงใต้ Description ใน drawer) หลังสร้างสำเร็จ
+  newFiles = signal<File[]>([]);
+  readonly attachmentAccept = ATTACHMENT_ACCEPT;
+  // thumbnail ของรูปที่เลือกไว้รอแนบ — PDF/ไฟล์อื่นไม่มี preview (urlFor คืน null)
+  readonly filePreviews = new FilePreviewCache();
 
   readonly statusOptions = (Object.keys(STATUS_META) as TodoStatus[]).map(value => ({ value, ...STATUS_META[value] }));
 
@@ -469,11 +493,97 @@ export class TodoBoardComponent implements OnInit {
 
   // เปิด drawer รายละเอียด + comment ของ task นี้ (คลิกที่ title)
   openTaskDrawer(todo: TodoCard): void {
+    this.cancelDrawerEdit();
     this.drawerTodoId.set(todo.id);
+    this.loadDrawerAttachments(todo.id);
+  }
+
+  // input: todo UUID — ตอบกลับมาช้ากว่าที่ผู้ใช้ปิด/เปิดอีก task ต้องทิ้งผล ไม่งั้นรูปของtaskเก่าไปโผล่ใน drawer ใหม่
+  private loadDrawerAttachments(id: string): void {
+    this.drawerAttachments.set([]);
+    this.todoService.getAttachments(id).subscribe({
+      next: list => {
+        if (this.drawerTodoId() === id) this.drawerAttachments.set(list);
+      },
+      error: err => {
+        if (this.drawerTodoId() === id) this.notifyError('Load Failed', this.errorMessage(err, 'Unable to load attachments'));
+      }
+    });
   }
 
   closeTaskDrawer(): void {
+    this.cancelDrawerEdit();
     this.drawerTodoId.set(null);
+    this.drawerAttachments.set([]);
+  }
+
+  // เข้าโหมดแก้ไข: คัดลอกค่าปัจจุบันของทุก field มาเป็น draft — ไม่ยิง API จนกว่าจะกด Save (saveDrawerEdit)
+  // วันที่ใช้ toDate() ที่มี cache เท่านั้น ไม่งั้น p-datepicker เห็น [ngModel] เปลี่ยนทุกรอบ CD แล้ววนลูปค้างหน้า
+  startDrawerEdit(todo: TodoCard): void {
+    this.drawerDraft = {
+      description: todo.description ?? '',
+      customerId: todo.customerId,
+      startDate: this.toDate(todo.startDate),
+      daysAllotted: todo.daysAllotted,
+      closeDate: this.toDate(todo.closeDate),
+      assigneeIds: todo.assignees.map(assignee => assignee.id)
+    };
+    this.drawerEditing.set(true);
+  }
+
+  // ทิ้ง draft — เรียกตอนกด Cancel และตอนเปิด/ปิด drawer กัน draft ของtaskเก่าค้างไปโผล่ตอนเปิดtaskถัดไป
+  cancelDrawerEdit(): void {
+    this.drawerEditing.set(false);
+  }
+
+  // input: taskใน drawer — output: ยิง PATCH ครั้งเดียวเฉพาะ field ที่เปลี่ยนจริง (ไม่เขียนทับ field ที่คนอื่นเพิ่งแก้)
+  // ไม่มีอะไรเปลี่ยน = ออกจากโหมดแก้ไขเฉยๆ ไม่ยิง API, description ว่าง/มีแต่ช่องว่าง = null
+  saveDrawerEdit(todo: TodoCard): void {
+    if (this.isTodoPending(todo.id)) return;
+
+    const draft = this.drawerDraft;
+    if (!draft.assigneeIds.length) {
+      this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Select at least one assignee' });
+      return;
+    }
+    // backend รับเฉพาะจำนวนเต็ม >= 0 (@IsInt @Min(0)) — เช็กก่อนส่ง ไม่งั้นโดน 400 กลับมาทีหลัง
+    const days = draft.daysAllotted;
+    if (days !== null && (!Number.isInteger(days) || days < 0)) {
+      this.messageService.add({ severity: 'warn', summary: 'Invalid value', detail: 'Days must be a whole number, 0 or more' });
+      return;
+    }
+
+    const patch: UpdateTodoPayload = {};
+    const description = draft.description.trim() || null;
+    if (description !== (todo.description?.trim() || null)) patch.description = description;
+    if (draft.customerId !== todo.customerId) patch.customer_id = draft.customerId;
+    const startDate = this.toDateString(draft.startDate) ?? null;
+    if (startDate !== todo.startDate) patch.start_date = startDate;
+    if (days !== todo.daysAllotted) patch.days_allotted = days;
+    const closeDate = this.toDateString(draft.closeDate) ?? null;
+    if (closeDate !== todo.closeDate) patch.close_date = closeDate;
+    const currentAssigneeIds = todo.assignees.map(assignee => assignee.id);
+    const assigneesChanged = draft.assigneeIds.length !== currentAssigneeIds.length
+      || draft.assigneeIds.some(id => !currentAssigneeIds.includes(id));
+    if (assigneesChanged) patch.assignee_ids = draft.assigneeIds;
+
+    if (!Object.keys(patch).length) {
+      this.cancelDrawerEdit();
+      return;
+    }
+
+    this.setTodoPending(todo.id, true);
+    this.todoService.update(todo.id, patch).subscribe({
+      next: () => this.loadTodos(() => {
+        this.setTodoPending(todo.id, false);
+        // ผู้ใช้อาจปิด/เปิดtaskอื่นระหว่างรอ — cancelDrawerEdit() ถูกเรียกตอนนั้นไปแล้ว ไม่ต้องล้างซ้ำ
+        if (this.drawerTodoId() === todo.id) this.cancelDrawerEdit();
+      }),
+      error: err => {
+        this.setTodoPending(todo.id, false);
+        this.notifyError('Update Failed', this.errorMessage(err, 'Unable to update task'));
+      }
+    });
   }
 
   // ผูกกับ (visibleChange) ของ p-dialog — ปิดด้วย X/Esc/คลิก mask ก็ต้องเคลียร์ state เหมือนกด close เอง
@@ -596,8 +706,15 @@ export class TodoBoardComponent implements OnInit {
 
   // input: event ของ input[type=number] — พิมพ์เสร็จแล้ว blur/Enter ถึง save (change event) ไม่ save ทุก keystroke, ลบค่าจนว่างเปล่า = null
   setTodoDaysAllotted(todo: TodoCard, event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    this.applyTodoUpdate(todo, { days_allotted: value === '' ? null : Number(value) });
+    const input = event.target as HTMLInputElement;
+    const days = input.value === '' ? null : Number(input.value);
+    // backend รับเฉพาะจำนวนเต็ม >= 0 (@IsInt @Min(0)) — ถ้าส่งไปจะโดน 400 และ [value] binding ไม่เปลี่ยนเลยช่องจะค้างค่าผิดอยู่ จึงเช็กก่อนแล้วคืนค่าเดิม
+    if (days !== null && (!Number.isInteger(days) || days < 0)) {
+      this.messageService.add({ severity: 'warn', summary: 'Invalid value', detail: 'Days must be a whole number, 0 or more' });
+      input.value = todo.daysAllotted === null ? '' : String(todo.daysAllotted);
+      return;
+    }
+    this.applyTodoUpdate(todo, { days_allotted: days });
   }
 
   deleteTask(id: string): void {
@@ -613,6 +730,45 @@ export class TodoBoardComponent implements OnInit {
     });
   }
 
+  onNewFilesSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const picked = Array.from(input.files ?? []);
+    // เคลียร์ค่าเสมอ ไม่งั้นเลือกไฟล์เดิมซ้ำหลังกดลบ chip แล้ว change event จะไม่ยิง
+    input.value = '';
+    if (!picked.length) return;
+
+    const result = mergeAttachmentFiles(this.newFiles(), picked);
+    if ('error' in result) {
+      this.messageService.add({ severity: 'warn', summary: 'Invalid file', detail: result.error });
+      return;
+    }
+    this.newFiles.set(result.files);
+  }
+
+  removeNewFile(index: number): void {
+    const removed = this.newFiles()[index];
+    if (removed) this.filePreviews.release(removed);
+    this.newFiles.update(files => files.filter((_, i) => i !== index));
+  }
+
+  ngOnDestroy(): void {
+    this.filePreviews.releaseAll();
+  }
+
+  // input: ช่อง title/description ของฟอร์ม Add (ล้างค่าหลัง task ถูกสร้างแล้ว ไม่ว่าไฟล์แนบจะอัปโหลดสำเร็จหรือไม่ — กันผู้ใช้กด Add ซ้ำจนได้ task ซ้ำ)
+  private finishAdd(titleInput: HTMLInputElement, descriptionInput: HTMLTextAreaElement): void {
+    this.loadTodos();
+    titleInput.value = '';
+    descriptionInput.value = '';
+    this.newCustomerId = null;
+    this.newStartDate = null;
+    this.newDaysAllotted = null;
+    this.newAssigneeIds = [];
+    this.newFiles.set([]);
+    this.filePreviews.releaseAll();
+    this.isSubmitting.set(false);
+  }
+
   addTask(titleInput: HTMLInputElement, descriptionInput: HTMLTextAreaElement): void {
     const title = titleInput.value.trim();
     if (!title || this.isSubmitting()) return;
@@ -622,6 +778,7 @@ export class TodoBoardComponent implements OnInit {
       return;
     }
     const description = descriptionInput.value.trim();
+    const files = this.newFiles();
 
     this.isSubmitting.set(true);
     this.todoService.create({
@@ -633,15 +790,18 @@ export class TodoBoardComponent implements OnInit {
       days_allotted: this.newDaysAllotted ?? undefined,
       assignee_ids: this.newAssigneeIds
     }).subscribe({
-      next: () => {
-        this.loadTodos();
-        titleInput.value = '';
-        descriptionInput.value = '';
-        this.newCustomerId = null;
-        this.newStartDate = null;
-        this.newDaysAllotted = null;
-        this.newAssigneeIds = [];
-        this.isSubmitting.set(false);
+      next: created => {
+        if (!files.length) {
+          this.finishAdd(titleInput, descriptionInput);
+          return;
+        }
+        this.todoService.addAttachments(created.id, files).subscribe({
+          next: () => this.finishAdd(titleInput, descriptionInput),
+          error: err => {
+            this.finishAdd(titleInput, descriptionInput);
+            this.notifyError('Attachment Failed', `Task was added, but the files were not uploaded: ${this.errorMessage(err, 'Unable to upload files')}`);
+          }
+        });
       },
       error: err => {
         this.notifyError('Add Failed', this.errorMessage(err, 'Unable to add task'));

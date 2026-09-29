@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, computed, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -7,16 +7,28 @@ import { MultiSelectModule } from 'primeng/multiselect';
 import { DatePickerModule } from 'primeng/datepicker';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { DialogModule } from 'primeng/dialog';
+import { ImageModule } from 'primeng/image';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { TicketService } from '../services/ticket.service';
 import { TicketCommentsComponent } from './ticket-comments/ticket-comments.component';
+import { ATTACHMENT_ACCEPT, FilePreviewCache, mergeAttachmentFiles } from '../attachment-files.util';
 import type { Customer } from '../services/workflow.service';
-import type { TicketCard, TicketAssignee, TicketRole, TicketStatus, UpdateTicketPayload } from '../dto/ticket.dto';
+import type { TicketAttachment, TicketCard, TicketAssignee, TicketRole, TicketStatus, UpdateTicketPayload } from '../dto/ticket.dto';
 
 // field ที่แก้ไขแบบ inline ได้ทีละอัน (Status/startDate/daysAllotted/closeDate ไม่รวม เพราะคลิกแล้วเปลี่ยน/save ได้ทันทีอยู่แล้วเหมือน badge dropdown)
 type EditableField = 'task' | 'customer' | 'assignees';
+
+// ค่า draft ของโหมดแก้ไขใน drawer (ปุ่ม Edit ปุ่มเดียวแก้ทุก field พร้อมกัน แล้ว Save ครั้งเดียว)
+interface DrawerDraft {
+  description: string;
+  customerId: string | null;
+  startDate: Date | null;
+  daysAllotted: number | null;
+  closeDate: Date | null;
+  assigneeIds: string[];
+}
 
 export interface AssigneeOption extends TicketAssignee {
   label: string;
@@ -42,7 +54,7 @@ const ROLE_LABELS: Record<TicketRole, string> = {
 };
 
 // สีจุดหน้า Status dropdown ตาม reference (Notion) — ชุดเดียวกับ Todo
-const STATUS_META: Record<TicketStatus, { label: string; color: string }> = {
+export const STATUS_META: Record<TicketStatus, { label: string; color: string }> = {
   todo: { label: 'Not started', color: 'var(--k-accent-orange)' },
   to_schedule: { label: 'To Schedule', color: 'var(--k-accent-blue)' },
   in_progress: { label: 'In Progress', color: 'var(--k-accent-blue)' },
@@ -54,12 +66,12 @@ const COLUMN_COUNT = 10;
 
 @Component({
   selector: 'app-ticket-board',
-  imports: [RouterLink, FormsModule, SelectModule, MultiSelectModule, DatePickerModule, ProgressSpinnerModule, DialogModule, ConfirmDialogModule, ToastModule, TicketCommentsComponent],
+  imports: [RouterLink, FormsModule, SelectModule, MultiSelectModule, DatePickerModule, ProgressSpinnerModule, DialogModule, ImageModule, ConfirmDialogModule, ToastModule, TicketCommentsComponent],
   templateUrl: './ticket-board.component.html',
   styleUrl: './ticket-board.component.scss',
   providers: [ConfirmationService, MessageService]
 })
-export class TicketBoardComponent implements OnInit {
+export class TicketBoardComponent implements OnInit, OnDestroy {
   private readonly ticketService = inject(TicketService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
@@ -71,6 +83,15 @@ export class TicketBoardComponent implements OnInit {
   @Input() set customers(list: Customer[]) {
     this.customerOptions = [...list].sort((a, b) => a.name.localeCompare(b.name));
   }
+
+  // ล็อกเฉพาะ ticket ของลูกค้ารายนี้ (ว่าง = เห็นทุก ticket) — ส่ง customerId ให้ backend คืนทุก ticket ของลูกค้ารายนี้ (ไม่กรองทีม) แล้วกรองซ้ำฝั่ง client เป็นชั้นสำรอง
+  @Input() customerId: string | null = null;
+  // true = ไม่ render ตาราง/ฟอร์ม Add เหลือแค่ dialog รายละเอียด — ให้หน้าอื่น (เช่น customer detail) เปิดดู ticket ผ่าน openTaskDrawer() ได้โดยไม่ต้องวางบอร์ดเต็ม
+  @Input() dialogOnly = false;
+  // emit list (หลังกรอง customerId แล้ว) ทุกครั้งที่โหลดสำเร็จ รวมถึง reload หลังเพิ่ม/ลบ comment — ให้หน้าที่ฝังบอร์ดไว้เลี้ยง UI ของตัวเองโดยไม่ยิง getAll() ซ้ำ
+  @Output() ticketsChange = new EventEmitter<TicketCard[]>();
+  // emit เมื่อโหลด me/ticket ไม่สำเร็จ — กันหน้าที่ฝังบอร์ดค้างที่ "Loading…" เพราะไม่มี ticketsChange มาเลย
+  @Output() loadFailed = new EventEmitter<void>();
 
   readonly teamOptions = (Object.keys(ROLE_LABELS) as TicketRole[]).map(role => ({ role, label: ROLE_LABELS[role] }));
 
@@ -97,10 +118,17 @@ export class TicketBoardComponent implements OnInit {
   // id ของ ticket ที่เปิด drawer รายละเอียด/comment อยู่ (null = ปิด) — เก็บแค่ id แล้ว lookup จาก tickets() สดทุกครั้ง
   // กัน object ค้างเก่าหลัง loadTickets() (เช่น commentCount/field อื่นเปลี่ยนระหว่างเปิด drawer อยู่)
   private readonly drawerTicketId = signal<string | null>(null);
+  // ไฟล์แนบของ ticket ที่เปิด drawer อยู่ — โหลดตอนเปิดเท่านั้น (ไม่ฝังใน TicketCard เพราะต้อง sign URL ต่อไฟล์)
+  readonly drawerAttachments = signal<TicketAttachment[]>([]);
   readonly drawerTicket = computed<TicketCard | null>(() => {
     const id = this.drawerTicketId();
     return id ? (this.tickets().find(ticket => ticket.id === id) ?? null) : null;
   });
+
+  // โหมดแก้ไขของ drawer — แยกจาก activeEdit/editXxx ของตารางโดยเจตนา: ตารางอยู่หลัง modal ถ้าใช้ state ร่วมกัน
+  // การแก้ใน drawer จะเปิด edit-row หลังฉากด้วย และ draft ที่พิมพ์ค้างไว้ในตารางจะถูกทับเงียบๆ
+  readonly drawerEditing = signal(false);
+  drawerDraft: DrawerDraft = { description: '', customerId: null, startDate: null, daysAllotted: null, closeDate: null, assigneeIds: [] };
 
   // filter ของ ceo/admin (กรองฝั่ง client — backend ส่งทุก ticket มาให้ ceo/admin อยู่แล้ว)
   teamFilter = signal<TicketRole | null>(null);
@@ -119,10 +147,18 @@ export class TicketBoardComponent implements OnInit {
   newStartDate: Date | null = null;
   newDaysAllotted: number | null = null;
   newAssigneeIds: string[] = [];
+  // ไฟล์ที่เลือกไว้รอแนบ — อัปโหลดเป็นไฟล์แนบของ ticket (แสดงใต้ Description ใน drawer) หลังสร้างสำเร็จ
+  newFiles = signal<File[]>([]);
+  readonly attachmentAccept = ATTACHMENT_ACCEPT;
+  // thumbnail ของรูปที่เลือกไว้รอแนบ — PDF/ไฟล์อื่นไม่มี preview (urlFor คืน null)
+  readonly filePreviews = new FilePreviewCache();
 
   readonly statusOptions = (Object.keys(STATUS_META) as TicketStatus[]).map(value => ({ value, ...STATUS_META[value] }));
 
-  readonly columnCount = COLUMN_COUNT;
+  // จำนวนคอลัมน์ของตาราง — ล็อก customerId แล้วซ่อนคอลัมน์ Customer จึงเหลือ 9 (ใช้กับ colspan ของแถวพิเศษ), เหมือน todo-board
+  get columnCount(): number {
+    return this.customerId ? COLUMN_COUNT - 1 : COLUMN_COUNT;
+  }
 
   readonly isManager = computed<boolean>(() => {
     const role = this.me()?.role;
@@ -179,21 +215,25 @@ export class TicketBoardComponent implements OnInit {
       error: err => {
         this.notifyError('Load Failed', this.errorMessage(err, 'Unable to load your Ticket profile'));
         this.ticketsLoading.set(false);
+        this.loadFailed.emit();
       }
     });
   }
 
   // input: onSettled — เรียกเมื่อโหลดเสร็จไม่ว่าสำเร็จหรือพัง (ใช้ปลด pending ของ toggle/delete หลัง list อัปเดตแล้ว)
   private loadTickets(onSettled?: () => void): void {
-    this.ticketService.getAll().subscribe({
+    this.ticketService.getAll(this.customerId ?? undefined).subscribe({
       next: list => {
-        this.tickets.set(list);
+        const scoped = this.customerId ? list.filter(ticket => ticket.customerId === this.customerId) : list;
+        this.tickets.set(scoped);
         this.ticketsLoading.set(false);
+        this.ticketsChange.emit(scoped);
         onSettled?.();
       },
       error: err => {
         this.notifyError('Load Failed', this.errorMessage(err, 'Unable to load tickets'));
         this.ticketsLoading.set(false);
+        this.loadFailed.emit();
         onSettled?.();
       }
     });
@@ -431,11 +471,97 @@ export class TicketBoardComponent implements OnInit {
 
   // เปิด drawer รายละเอียด + comment ของ ticket นี้ (คลิกที่ title)
   openTaskDrawer(ticket: TicketCard): void {
+    this.cancelDrawerEdit();
     this.drawerTicketId.set(ticket.id);
+    this.loadDrawerAttachments(ticket.id);
+  }
+
+  // input: ticket UUID — ตอบกลับมาช้ากว่าที่ผู้ใช้ปิด/เปิดอีก ticket ต้องทิ้งผล ไม่งั้นรูปของticketเก่าไปโผล่ใน drawer ใหม่
+  private loadDrawerAttachments(id: string): void {
+    this.drawerAttachments.set([]);
+    this.ticketService.getAttachments(id).subscribe({
+      next: list => {
+        if (this.drawerTicketId() === id) this.drawerAttachments.set(list);
+      },
+      error: err => {
+        if (this.drawerTicketId() === id) this.notifyError('Load Failed', this.errorMessage(err, 'Unable to load attachments'));
+      }
+    });
   }
 
   closeTaskDrawer(): void {
+    this.cancelDrawerEdit();
     this.drawerTicketId.set(null);
+    this.drawerAttachments.set([]);
+  }
+
+  // เข้าโหมดแก้ไข: คัดลอกค่าปัจจุบันของทุก field มาเป็น draft — ไม่ยิง API จนกว่าจะกด Save (saveDrawerEdit)
+  // วันที่ใช้ toDate() ที่มี cache เท่านั้น ไม่งั้น p-datepicker เห็น [ngModel] เปลี่ยนทุกรอบ CD แล้ววนลูปค้างหน้า
+  startDrawerEdit(ticket: TicketCard): void {
+    this.drawerDraft = {
+      description: ticket.description ?? '',
+      customerId: ticket.customerId,
+      startDate: this.toDate(ticket.startDate),
+      daysAllotted: ticket.daysAllotted,
+      closeDate: this.toDate(ticket.closeDate),
+      assigneeIds: ticket.assignees.map(assignee => assignee.id)
+    };
+    this.drawerEditing.set(true);
+  }
+
+  // ทิ้ง draft — เรียกตอนกด Cancel และตอนเปิด/ปิด drawer กัน draft ของticketเก่าค้างไปโผล่ตอนเปิดticketถัดไป
+  cancelDrawerEdit(): void {
+    this.drawerEditing.set(false);
+  }
+
+  // input: ticketใน drawer — output: ยิง PATCH ครั้งเดียวเฉพาะ field ที่เปลี่ยนจริง (ไม่เขียนทับ field ที่คนอื่นเพิ่งแก้)
+  // ไม่มีอะไรเปลี่ยน = ออกจากโหมดแก้ไขเฉยๆ ไม่ยิง API, description ว่าง/มีแต่ช่องว่าง = null
+  saveDrawerEdit(ticket: TicketCard): void {
+    if (this.isTicketPending(ticket.id)) return;
+
+    const draft = this.drawerDraft;
+    if (!draft.assigneeIds.length) {
+      this.messageService.add({ severity: 'warn', summary: 'Incomplete', detail: 'Select at least one assignee' });
+      return;
+    }
+    // backend รับเฉพาะจำนวนเต็ม >= 0 (@IsInt @Min(0)) — เช็กก่อนส่ง ไม่งั้นโดน 400 กลับมาทีหลัง
+    const days = draft.daysAllotted;
+    if (days !== null && (!Number.isInteger(days) || days < 0)) {
+      this.messageService.add({ severity: 'warn', summary: 'Invalid value', detail: 'Days must be a whole number, 0 or more' });
+      return;
+    }
+
+    const patch: UpdateTicketPayload = {};
+    const description = draft.description.trim() || null;
+    if (description !== (ticket.description?.trim() || null)) patch.description = description;
+    if (draft.customerId !== ticket.customerId) patch.customer_id = draft.customerId;
+    const startDate = this.toDateString(draft.startDate) ?? null;
+    if (startDate !== ticket.startDate) patch.start_date = startDate;
+    if (days !== ticket.daysAllotted) patch.days_allotted = days;
+    const closeDate = this.toDateString(draft.closeDate) ?? null;
+    if (closeDate !== ticket.closeDate) patch.close_date = closeDate;
+    const currentAssigneeIds = ticket.assignees.map(assignee => assignee.id);
+    const assigneesChanged = draft.assigneeIds.length !== currentAssigneeIds.length
+      || draft.assigneeIds.some(id => !currentAssigneeIds.includes(id));
+    if (assigneesChanged) patch.assignee_ids = draft.assigneeIds;
+
+    if (!Object.keys(patch).length) {
+      this.cancelDrawerEdit();
+      return;
+    }
+
+    this.setTicketPending(ticket.id, true);
+    this.ticketService.update(ticket.id, patch).subscribe({
+      next: () => this.loadTickets(() => {
+        this.setTicketPending(ticket.id, false);
+        // ผู้ใช้อาจปิด/เปิดticketอื่นระหว่างรอ — cancelDrawerEdit() ถูกเรียกตอนนั้นไปแล้ว ไม่ต้องล้างซ้ำ
+        if (this.drawerTicketId() === ticket.id) this.cancelDrawerEdit();
+      }),
+      error: err => {
+        this.setTicketPending(ticket.id, false);
+        this.notifyError('Update Failed', this.errorMessage(err, 'Unable to update ticket'));
+      }
+    });
   }
 
   // ผูกกับ (visibleChange) ของ p-dialog — ปิดด้วย X/Esc/คลิก mask ก็ต้องเคลียร์ state เหมือนกด close เอง
@@ -456,6 +582,14 @@ export class TicketBoardComponent implements OnInit {
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     return `${day}/${month}/${date.getFullYear()}`;
+  }
+
+  // ตอบ comment ได้เฉพาะคนที่เห็น ticket ตามกฎทีม (privileged หรือมี assignee role เดียวกับตัวเอง) — คนอื่นที่เปิดดูผ่านหน้า customer detail อ่านได้อย่างเดียว
+  // เกณฑ์เดียวกับ assertCanView (ไม่มี allowCustomerLinked) ฝั่ง backend ที่ addComment/removeComment ใช้
+  canComment(ticket: TicketCard): boolean {
+    const me = this.me();
+    if (!me) return false;
+    return this.isManager() || ticket.assignees.some(assignee => assignee.role === me.role);
   }
 
   // คนที่ @mention ได้ในแผง comment ของ ticket นี้ — เฉพาะคนที่มองเห็น ticket นี้ได้ (privileged + assignee role เดียวกับ ticket)
@@ -559,8 +693,15 @@ export class TicketBoardComponent implements OnInit {
 
   // input: event ของ input[type=number] — พิมพ์เสร็จแล้ว blur/Enter ถึง save (change event) ไม่ save ทุก keystroke, ลบค่าจนว่างเปล่า = null
   setTicketDaysAllotted(ticket: TicketCard, event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    this.applyTicketUpdate(ticket, { days_allotted: value === '' ? null : Number(value) });
+    const input = event.target as HTMLInputElement;
+    const days = input.value === '' ? null : Number(input.value);
+    // backend รับเฉพาะจำนวนเต็ม >= 0 (@IsInt @Min(0)) — ถ้าส่งไปจะโดน 400 และ [value] binding ไม่เปลี่ยนเลยช่องจะค้างค่าผิดอยู่ จึงเช็กก่อนแล้วคืนค่าเดิม
+    if (days !== null && (!Number.isInteger(days) || days < 0)) {
+      this.messageService.add({ severity: 'warn', summary: 'Invalid value', detail: 'Days must be a whole number, 0 or more' });
+      input.value = ticket.daysAllotted === null ? '' : String(ticket.daysAllotted);
+      return;
+    }
+    this.applyTicketUpdate(ticket, { days_allotted: days });
   }
 
   deleteTask(id: string): void {
@@ -576,6 +717,45 @@ export class TicketBoardComponent implements OnInit {
     });
   }
 
+  onNewFilesSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const picked = Array.from(input.files ?? []);
+    // เคลียร์ค่าเสมอ ไม่งั้นเลือกไฟล์เดิมซ้ำหลังกดลบ chip แล้ว change event จะไม่ยิง
+    input.value = '';
+    if (!picked.length) return;
+
+    const result = mergeAttachmentFiles(this.newFiles(), picked);
+    if ('error' in result) {
+      this.messageService.add({ severity: 'warn', summary: 'Invalid file', detail: result.error });
+      return;
+    }
+    this.newFiles.set(result.files);
+  }
+
+  removeNewFile(index: number): void {
+    const removed = this.newFiles()[index];
+    if (removed) this.filePreviews.release(removed);
+    this.newFiles.update(files => files.filter((_, i) => i !== index));
+  }
+
+  ngOnDestroy(): void {
+    this.filePreviews.releaseAll();
+  }
+
+  // input: ช่อง title/description ของฟอร์ม Add (ล้างค่าหลัง ticket ถูกสร้างแล้ว ไม่ว่าไฟล์แนบจะอัปโหลดสำเร็จหรือไม่ — กันผู้ใช้กด Add ซ้ำจนได้ ticket ซ้ำ)
+  private finishAdd(titleInput: HTMLInputElement, descriptionInput: HTMLTextAreaElement): void {
+    this.loadTickets();
+    titleInput.value = '';
+    descriptionInput.value = '';
+    this.newCustomerId = null;
+    this.newStartDate = null;
+    this.newDaysAllotted = null;
+    this.newAssigneeIds = [];
+    this.newFiles.set([]);
+    this.filePreviews.releaseAll();
+    this.isSubmitting.set(false);
+  }
+
   addTask(titleInput: HTMLInputElement, descriptionInput: HTMLTextAreaElement): void {
     const title = titleInput.value.trim();
     if (!title || this.isSubmitting()) return;
@@ -585,25 +765,30 @@ export class TicketBoardComponent implements OnInit {
       return;
     }
     const description = descriptionInput.value.trim();
+    const files = this.newFiles();
 
     this.isSubmitting.set(true);
     this.ticketService.create({
       title,
       description: description || undefined,
-      customer_id: this.newCustomerId ?? undefined,
+      // ล็อก customerId (โหมด customer detail) ใช้ค่านั้นเสมอ ไม่พึ่ง newCustomerId ที่ถูกซ่อนอยู่ในฟอร์ม — เหมือน todo-board
+      customer_id: this.customerId ?? this.newCustomerId ?? undefined,
       start_date: this.toDateString(this.newStartDate),
       days_allotted: this.newDaysAllotted ?? undefined,
       assignee_ids: this.newAssigneeIds
     }).subscribe({
-      next: () => {
-        this.loadTickets();
-        titleInput.value = '';
-        descriptionInput.value = '';
-        this.newCustomerId = null;
-        this.newStartDate = null;
-        this.newDaysAllotted = null;
-        this.newAssigneeIds = [];
-        this.isSubmitting.set(false);
+      next: created => {
+        if (!files.length) {
+          this.finishAdd(titleInput, descriptionInput);
+          return;
+        }
+        this.ticketService.addAttachments(created.id, files).subscribe({
+          next: () => this.finishAdd(titleInput, descriptionInput),
+          error: err => {
+            this.finishAdd(titleInput, descriptionInput);
+            this.notifyError('Attachment Failed', `Ticket was added, but the files were not uploaded: ${this.errorMessage(err, 'Unable to upload files')}`);
+          }
+        });
       },
       error: err => {
         this.notifyError('Add Failed', this.errorMessage(err, 'Unable to add ticket'));

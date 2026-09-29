@@ -181,6 +181,126 @@ h1.k-header {
   opacity: 0.6;
 }
 
+// ไฟล์ที่เลือกไว้รอแนบ (ฟอร์ม Add ของ todo-board + ticket-board) — <label class="icon-btn file-attach-btn"> ครอบ <input type="file" hidden>
+.file-attach-btn {
+  display: inline-flex;
+  cursor: pointer;
+
+  &.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+}
+
+// รูปที่แนบและอัปโหลดแล้ว (ใน comment ของ todo-comments/ticket-comments และใต้ Description ใน drawer ของ todo-board/ticket-board)
+// <img> อยู่ใน template ของ p-image จึงต้องเป็น global ไม่ใช่ component scss
+.attachment-image {
+  display: inline-flex;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.attachment-thumb {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-sm);
+}
+
+// ไฟล์แนบของ task/ticket ใน drawer (รูป = .attachment-image, ไฟล์อื่น = .task-attachment-link)
+.task-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.task-attachment-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 240px;
+  padding: 4px 10px;
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  color: var(--k-accent-blue);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: var(--k-accent-blue);
+  }
+}
+
+.file-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 240px;
+  padding: 4px 8px;
+  background: var(--card-bg);
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--k-dark-grey);
+
+  // thumbnail ของรูปที่เลือก — ขนาดคงที่ + cover กันรูปยาว/กว้างทำ chip เบี้ยว
+  .file-chip-thumb {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+
+  // p-image ห่อ <img> ด้วย span — ต้องให้ยืดตามขนาด thumbnail ไม่งั้น overlay ไอคอน preview เพี้ยน
+  p-image {
+    display: inline-flex;
+    flex-shrink: 0;
+    line-height: 0;
+  }
+
+  &.file-chip-image {
+    padding: 4px 8px 4px 4px;
+  }
+
+  .file-chip-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  button {
+    background: none;
+    border: none;
+    color: var(--k-mid-grey);
+    cursor: pointer;
+    font-size: 11px;
+
+    &:hover:not(:disabled) {
+      color: var(--k-red);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+  }
+}
+
 .k-icon-header {
   width: 42px;
   height: 42px;
@@ -451,6 +571,67 @@ h1.k-header {
 .card-header h2 {
   font-size: 16px;
   margin: 0;
+}
+
+/* ===== TABS ===== */
+/* ใช้ร่วมกันทุกหน้าที่มี tab bar สลับเนื้อหาในการ์ด เช่น dashboard, customer detail (task/ticket) */
+.card.k-tabs {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 28px;
+  padding: 4px 24px 0;
+  border-bottom: 1px solid var(--k-light-grey);
+  overflow-x: auto;
+}
+
+.k-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 2px;
+  margin-bottom: -1px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--k-mid-grey);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--k-transition);
+}
+
+.k-tab svg {
+  flex-shrink: 0;
+}
+
+.k-tab:hover {
+  color: var(--k-dark-grey);
+}
+
+.k-tab.active {
+  color: var(--k-red);
+  border-bottom-color: var(--k-red);
+}
+
+.k-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--k-light-grey);
+  color: var(--k-dark-grey);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.k-tab.active .k-tab-badge {
+  background: rgba(176, 29, 42, 0.1);
+  color: var(--k-red);
 }
 
 /* ===== FORM INPUTS ===== */

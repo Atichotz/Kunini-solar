@@ -4,7 +4,7 @@
 <!-- ฟอร์มเพิ่มงานอยู่บนสุดนอก card เสมอ ไม่ว่าจะยุบ/ขยายการ์ดไหนอยู่ — ใช้ร่วมกันทุกการ์ด (มีแค่ข้อมูล newCustomerId ฯลฯ ชุดเดียวต่อ component) -->
 <div class="add-todo-form">
   <div class="add-todo-heading">Add task</div>
-  <input #titleInput type="text" class="add-todo-input mb-2" placeholder="Task title"
+  <input #titleInput type="text" class="add-todo-input mb-2" placeholder="Title"
     (keyup.enter)="addTask(titleInput, descInput)">
   <textarea #descInput class="add-todo-input add-todo-textarea" rows="3"
     placeholder="Description (optional)"></textarea>
@@ -22,9 +22,30 @@
       [(ngModel)]="newAssigneeIds" appendTo="body" placeholder="Assign to..." [filter]="true"
       filterBy="label" [maxSelectedLabels]="1" selectedItemsLabel="{0} people"
       class="add-todo-assignee" />
+    <label class="icon-btn file-attach-btn" [class.disabled]="isSubmitting()" title="Attach files (JPEG, PNG, WebP, PDF)">
+      <i class="fa-solid fa-paperclip"></i>
+      <input type="file" hidden multiple [accept]="attachmentAccept" [disabled]="isSubmitting()"
+        (change)="onNewFilesSelected($event)">
+    </label>
     <button type="button" class="k-btn-sm k-btn-primary add-todo-confirm" [disabled]="isSubmitting()"
       (click)="addTask(titleInput, descInput)">{{ isSubmitting() ? 'Adding…' : 'Add' }}</button>
   </div>
+  @if (newFiles().length) {
+  <div class="file-chips">
+    @for (file of newFiles(); track $index; let i = $index) {
+    <span class="file-chip" [class.file-chip-image]="filePreviews.urlFor(file)" [title]="file.name">
+      @if (filePreviews.urlFor(file); as previewUrl) {
+      <!-- คลิก thumbnail เปิดดูรูปใหญ่ (มี zoom/rotate ในตัว) — appendTo="body" กัน overlay โดน overflow ของฟอร์มตัด -->
+      <p-image [src]="previewUrl" [alt]="file.name" [preview]="true" appendTo="body" imageClass="file-chip-thumb" />
+      } @else {
+      <i class="fa-solid fa-file-pdf"></i>
+      }
+      <span class="file-chip-name">{{ file.name }}</span>
+      <button type="button" [disabled]="isSubmitting()" (click)="removeNewFile(i)" title="Remove file">✕</button>
+    </span>
+    }
+  </div>
+  }
 </div>
 
 <div class="grid">
@@ -313,7 +334,7 @@
 </div>
 
 <p-dialog [visible]="!!drawerTodo()" (visibleChange)="onDrawerVisibleChange($event)" [modal]="true"
-  [dismissableMask]="true" [draggable]="false" [resizable]="false" [style]="{ width: '50vw' }"
+  [dismissableMask]="!drawerEditing()" [closeOnEscape]="!drawerEditing()" [draggable]="false" [resizable]="false" [style]="{ width: '50vw' }"
   [contentStyle]="{ 'max-height': '80vh', 'overflow-y': 'auto' }" styleClass="task-detail-drawer">
   @if (drawerTodo(); as todo) {
   <ng-template #header>
@@ -340,12 +361,31 @@
         </div>
       </div>
       }
+
+      @if (canModify(todo)) {
+      <div class="task-drawer-actions">
+        @if (drawerEditing()) {
+        <button type="button" class="k-btn-sm k-btn-outline" [disabled]="isTodoPending(todo.id)"
+          (click)="cancelDrawerEdit()">Cancel</button>
+        <button type="button" class="k-btn-sm k-btn-primary" [disabled]="isTodoPending(todo.id)"
+          (click)="saveDrawerEdit(todo)">{{ isTodoPending(todo.id) ? 'Saving…' : 'Save' }}</button>
+        } @else {
+        <button type="button" class="k-btn-sm k-btn-outline" (click)="startDrawerEdit(todo)">
+          <i class="fa-solid fa-pen"></i> Edit
+        </button>
+        }
+      </div>
+      }
     </div>
 
     @if (!customerId) {
     <div class="task-drawer-section">
       <span class="task-drawer-label">Customer</span>
-      @if (todo.customerName) {
+      @if (drawerEditing()) {
+      <p-select [options]="customerOptions" optionLabel="name" optionValue="id" [(ngModel)]="drawerDraft.customerId"
+        appendTo="body" placeholder="Select customer" [filter]="true" filterBy="name" [showClear]="true"
+        [disabled]="isTodoPending(todo.id)" class="task-drawer-edit-select" />
+      } @else if (todo.customerName) {
       <a [routerLink]="['/detail', todo.customerId]" class="task-drawer-customer">
         <i class="fa-regular fa-folder-open"></i>
         <span class="task-drawer-customer-name">{{ todo.customerName }}</span>
@@ -364,36 +404,41 @@
           <i class="fa-regular fa-calendar"></i>
           <div>
             <span class="task-drawer-label">Start Date</span>
+            @if (drawerEditing()) {
+            <p-datepicker [(ngModel)]="drawerDraft.startDate" [showClear]="true" dateFormat="dd/mm/yy" appendTo="body"
+              placeholder="—" [disabled]="isTodoPending(todo.id)" class="task-drawer-date" />
+            } @else {
             <span class="task-drawer-detail-value">{{ formatDate(todo.startDate) }}</span>
+            }
           </div>
         </div>
 
         <div class="task-drawer-detail">
           <i class="fa-solid fa-flag"></i>
           <div>
-            <span class="task-drawer-label">Due Date</span>
+            <!-- Due Date = Start Date + Days allotted (ไม่มี field ของตัวเอง) จึงแก้ผ่านจำนวนวัน -->
+            <span class="task-drawer-label">{{ drawerEditing() ? 'Days Allotted' : 'Due Date' }}</span>
+            @if (drawerEditing()) {
+            <input type="number" min="0" step="1" class="task-drawer-days-input" placeholder="—"
+              [(ngModel)]="drawerDraft.daysAllotted" [disabled]="isTodoPending(todo.id)">
+            } @else {
             <span class="task-drawer-detail-value">{{ formatDate(dueDate(todo)) }}</span>
+            }
           </div>
-          @if (dueSummary(todo); as due) {
+          @if (!drawerEditing() && dueSummary(todo); as due) {
           <span class="badge badge-overdue task-drawer-due-chip"><i class="fa-regular fa-clock"></i>{{ due.text }}</span>
           }
         </div>
 
         <div class="task-drawer-detail">
-          <i class="fa-solid fa-user-group"></i>
+          <i class="fa-regular fa-circle-check"></i>
           <div>
-            <span class="task-drawer-label">Assignees</span>
-            @if (todo.assignees.length) {
-            <div class="task-drawer-avatars">
-              @for (assignee of todo.assignees; track assignee.id) {
-              <span class="task-drawer-avatar" [class.task-drawer-avatar-me]="assignee.id === me()?.id">
-                <span class="task-drawer-avatar-badge">{{ initials(assignee.name) }}</span>
-                {{ assignee.name }}
-              </span>
-              }
-            </div>
+            <span class="task-drawer-label">Close Date</span>
+            @if (drawerEditing()) {
+            <p-datepicker [(ngModel)]="drawerDraft.closeDate" [showClear]="true" dateFormat="dd/mm/yy" appendTo="body"
+              placeholder="—" [disabled]="isTodoPending(todo.id)" class="task-drawer-date" />
             } @else {
-            <span class="task-drawer-detail-value text-slate-400">—</span>
+            <span class="task-drawer-detail-value">{{ formatDate(todo.closeDate) }}</span>
             }
           </div>
         </div>
@@ -409,13 +454,61 @@
             }
           </div>
         </div>
+
+        <div class="task-drawer-detail task-drawer-detail-wide">
+          <i class="fa-solid fa-user-group"></i>
+          <div>
+            <span class="task-drawer-label">Assignees</span>
+            @if (drawerEditing()) {
+            <p-multiselect [options]="assigneeOptions()" optionLabel="label" optionValue="id"
+              [(ngModel)]="drawerDraft.assigneeIds" appendTo="body" placeholder="Assign to..." [filter]="true"
+              filterBy="label" [maxSelectedLabels]="1" selectedItemsLabel="{0} people"
+              [disabled]="isTodoPending(todo.id)" class="task-drawer-edit-select" />
+            } @else if (todo.assignees.length) {
+            <div class="task-drawer-avatars">
+              @for (assignee of todo.assignees; track assignee.id) {
+              <span class="task-drawer-avatar" [class.task-drawer-avatar-me]="assignee.id === me()?.id">
+                <span class="task-drawer-avatar-badge">{{ initials(assignee.name) }}</span>
+                {{ assignee.name }}
+              </span>
+              }
+            </div>
+            } @else {
+            <span class="task-drawer-detail-value text-slate-400">—</span>
+            }
+          </div>
+        </div>
       </div>
     </div>
 
-    @if (todo.description) {
+    @if (todo.description || drawerAttachments().length || drawerEditing()) {
     <div class="task-drawer-section">
       <span class="task-drawer-label">Description</span>
+      @if (drawerEditing()) {
+      <!-- Enter ขึ้นบรรทัดใหม่ตามปกติของ textarea — save ด้วยปุ่ม Save ที่หัว drawer เท่านั้น -->
+      <textarea class="add-todo-input add-todo-textarea" rows="4" placeholder="Description (optional)"
+        [(ngModel)]="drawerDraft.description" [disabled]="isTodoPending(todo.id)"></textarea>
+      } @else if (todo.description) {
       <p class="task-drawer-desc">{{ todo.description }}</p>
+      }
+      @if (drawerAttachments().length) {
+      <div class="task-attachments">
+        @for (attachment of drawerAttachments(); track attachment.id) {
+        @if (attachment.mimeType.startsWith('image/') && attachment.url) {
+        <!-- รูปแสดง thumbnail กดดูใหญ่ได้ — PDF/ไฟล์อื่น (และรูปที่ signed URL ว่าง) เป็นลิงก์ชื่อไฟล์ -->
+        <p-image class="attachment-image" [src]="attachment.url" [alt]="attachment.fileName" [preview]="true"
+          appendTo="body" imageClass="attachment-thumb" />
+        } @else {
+        <a [href]="attachment.url" target="_blank" rel="noopener" class="task-attachment-link"
+          [title]="attachment.fileName">
+          <i class="fa-solid" [class.fa-file-pdf]="attachment.mimeType === 'application/pdf'"
+            [class.fa-image]="attachment.mimeType !== 'application/pdf'"></i>
+          {{ attachment.fileName }}
+        </a>
+        }
+        }
+      </div>
+      }
     </div>
     }
   </div>

@@ -20,9 +20,19 @@ export interface TicketCard {
   daysAllotted: number | null;
   closeDate: string | null;
   assignees: TicketAssignee[];
+  // ชื่อคนสร้าง — null ถ้า ticket เก่าไม่มี created_by
+  createdByName: string | null;
   commentCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+// ไฟล์แนบของ ticket เอง (แนบตอน Add) — แสดงใต้ Description ใน drawer ต่างจาก TicketCommentAttachment ที่อยู่ใน comment
+export interface TicketAttachment {
+  id: string;
+  url: string;
+  fileName: string;
+  mimeType: string;
 }
 
 export interface TicketCommentAttachment {

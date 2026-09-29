@@ -296,7 +296,7 @@
 
             </div>
 
-            <!-- History Card — estimate + survey รวมเป็น timeline เดียว เรียงใหม่→เก่า -->
+            <!-- History Card — estimate + survey + ticket รวมเป็น timeline เดียว เรียงใหม่→เก่า -->
             <div class="card mb-[1.5rem]">
                 <div class="card-header">
                     <h2>History</h2>
@@ -307,6 +307,9 @@
                 }
                 @if (estimateActionErrorMessage) {
                 <div class="text-sm mb-2" style="color: var(--k-red);">{{ estimateActionErrorMessage }}</div>
+                }
+                @if (ticketHistoryErrorMessage) {
+                <div class="text-sm mb-2" style="color: var(--k-red);">{{ ticketHistoryErrorMessage }}</div>
                 }
 
                 <div class="doc-list">
@@ -348,9 +351,6 @@
                                 Cancel Final }
                             </button>
                             }
-                        </div>
-                        } @else {
-                        <a [routerLink]="'/survey'" [queryParams]="{customerId: customer.id, surveyId: row.id}"
                             @if (!row.isDraft && !row.isSuperseded && row.hasOpenRevision && isCeo()) {
                             <span class="badge" style="margin-left: 8px;"
                                 title="This quotation has a pending draft revision — finalize or delete it first to revert this one to draft">
@@ -364,6 +364,19 @@
                                 Create Revision
                             </a>
                             }
+                        </div>
+                        } @else if (row.kind === 'ticket') {
+                        <button type="button" class="doc-item-title" (click)="ticketBoard.openTaskDrawer(row.ticket)">
+                            <i class="fa-solid fa-ticket"></i> {{ row.title }}
+                            <span class="badge" [class.badge-final]="row.isDone">{{ row.statusLabel }}</span>
+                        </button>
+                        <div class="item-meta" style="text-align: right;">
+                            {{ row.dateIso | date:'dd MMM yyyy' }} • by <strong>{{ row.createdByName }}</strong>
+                            → <strong>{{ row.assigneeNames }}</strong>
+                            • <i class="fa-regular fa-comment"></i> {{ row.commentCount }}
+                        </div>
+                        } @else {
+                        <a [routerLink]="'/survey'" [queryParams]="{customerId: customer.id, surveyId: row.id}"
                             class="doc-item-title">
                             <i class="fa-solid fa-people-roof"></i> Site Survey
                             <span class="badge">{{ row.photoCount }} photos • {{ row.noteCount }} notes</span>
@@ -718,8 +731,44 @@
             }
         </div>
 
-        <!-- Add Task — สิทธิ์การ์ดเดียวกับ dashboard เป๊ะๆ (ผ่าน TodoBoardComponent) แต่ล็อกเฉพาะงานของลูกค้ารายนี้ -->
-        <app-todo-board class="mb-10" [customerId]="customer.id" />
+        <div class="card">
+            <!-- แท็บ Task/Ticket — สิทธิ์การ์ดเดียวกับ dashboard เป๊ะๆ (ผ่าน TodoBoardComponent/TicketBoardComponent) แต่ล็อกเฉพาะของลูกค้ารายนี้ -->
+            <div class="card k-tabs mb-2" style="overflow-y: hidden; padding: 0 24px; display: flex; flex-direction: row;">
+                <button type="button" class="k-tab" [class.active]="activeTaskTab() === 'task'"
+                    (click)="activeTaskTab.set('task')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                    <span>Task</span>
+                    <span class="k-tab-badge">{{ todoBoardRef.totalCount() }}</span>
+                </button>
+                <button type="button" class="k-tab" [class.active]="activeTaskTab() === 'ticket'"
+                    (click)="activeTaskTab.set('ticket')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                    <span>Ticket</span>
+                    <span class="k-tab-badge">{{ ticketBoard.totalCount() }}</span>
+                </button>
+            </div>
+
+            <!-- ทั้งสอง board render ตลอด (ไม่ใช้ @if) เพื่อให้ totalCount() อ่านได้ตลอดสำหรับ badge บนแท็บ แม้ไม่ได้เปิดดูอยู่ -->
+            <div [hidden]="activeTaskTab() !== 'task'">
+                <app-todo-board #todoBoardRef class="mb-10" [customerId]="customer.id" />
+            </div>
+            <div [hidden]="activeTaskTab() !== 'ticket'">
+                <app-ticket-board #ticketBoard [customerId]="customer.id" (ticketsChange)="onTicketsChange($event)"
+                    (loadFailed)="onTicketsLoadFailed()" />
+            </div>
+        </div>
 
     </div>
 </div>

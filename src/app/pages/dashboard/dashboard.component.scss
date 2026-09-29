@@ -250,64 +250,7 @@ h3 {
   color: var(--k-red);
 }
 
-// Section tabs (Todo/Ticket/Calendar/System Types) — .card ให้ bg/border/radius, ที่นี่ override แค่ layout+padding
-.card.k-tabs {
-  flex-direction: row;
-  align-items: center;
-  gap: 28px;
-  padding: 4px 24px 0;
-  border-bottom: 1px solid var(--k-light-grey);
-  overflow-x: auto;
-}
-
-.k-tab {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 2px;
-  margin-bottom: -1px;
-  background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--k-mid-grey);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: var(--k-transition);
-}
-
-.k-tab svg {
-  flex-shrink: 0;
-}
-
-.k-tab:hover {
-  color: var(--k-dark-grey);
-}
-
-.k-tab.active {
-  color: var(--k-red);
-  border-bottom-color: var(--k-red);
-}
-
-.k-tab-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: var(--radius-pill);
-  background: var(--k-light-grey);
-  color: var(--k-dark-grey);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.k-tab.active .k-tab-badge {
-  background: rgba(176, 29, 42, 0.1);
-  color: var(--k-red);
-}
+// Section tabs (Todo/Ticket/Calendar/System Types) — ย้ายเป็น global base class ที่ src/styles.scss แล้ว (ใช้ร่วมกับหน้า customer detail ด้วย)
 
 .event-form-actions {
   margin-top: 12px;

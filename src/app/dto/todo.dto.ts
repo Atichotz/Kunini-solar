@@ -27,6 +27,14 @@ export interface TodoCard {
   updatedAt: string;
 }
 
+// ไฟล์แนบของ task เอง (แนบตอน Add) — แสดงใต้ Description ใน drawer ต่างจาก TodoCommentAttachment ที่อยู่ใน comment
+export interface TodoAttachment {
+  id: string;
+  url: string;
+  fileName: string;
+  mimeType: string;
+}
+
 export interface TodoCommentAttachment {
   id: string;
   url: string;
