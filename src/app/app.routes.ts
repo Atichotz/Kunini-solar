@@ -17,6 +17,7 @@ import { PdfBosPreviewComponent } from './pages/pdf-bos-preview/pdf-bos-preview.
 import { SowPageComponent } from './pages/sow-page/sow-page.component';
 import { ReportPageComponent } from './pages/report-page/report-page.component';
 import { SiteSurveyReportPageComponent } from './pages/site-survey-report-page/site-survey-report-page.component';
+import { CallOutServiceReportPageComponent } from './pages/call-out-service-report-page/call-out-service-report-page.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -34,6 +35,7 @@ export const routes: Routes = [
       { path: 'sow', component: SowPageComponent },
       { path: 'report', component: ReportPageComponent },
       { path: 'survey-report', component: SiteSurveyReportPageComponent },
+      { path: 'call-out-service-report', component: CallOutServiceReportPageComponent },
       { path: 'pdf-bos-preview', component: PdfBosPreviewComponent },
       { path: 'battery-guide', component: BatteryGuideComponent },
       { path: 'calculators', component: CalculatorsPageComponent },

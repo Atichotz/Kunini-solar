@@ -176,6 +176,7 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
     this.reportMenuItems = [
       { label: 'Installation Report', icon: 'fa-solid fa-file-lines', routerLink: '/report', queryParams: { customerId } },
       { label: 'Site Survey Report', icon: 'fa-solid fa-people-roof', routerLink: '/survey-report', queryParams: { customerId } },
+      { label: 'Call Out Service Report', icon: 'fa-solid fa-truck-fast', routerLink: '/call-out-service-report', queryParams: { customerId } },
     ];
   }
 

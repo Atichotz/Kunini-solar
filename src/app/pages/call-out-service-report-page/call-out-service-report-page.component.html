@@ -1,0 +1,293 @@
+<div class="max-w-container p-[24px]">
+
+  <!-- Repeating PDF Header -->
+  <div class="print-header">
+    <div class="print-header-brand">KUNINI <span class="print-header-brand-sub">SOLAR</span></div>
+    <div class="print-header-sub">Call Out Service Report</div>
+  </div>
+
+  <!-- Repeating PDF Footer -->
+  <div class="print-footer">
+    HUAHIN &bull; PATTAYA &bull; BANGKOK | ELECTRICAL &amp; SOLAR EPC CONTRACTORS | www.kunini.com
+  </div>
+
+  <!-- Page Header (hidden on print) -->
+  <div class="flex justify-between items-start no-print !mb-2 flex-wrap">
+    <div>
+      <h1 class="k-header mb-1">Call Out Service Report</h1>
+      @if (!loadErrorMessage) {
+      <div class="item-meta">Draft only — data is not saved to the database yet and will be lost on reload</div>
+      }
+    </div>
+    <div class="flex gap-2 items-center">
+      @if (hasSavedLocally) {
+      <span class="text-sm" style="color: var(--k-accent-green);">Saved locally</span>
+      }
+      <p-button [routerLink]="backLink" [rounded]="true" variant="outlined" severity="danger">
+        <i class="fa-solid fa-xmark"></i>
+      </p-button>
+    </div>
+  </div>
+
+  @if (loadErrorMessage) {
+  <div class="card" style="color: var(--k-red);">{{ loadErrorMessage }}</div>
+  } @else {
+
+  <div class="flex-col gap-6">
+
+    <!-- 1. Customer & Service Details -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h2>1. Customer &amp; Service Details</h2>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="input-group">
+          <label class="input-label" for="calloutCustomerName">Customer Name</label>
+          <input id="calloutCustomerName" type="text" [(ngModel)]="customerName" disabled readonly
+            placeholder="Customer / site name">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="calloutSiteAddress">Location / Site Address</label>
+          <input id="calloutSiteAddress" type="text" [(ngModel)]="siteAddress" disabled readonly
+            placeholder="Site address">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="calloutDateTime">Call Out Date &amp; Time</label>
+          <p-datepicker inputId="calloutDateTime" [(ngModel)]="callOutDateTime" appendTo="body" [showIcon]="true"
+            [showTime]="true" [fluid]="true" placeholder="Select date & time" />
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="calloutResolutionDate">Resolution Date</label>
+          <p-datepicker inputId="calloutResolutionDate" [(ngModel)]="resolutionDate" appendTo="body"
+            [showIcon]="true" [fluid]="true" placeholder="Select date" />
+        </div>
+      </div>
+
+      <div class="survey-divider"></div>
+
+      <div class="grid grid-cols-3 gap-4">
+        <div class="input-group">
+          <label class="input-label">System Size / Type</label>
+          <input type="text" [(ngModel)]="systemSizeType" placeholder="e.g. 10kW Hybrid">
+        </div>
+        <div class="input-group">
+          <label class="input-label">Inverter Model</label>
+          <input type="text" [(ngModel)]="inverterModel" placeholder="e.g. Solis S6 10k">
+        </div>
+        <div class="input-group">
+          <label class="input-label survey-note-label-red">Reported Error Code (If any)</label>
+          <input type="text" [(ngModel)]="reportedErrorCode" placeholder="e.g. ALM001 / No Grid">
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Issue & On-Site Inspection -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h2>2. Issue &amp; On-Site Inspection</h2>
+      </div>
+
+      <div class="flex-col gap-4">
+        <div class="input-group">
+          <label class="input-label">Call Out Reason / Issue (Reported by Customer)</label>
+          <textarea class="form-textarea" rows="3" [(ngModel)]="callOutReason"
+            placeholder="Describe the initial complaint or reason for the call out..."></textarea>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label survey-section-label">On-site Inspection Findings (Technician's Assessment)</label>
+          <textarea class="form-textarea" rows="4" [(ngModel)]="inspectionFindings"
+            placeholder="Detail what the technician found upon arriving at the site..."></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="input-group no-print">
+            <label class="input-label">Pre-Work Photo (Issue)</label>
+            @if (photosBySlot.preWork1.length > 0) {
+            <div class="survey-photo-grid">
+              @for (photo of photosBySlot.preWork1; track photo.id) {
+              <div class="survey-photo-item">
+                <img [src]="photo.previewUrl" [alt]="photo.file.name">
+                <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+                  (click)="removePhoto('preWork1', photo)">
+                  <i class="fa-solid fa-times"></i>
+                </button>
+              </div>
+              }
+            </div>
+            }
+            <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('preWork1', $event)"
+              (click)="preWork1PhotoInput.click()">+ Upload Photo</div>
+            <input #preWork1PhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
+              (change)="onPhotoFilesSelected('preWork1', $event)">
+          </div>
+
+          <div class="input-group no-print">
+            <label class="input-label">Pre-Work Photo (Issue)</label>
+            @if (photosBySlot.preWork2.length > 0) {
+            <div class="survey-photo-grid">
+              @for (photo of photosBySlot.preWork2; track photo.id) {
+              <div class="survey-photo-item">
+                <img [src]="photo.previewUrl" [alt]="photo.file.name">
+                <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+                  (click)="removePhoto('preWork2', photo)">
+                  <i class="fa-solid fa-times"></i>
+                </button>
+              </div>
+              }
+            </div>
+            }
+            <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('preWork2', $event)"
+              (click)="preWork2PhotoInput.click()">+ Upload Photo</div>
+            <input #preWork2PhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
+              (change)="onPhotoFilesSelected('preWork2', $event)">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- 3. Action Taken & Result -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h2>3. Action Taken &amp; Result</h2>
+      </div>
+
+      <div class="flex-col gap-6">
+        <div class="input-group">
+          <label class="input-label">Actions Taken</label>
+          <textarea class="form-textarea" rows="4" [(ngModel)]="actionsTaken"
+            placeholder="Describe the repairs, reconfigurations, or replacements performed..."></textarea>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Materials / Parts Used (If applicable)</label>
+          <input type="text" [(ngModel)]="materialsUsed"
+            placeholder="e.g. Replaced 1x 20A DC Fuse, Re-crimped 2x MC4 Connectors">
+        </div>
+
+        <div class="input-group">
+          <label class="input-label survey-note-label-green">Result / Current System Status</label>
+          <textarea class="form-textarea" rows="3" [(ngModel)]="resultStatusNote"
+            placeholder="Describe the final state of the system before leaving site..."></textarea>
+
+          <div class="checkbox-grid callout-status-grid mt-2">
+            <label class="checkbox-label">
+              <input type="radio" name="resolutionStatus" value="resolved" [(ngModel)]="resolutionStatus">
+              Resolved (Fully Operational)
+            </label>
+            <label class="checkbox-label">
+              <input type="radio" name="resolutionStatus" value="monitoring" [(ngModel)]="resolutionStatus">
+              Monitoring (Requires Observation)
+            </label>
+            <label class="checkbox-label">
+              <input type="radio" name="resolutionStatus" value="unresolved" [(ngModel)]="resolutionStatus">
+              Unresolved (Requires Return Visit)
+            </label>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="input-group no-print">
+            <label class="input-label">Post-Work Photo (Resolution)</label>
+            @if (photosBySlot.postWork1.length > 0) {
+            <div class="survey-photo-grid">
+              @for (photo of photosBySlot.postWork1; track photo.id) {
+              <div class="survey-photo-item">
+                <img [src]="photo.previewUrl" [alt]="photo.file.name">
+                <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+                  (click)="removePhoto('postWork1', photo)">
+                  <i class="fa-solid fa-times"></i>
+                </button>
+              </div>
+              }
+            </div>
+            }
+            <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('postWork1', $event)"
+              (click)="postWork1PhotoInput.click()">+ Upload Photo</div>
+            <input #postWork1PhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
+              (change)="onPhotoFilesSelected('postWork1', $event)">
+          </div>
+
+          <div class="input-group no-print">
+            <label class="input-label">Post-Work Photo (Resolution)</label>
+            @if (photosBySlot.postWork2.length > 0) {
+            <div class="survey-photo-grid">
+              @for (photo of photosBySlot.postWork2; track photo.id) {
+              <div class="survey-photo-item">
+                <img [src]="photo.previewUrl" [alt]="photo.file.name">
+                <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+                  (click)="removePhoto('postWork2', photo)">
+                  <i class="fa-solid fa-times"></i>
+                </button>
+              </div>
+              }
+            </div>
+            }
+            <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('postWork2', $event)"
+              (click)="postWork2PhotoInput.click()">+ Upload Photo</div>
+            <input #postWork2PhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
+              (change)="onPhotoFilesSelected('postWork2', $event)">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- 4. Sign-Off & Approvals -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h2>4. Sign-Off &amp; Approvals</h2>
+      </div>
+
+      <div class="grid grid-cols-2 gap-6">
+
+        <!-- Engineer Signature -->
+        <div class="callout-signature-box">
+          <span class="input-label mb-4 block">Engineer / Technician</span>
+          <div class="callout-sig-line no-print">[ Digital Signature Area ]</div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="input-group">
+              <label class="input-label">Name</label>
+              <input type="text" [(ngModel)]="engineerName" placeholder="Print Name">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Date</label>
+              <p-datepicker [(ngModel)]="engineerSignDate" appendTo="body" [showIcon]="true" [fluid]="true" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Customer Signature -->
+        <div class="callout-signature-box">
+          <span class="input-label mb-4 block">Customer Acceptance</span>
+          <div class="callout-sig-line no-print">[ Digital Signature Area ]</div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="input-group">
+              <label class="input-label">Name</label>
+              <input type="text" [(ngModel)]="customerSignName" placeholder="Print Name">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Date</label>
+              <p-datepicker [(ngModel)]="customerSignDate" appendTo="body" [showIcon]="true" [fluid]="true" />
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Bottom Actions -->
+    <div class="flex justify-end gap-2 no-print survey-bottom-actions">
+      <button type="button" class="k-btn k-btn-outline" (click)="saveDraft()">Save Report (local only)</button>
+      <button type="button" class="k-btn k-btn-primary" (click)="exportToPdf()">Export to PDF</button>
+    </div>
+
+  </div>
+  }
+</div>
