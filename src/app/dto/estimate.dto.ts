@@ -61,6 +61,8 @@ export interface EstimateLabourItemPayload {
   category: 'in_house' | 'outsourced' | 'machinery';
   description: string;
   unit_rate: number;
+  cost_price: number;
+  sale_price: number;
   units: number;
   sort_order: number;
 }
@@ -179,6 +181,8 @@ export interface EstimateLabourItemView {
   category: string;
   description: string;
   unitRate: number;
+  costPrice: number;
+  salePrice: number;
   units: number;
   total: number;
 }

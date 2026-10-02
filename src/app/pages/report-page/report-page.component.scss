@@ -150,6 +150,25 @@
 }
 
 /* =========================================
+   Value checklist rows (Permits / Backup Loads / Load)
+   ========================================= */
+.value-check-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+// label กว้างตามเนื้อหา แต่ไม่เกินครึ่งแถว — input ที่เหลือยืดเต็มพื้นที่ (เหมือนเส้นขีดล่างในฟอร์มกระดาษ)
+.value-check-label {
+  flex: 0 1 50%;
+}
+
+.value-check-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* =========================================
    Equipment serial numbers
    ========================================= */
 .report-sn-label {

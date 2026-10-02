@@ -1,6 +1,9 @@
 <p-dialog header="Task & Ticket" [(visible)]="visible" (visibleChange)="onVisibleChange($event)" [modal]="true"
   [style]="{ width: '90vw', height: '90vh' }" [draggable]="false" [resizable]="false"
   styleClass="add-task-dialog">
+  <!-- @if: content ที่ project เข้า p-dialog ถูกสร้างตั้งแต่ header โหลดแม้ dialog ยังปิดอยู่ → board โหลดข้อมูลแค่ครั้งเดียวแล้วไม่เห็น task/ticket
+       ที่เพิ่มทีหลังจากหน้าอื่น (เช่น customer detail) — ครอบด้วย @if ให้สร้าง board ใหม่ (ngOnInit โหลดสด) ทุกครั้งที่เปิด -->
+  @if (visible()) {
   <p-tabs value="todo">
     <p-tablist>
       <p-tab value="todo">Task</p-tab>
@@ -15,4 +18,5 @@
       </p-tabpanel>
     </p-tabpanels>
   </p-tabs>
+  }
 </p-dialog>

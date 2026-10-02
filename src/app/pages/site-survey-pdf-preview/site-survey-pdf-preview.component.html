@@ -1,0 +1,166 @@
+<!-- แถวรูป: $implicit = แถวรูป (จัดกลุ่มไว้แล้วใน ts), large = true ใช้ 1 รูปต่อแถวแบบเต็มกว้าง (sketch/string design)
+     1 แถว = 1 pg-block เพื่อให้ตัดหน้าระหว่างแถวได้ — ไม่มีรูป = ไม่ render อะไรเลย -->
+<ng-template #photoGrid let-rows let-large="large">
+  @for (row of rows; track $index) {
+    <div class="s-photo-row pg-block" [class.s-photo-row--large]="large">
+      @for (photo of row; track $index) {
+        <figure class="s-photo">
+          <img [src]="photo.url" [alt]="photo.caption" />
+          <figcaption>{{ photo.caption }}</figcaption>
+        </figure>
+      }
+    </div>
+  }
+</ng-template>
+
+<div class="preview-shell">
+  <!-- Toolbar — ไม่พิมพ์ -->
+  <div class="preview-toolbar no-print">
+    <p-button [routerLink]="backLink()" [queryParams]="backQueryParams()" [rounded]="true" variant="outlined" severity="danger">
+      <i class="fa-solid fa-xmark"></i>
+    </p-button>
+    <button class="k-btn k-btn-primary" type="button" (click)="print()" [disabled]="!report() || !isPaginated() || isPreparingPrint()">
+      <i class="fa-solid fa-print"></i>&nbsp; {{ isPreparingPrint() ? 'Preparing…' : 'Print / Save as PDF' }}
+    </button>
+  </div>
+
+  @if (report(); as r) {
+    <!-- เนื้อหาเรียงเป็น .pg-block ต่อกันเป็นเส้นเดียว ไม่แบ่งหน้าด้วย element — ts วัดความสูงแต่ละก้อนแล้วจัดลงแผ่น A4
+         (ดู paginate()): .pg-new = ต้องขึ้นหน้าใหม่เสมอ (จุดเริ่มกลุ่ม), .pg-keep = ห้ามค้างท้ายหน้าโดยก้อนถัดไปไปอยู่หน้าอื่น -->
+    <div class="survey-doc" [class.survey-doc--pending]="!isPaginated()" [style.height.mm]="docHeightMm()">
+
+      <!-- ===== กลุ่ม 1: Site & Roof (S1 + S2) ===== -->
+      <div class="pg-block pg-new">
+        <header class="q-header">
+          <img class="q-logo" src="assets/icons/logoKunini.webp" alt="Kunini logo" />
+          <div class="q-company">
+            <div class="q-company-name">{{ hc.company.name }}</div>
+            <div>{{ hc.company.address }}</div>
+            <div>Web : {{ hc.company.web }} &nbsp; Facebook : {{ hc.company.facebook }}</div>
+            <div>Office {{ hc.company.office }}</div>
+          </div>
+        </header>
+        <h1 class="q-title">Site Survey Report</h1>
+      </div>
+
+      <div class="s-title pg-block pg-keep">1. General Information &amp; Electric Bill</div>
+      <div class="s-grid s-grid--2 pg-block">
+        <div class="s-cell"><span class="s-label">Customer Name / Company</span><span class="s-value">{{ r.customerName || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Survey Date &amp; Time</span><span class="s-value">{{ r.surveyDateTime ? (r.surveyDateTime | date: 'dd/MM/yyyy HH:mm') : '—' }}</span></div>
+        <div class="s-cell s-cell--full"><span class="s-label">Site Address</span><span class="s-value">{{ r.address || '—' }}</span></div>
+        <div class="s-cell s-cell--full"><span class="s-label">Surveyed By (Engineer/Tech)</span><span class="s-value">{{ r.surveyedBy || '—' }}</span></div>
+      </div>
+      <div class="s-grid s-grid--3 s-grid--stacked pg-block">
+        <div class="s-cell"><span class="s-label">Avg. Monthly Bill (฿)</span><span class="s-value">{{ r.avgMonthlyBill || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Avg. Usage (kWh)</span><span class="s-value">{{ r.avgUsageKwh || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Tariff Type</span><span class="s-value">{{ r.tariffType || '—' }}</span></div>
+      </div>
+      <ng-container [ngTemplateOutlet]="photoGrid" [ngTemplateOutletContext]="{ $implicit: billPhotoRows(), large: false }" />
+
+      <div class="s-title pg-block pg-keep">2. Roof Findings &amp; Structural Assessment</div>
+      <div class="s-grid s-grid--2 pg-block">
+        <div class="s-cell s-cell--full"><span class="s-label">Roof Material Type</span><span class="s-value">{{ r.roofMaterialType || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Roof Condition &amp; Age</span><span class="s-value">{{ r.roofCondition || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Pitch / Angle (Degrees)</span><span class="s-value">{{ r.roofPitch || '—' }}</span></div>
+        <div class="s-cell s-cell--full"><span class="s-label">Shading Issues / Obstacles</span><span class="s-value s-value--text">{{ r.shadingIssues || '—' }}</span></div>
+      </div>
+      <ng-container [ngTemplateOutlet]="photoGrid" [ngTemplateOutletContext]="{ $implicit: roofPhotoRows(), large: false }" />
+
+      <!-- ===== กลุ่ม 2: Electrical & Equipment (S3 + S4) ===== -->
+      <div class="s-title pg-block pg-new pg-keep">3. Electrical Room &amp; System Layout</div>
+      <div class="s-grid s-grid--2 pg-block">
+        <div class="s-cell s-cell--head">Main Distribution Board (MDB)</div>
+        <div class="s-cell s-cell--head">Combiner &amp; Inverter Placement</div>
+        <div class="s-cell"><span class="s-label">Electrical Phase</span><span class="s-value">{{ r.electricalPhase || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Proposed Inverter Location</span><span class="s-value">{{ r.inverterLocation || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Main Breaker Size (Amps)</span><span class="s-value">{{ r.mainBreakerSize || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Est. AC Cable Run (Inverter to MDB)</span><span class="s-value">{{ r.acCableRun || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Grounding Check</span><span class="s-value">{{ r.groundingCheck || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Est. DC Cable Run (Roof to Inverter)</span><span class="s-value">{{ r.dcCableRun || '—' }}</span></div>
+      </div>
+      <ng-container [ngTemplateOutlet]="photoGrid" [ngTemplateOutletContext]="{ $implicit: electricalPhotoRows(), large: false }" />
+
+      <div class="s-title pg-block pg-keep">4. Inverter, Optimizer &amp; Battery</div>
+      <div class="s-grid s-grid--3 pg-block">
+        <div class="s-cell s-cell--head s-cell--full">Inverter</div>
+        <div class="s-cell"><span class="s-label">Brand</span><span class="s-value">{{ r.inverterBrand || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Model</span><span class="s-value">{{ r.inverterModel || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Inverter Phase</span><span class="s-value">{{ inverterPhaseLabel() || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Power (kW)</span><span class="s-value">{{ r.inverterPowerKw ?? '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Quantity</span><span class="s-value">{{ r.inverterQuantity ?? '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Size (W × H × D)</span><span class="s-value">{{ r.inverterSize || '—' }}</span></div>
+      </div>
+
+      <div class="s-grid s-grid--4 s-grid--stacked pg-block">
+        <div class="s-cell s-cell--head s-cell--full">Optimizer</div>
+        @if (r.hasOptimizer) {
+          <div class="s-cell"><span class="s-label">Brand</span><span class="s-value">{{ r.optimizerBrand || '—' }}</span></div>
+          <div class="s-cell"><span class="s-label">Model</span><span class="s-value">{{ r.optimizerModel || '—' }}</span></div>
+          <div class="s-cell"><span class="s-label">Quantity</span><span class="s-value">{{ r.optimizerQuantity ?? '—' }}</span></div>
+          <div class="s-cell"><span class="s-label">Ratio</span><span class="s-value">{{ r.optimizerRatio || '—' }}</span></div>
+        } @else {
+          <div class="s-cell s-cell--full s-cell--none">No optimizer at this site</div>
+        }
+      </div>
+
+      <div class="s-grid s-grid--4 s-grid--stacked pg-block">
+        <div class="s-cell s-cell--head s-cell--full">Battery</div>
+        @if (r.hasBattery) {
+          <div class="s-cell"><span class="s-label">Brand</span><span class="s-value">{{ r.batteryBrand || '—' }}</span></div>
+          <div class="s-cell"><span class="s-label">Model</span><span class="s-value">{{ r.batteryModel || '—' }}</span></div>
+          <div class="s-cell"><span class="s-label">Capacity per Unit (kWh)</span><span class="s-value">{{ r.batteryCapacityKwh ?? '—' }}</span></div>
+          <div class="s-cell"><span class="s-label">Number of Battery</span><span class="s-value">{{ r.batteryCount ?? '—' }}</span></div>
+          <div class="s-cell"><span class="s-label">Total Capacity (kWh)</span><span class="s-value">{{ batteryTotalCapacityKwh() ?? '—' }}</span></div>
+          <div class="s-cell"><span class="s-label">Voltage Range</span><span class="s-value">{{ batteryVoltageRange() || '—' }}</span></div>
+          <div class="s-cell"><span class="s-label">Current (Ah)</span><span class="s-value">{{ r.batteryCurrentAh ?? '—' }}</span></div>
+          <div class="s-cell"><span class="s-label">Installation Date</span><span class="s-value">{{ r.batteryInstallDate ? (r.batteryInstallDate | date: 'dd/MM/yyyy') : '—' }}</span></div>
+        } @else {
+          <div class="s-cell s-cell--full s-cell--none">No battery at this site</div>
+        }
+      </div>
+
+      <!-- ===== กลุ่ม 3…N: PV Layout — 1 layout option ต่อ 1 กลุ่ม (S5) ===== -->
+      @for (layout of layoutPages(); track $index) {
+        <div class="s-title pg-block pg-new pg-keep">
+          5. PV Layout Suggestions
+          <span class="s-title-sub">— {{ layout.title }}</span>
+        </div>
+        <div class="s-grid s-grid--2 pg-block">
+          <div class="s-cell"><span class="s-label">Estimated Capacity (kWp)</span><span class="s-value">{{ layout.estimatedCapacity || '—' }}</span></div>
+          <div class="s-cell"><span class="s-label">Orientation / Azimuth</span><span class="s-value">{{ layout.orientation || '—' }}</span></div>
+          <div class="s-cell s-cell--full"><span class="s-label">Design Rationale</span><span class="s-value s-value--text">{{ layout.designRationale || '—' }}</span></div>
+        </div>
+        <ng-container [ngTemplateOutlet]="photoGrid" [ngTemplateOutletContext]="{ $implicit: layout.sketchRows, large: true }" />
+        <ng-container [ngTemplateOutlet]="photoGrid" [ngTemplateOutletContext]="{ $implicit: layout.stringDesignRows, large: true }" />
+      } @empty {
+        <div class="s-title pg-block pg-new pg-keep">5. PV Layout Suggestions</div>
+        <div class="s-none pg-block">No layout options</div>
+      }
+
+      <!-- ===== กลุ่มสุดท้าย: Notes & Sign-off (S6) — ไม่มี Internal Notes ===== -->
+      <div class="s-title pg-block pg-new pg-keep">6. Notes &amp; Remarks</div>
+      <div class="s-grid s-grid--1 pg-block">
+        <div class="s-cell"><span class="s-label">Client Notes &amp; Requests</span><span class="s-value s-value--text">{{ r.clientNotes || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Notes For Customer</span><span class="s-value s-value--text">{{ r.notesForCustomer || '—' }}</span></div>
+      </div>
+
+      <div class="q-signatures pg-block">
+        <div class="q-sign">
+          <div class="q-sign-line"></div>
+          <div class="q-sign-label">Surveyed By{{ r.surveyedBy ? ' : ' + r.surveyedBy : '' }}</div>
+        </div>
+        <div class="q-sign">
+          <div class="q-sign-line"></div>
+          <div class="q-sign-label">Customer Acceptance</div>
+        </div>
+      </div>
+    </div>
+  } @else if (isLoading()) {
+    <div class="q-empty no-print"><p>Loading...</p></div>
+  } @else {
+    <div class="q-empty no-print">
+      <p>{{ errorMessage() }}</p>
+      <a class="k-btn k-btn-outline" routerLink="/dashboard">Back to Dashboard</a>
+    </div>
+  }
+</div>

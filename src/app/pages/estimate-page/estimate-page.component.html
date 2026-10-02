@@ -68,9 +68,15 @@
     <div class="container-content">
       <div class="flex !mb-2 !flex-row justify-between flex-wrap">
         <h1 class="k-header">Price Estimation Builder</h1>
-        <p-button (onClick)="onClose()" [disabled]="saving()" [rounded]="true" variant="outlined" severity="danger">
-          <i class="fa-solid fa-xmark"></i>
-        </p-button>
+        <div class="flex items-center gap-2">
+          <!-- draft ที่ save แล้ว (มี estimateId) → Export PDF อยู่ข้างบนให้กดได้ทันที; ฟอร์มใหม่ใช้ปุ่ม disabled ด้านล่างแทน -->
+          @if (estimateId) {
+          <button class="k-btn k-btn-outline k-btn-sm k-btn-header no-print" [disabled]="saving()" (click)="onExportPdf()">Export to PDF</button>
+          }
+          <p-button (onClick)="onClose()" [disabled]="saving()" [rounded]="true" variant="outlined" severity="danger">
+            <i class="fa-solid fa-xmark"></i>
+          </p-button>
+        </div>
       </div>
       <!-- Revision banner: เห็นเฉพาะตอนกด "Create Revision" มาจากใบ final เดิม (?reviseFrom=) -->
       @if (revisedFromId) {
@@ -1183,6 +1189,8 @@
               <col class="col-item">
               <col class="col-bos-desc">
               <col class="col-unit-rate">
+              <col class="col-price">
+              <col class="col-price">
               <col class="col-units">
               <col class="col-total">
               <col class="col-noprint">
@@ -1192,6 +1200,8 @@
                 <th>Item</th>
                 <th>Description</th>
                 <th class="col-unit-rate">Unit Rate</th>
+                <th>Cost Price</th>
+                <th>Sale Price</th>
                 <th class="col-units">Units</th>
                 <th>Total</th>
                 <th class="no-print"></th>
@@ -1202,6 +1212,8 @@
                 <td class="cell-auto">{{ i + 1 }}</td>
                 <td><input type="text" placeholder="Description" [(ngModel)]="row.description"></td>
                 <td class="col-qty"><input type="number" placeholder="Unit Rate" [(ngModel)]="row.unitRate"></td>
+                <td><input type="number" min="0" placeholder="Cost Price" [(ngModel)]="row.costPrice"></td>
+                <td><input type="number" min="0" placeholder="Sale Price" [(ngModel)]="row.salePrice"></td>
                 <td class="col-qty"><input type="number" placeholder="Units" [(ngModel)]="row.units"></td>
                 <td class="cell-auto">{{ rowTotal(row) | number:'1.2-2' }}</td>
                 <td class="no-print">
@@ -1211,7 +1223,7 @@
                 </td>
               </tr>
               <tr>
-                <td colspan="6" class="no-print">
+                <td colspan="8" class="no-print">
                   <button class="k-btn-sm k-btn-outline" type="button" (click)="addLabourRow(inHouseLabourRows)">
                     <i class="fas fa-plus"></i> Add Row
                   </button>
@@ -1220,7 +1232,7 @@
             </tbody>
             <tfoot>
               <tr class="config-total-row">
-                <td colspan="3"></td>
+                <td colspan="5"></td>
                 <td>Total</td>
                 <td class="total-val">{{ inHouseLabourTotal | number:'1.2-2' }}</td>
                 <td class="no-print"></td>
@@ -1236,6 +1248,8 @@
               <col class="col-item">
               <col class="col-bos-desc">
               <col class="col-unit-rate">
+              <col class="col-price">
+              <col class="col-price">
               <col class="col-units">
               <col class="col-total">
               <col class="col-noprint">
@@ -1245,6 +1259,8 @@
                 <th>Item</th>
                 <th>Description</th>
                 <th>Unit Rate</th>
+                <th>Cost Price</th>
+                <th>Sale Price</th>
                 <th>Units</th>
                 <th>Total</th>
                 <th class="no-print"></th>
@@ -1255,6 +1271,8 @@
                 <td class="cell-auto">{{ i + 1 }}</td>
                 <td><input type="text" placeholder="Description" [(ngModel)]="row.description"></td>
                 <td class="col-qty"><input type="number" placeholder="Unit Rate" [(ngModel)]="row.unitRate"></td>
+                <td><input type="number" min="0" placeholder="Cost Price" [(ngModel)]="row.costPrice"></td>
+                <td><input type="number" min="0" placeholder="Sale Price" [(ngModel)]="row.salePrice"></td>
                 <td class="col-qty"><input type="number" placeholder="Units" [(ngModel)]="row.units"></td>
                 <td class="cell-auto">{{ rowTotal(row) | number:'1.2-2' }}</td>
                 <td class="no-print">
@@ -1264,7 +1282,7 @@
                 </td>
               </tr>
               <tr>
-                <td colspan="6" class="no-print">
+                <td colspan="8" class="no-print">
                   <button class="k-btn-sm k-btn-outline" type="button" (click)="addLabourRow(outsourcedLabourRows)">
                     <i class="fas fa-plus"></i> Add Row
                   </button>
@@ -1273,7 +1291,7 @@
             </tbody>
             <tfoot>
               <tr class="config-total-row">
-                <td colspan="3"></td>
+                <td colspan="5"></td>
                 <td>Total</td>
                 <td class="total-val">{{ outsourcedLabourTotal | number:'1.2-2' }}</td>
                 <td class="no-print"></td>
@@ -1290,6 +1308,8 @@
               <col class="col-item">
               <col class="col-bos-desc">
               <col class="col-unit-rate">
+              <col class="col-price">
+              <col class="col-price">
               <col class="col-units">
               <col class="col-total">
               <col class="col-noprint">
@@ -1299,6 +1319,8 @@
                 <th>Item</th>
                 <th>Description</th>
                 <th>Unit Rate</th>
+                <th>Cost Price</th>
+                <th>Sale Price</th>
                 <th>Units</th>
                 <th>Total</th>
                 <th class="no-print"></th>
@@ -1309,6 +1331,8 @@
                 <td class="cell-auto">{{ i + 1 }}</td>
                 <td><input type="text" placeholder="Description" [(ngModel)]="row.description"></td>
                 <td class="col-unit-rate"><input type="number" placeholder="Unit Rate" [(ngModel)]="row.unitRate"></td>
+                <td><input type="number" min="0" placeholder="Cost Price" [(ngModel)]="row.costPrice"></td>
+                <td><input type="number" min="0" placeholder="Sale Price" [(ngModel)]="row.salePrice"></td>
                 <td class="col-units"><input type="number" placeholder="Units" [(ngModel)]="row.units"></td>
                 <td class="cell-auto">{{ rowTotal(row) | number:'1.2-2' }}</td>
                 <td class="no-print">
@@ -1318,7 +1342,7 @@
                 </td>
               </tr>
               <tr>
-                <td colspan="6" class="no-print">
+                <td colspan="8" class="no-print">
                   <button class="k-btn-sm k-btn-outline" type="button" (click)="addLabourRow(machineryRows)">
                     <i class="fas fa-plus"></i> Add Row
                   </button>
@@ -1327,7 +1351,7 @@
             </tbody>
             <tfoot>
               <tr class="config-total-row">
-                <td colspan="3"></td>
+                <td colspan="5"></td>
                 <td>Total</td>
                 <td class="total-val">{{ machineryTotal | number:'1.2-2' }}</td>
                 <td class="no-print"></td>
@@ -1336,7 +1360,7 @@
           </table>
         </div>
 
-        <!-- สรุป Total Cost แยกตาม 6.1 / 6.2 / 6.3 ที่มียอด (Sale Price = Cost ไม่มี markup) -->
+        <!-- สรุป Total Cost / Sale Price / Profit แยกตาม 6.1 / 6.2 / 6.3 ที่มียอด -->
         <div class="installation-card-foot"></div>
         <h3 class="k-subsection-title !mt-4">Installation Summary</h3>
         <div class="table-scroll-wrap">
@@ -1618,10 +1642,12 @@
 
       <!-- Bottom Actions (Hidden on Print) -->
       <div class="no-print" style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 16px;">
-        <button class="k-btn k-btn-outline" [disabled]="saving() || !customerId" (click)="onSaveDraft()">
+        <button class="k-btn k-btn-primary" [disabled]="saving() || !customerId" (click)="onSaveDraft()">
           @if (saving()) { <i class="fas fa-spinner fa-spin"></i> }
           Save Draft</button>
-        <button class="k-btn k-btn-primary" (click)="onExportPdf()">Export to PDF</button>
+        <!-- ยังไม่มี estimateId = ยังไม่เคย save draft → ต้อง Save Draft ก่อน แล้วเปิดใบจาก History มา export -->
+        <button class="k-btn k-btn-outline" [disabled]="!estimateId || saving()"
+          [attr.title]="estimateId ? null : 'Save Draft first to export PDF'" (click)="onExportPdf()">Export to PDF</button>
       </div>
     </div>
   </div>

@@ -60,18 +60,29 @@
   margin-bottom: 8px;
 }
 
+// ยังไม่มีรูป: ปุ่ม upload เต็มความกว้างเหมือนเดิม — มีรูปแล้ว: ปุ่มเป็นช่องสี่เหลี่ยมเท่ารูปต่อท้ายใน grid เดียวกัน
+.survey-photo-grid--empty {
+  grid-template-columns: 1fr;
+  margin-bottom: 0;
+}
+
+.photo-box.survey-photo-add {
+  height: auto;
+  aspect-ratio: 1 / 1;
+  margin-top: 0;
+  padding: 8px;
+}
+
+.survey-bill-photo-box {
+  height: 100px;
+}
+
 .survey-photo-item {
   position: relative;
   border-radius: var(--radius-sm);
   overflow: hidden;
   aspect-ratio: 1 / 1;
   border: 1px solid var(--k-light-grey);
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
 }
 
 .survey-photo-remove {
@@ -80,6 +91,33 @@
   right: 4px;
   background: rgba(255, 255, 255, 0.85);
   border-radius: 50%;
+}
+
+// k-loading ซ้อนเต็มจอเหนือฟอร์ม (รวม navbar) ระหว่าง save — z-index สูงกว่า p-image preview/dialog ทั่วไป
+.survey-saving-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: wait;
+}
+
+// รูปที่เลือกไว้แต่ยังไม่อัปโหลด (จะอัปตอนกด Save) — เส้นประ + ป้ายให้ต่างจากรูปที่ save แล้ว
+.survey-photo-item--pending {
+  border-style: dashed;
+  border-color: var(--k-mid-grey);
+}
+
+.survey-photo-pending-badge {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  padding: 1px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.65);
+  color: white;
+  font-size: 11px;
+  line-height: 1.6;
 }
 
 /* =========================================

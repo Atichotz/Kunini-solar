@@ -704,6 +704,20 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
     this.applyTicketUpdate(ticket, { days_allotted: days });
   }
 
+  // input: ticket — ถามยืนยันก่อนลบ ticket ทุกครั้ง (ลบแล้วกู้คืนไม่ได้) กัน misclick ที่ปุ่มถังขยะ
+  confirmDeleteTicket(ticket: TicketCard): void {
+    if (this.isTicketPending(ticket.id)) return;
+
+    this.confirmationService.confirm({
+      header: 'Confirm Delete',
+      message: `Delete ticket "${ticket.title}"?`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => this.deleteTask(ticket.id)
+    });
+  }
+
   deleteTask(id: string): void {
     if (this.isTicketPending(id)) return;
 

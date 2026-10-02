@@ -222,7 +222,7 @@
                     [style]="{ width: '14px', height: '14px' }" /></button>
                 }
                 @else {
-                <button class="ticket-delete" (click)="deleteTask(ticket.id)" title="Delete ticket"><i
+                <button class="ticket-delete" (click)="confirmDeleteTicket(ticket)" title="Delete ticket"><i
                     class="fa-solid fa-trash"></i></button>
                 }
                 }

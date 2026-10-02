@@ -51,6 +51,8 @@ interface SectionSummaryRow {
 interface LabourCostRow {
   description: string;
   unitRate: number | null;
+  costPrice: number | null;
+  salePrice: number | null;
   units: number | null;
 }
 
@@ -497,7 +499,7 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
   private labourRowsFor(items: EstimateLabourItemView[], category: LabourCategory): LabourCostRow[] {
     const rows = items
       .filter((i) => i.category === category)
-      .map((i) => ({ description: i.description, unitRate: i.unitRate, units: i.units }));
+      .map((i) => ({ description: i.description, unitRate: i.unitRate, costPrice: i.costPrice, salePrice: i.salePrice, units: i.units }));
     return rows.length > 0 ? rows : [this.newLabourRow()];
   }
 
@@ -626,7 +628,10 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
       rows.forEach((row, i) => {
         const description = row.description?.trim();
         if (!description) return;
-        labour.push({ category, description, unit_rate: row.unitRate ?? 0, units: row.units ?? 0, sort_order: i });
+        labour.push({
+          category, description, unit_rate: row.unitRate ?? 0,
+          cost_price: row.costPrice ?? 0, sale_price: row.salePrice ?? 0, units: row.units ?? 0, sort_order: i,
+        });
       });
     };
     pushLabourRows(this.inHouseLabourRows, 'in_house');
@@ -686,6 +691,9 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    // ต้องจำไว้ก่อน save: สร้างครั้งแรก (ยังไม่มี estimateId) → กลับหน้าลูกค้าเลย, แก้ draft เดิม → ถามว่าจะอยู่ต่อเพื่อ export PDF ไหม
+    const isFirstSave = !this.estimateId;
+
     this.saving.set(true);
     this.estimateService.save(payload)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -693,7 +701,21 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
         next: () => {
           this.saving.set(false);
           this.messageService.add({ severity: 'success', summary: 'Draft Saved', life: 2000 });
-          this.router.navigate(this.backLink);
+          if (isFirstSave) {
+            this.router.navigate(this.backLink);
+            return;
+          }
+          // save ผ่านแล้ว state บนหน้า = state ใน DB → รีเซ็ต baseline กันปุ่ม X เตือน "Unsaved Changes" ทั้งที่เพิ่ง save
+          this.loadedStateKey = this.currentStateKey();
+          this.confirmationService.confirm({
+            header: 'Draft Saved',
+            message: 'Your draft has been saved. Go back to the customer page, or stay here to export the PDF?',
+            icon: 'pi pi-check-circle',
+            acceptLabel: 'Back to Customer',
+            rejectLabel: 'Stay',
+            // reject (รวมกด Esc / คลิกนอก dialog) = อยู่หน้าเดิม — ปลอดภัยกว่าพาออกเองโดยผู้ใช้ไม่ได้เลือก
+            accept: () => this.router.navigate(this.backLink),
+          });
         },
         error: (err) => {
           this.saving.set(false);
@@ -1401,7 +1423,7 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ===== 6. Installation — 3 ตาราง labour/machinery คีย์เองทั้งหมด (add row ได้ไม่จำกัด) =====
   private newLabourRow(): LabourCostRow {
-    return { description: '', unitRate: null, units: null };
+    return { description: '', unitRate: null, costPrice: null, salePrice: null, units: null };
   }
 
   inHouseLabourRows: LabourCostRow[] = [this.newLabourRow()];
@@ -1416,27 +1438,41 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     rows.splice(index, 1);
   }
 
+  // ยอดของแถว = Sale Price × Units (เหมือน section 1-5) — Unit Rate เป็นแค่ค่าอ้างอิง ไม่เข้าสูตร
   rowTotal(row: LabourCostRow): number {
-    return (row.unitRate ?? 0) * (row.units ?? 0);
+    return (row.salePrice ?? 0) * (row.units ?? 0);
+  }
+
+  rowCost(row: LabourCostRow): number {
+    return (row.costPrice ?? 0) * (row.units ?? 0);
   }
 
   private rowsTotal(rows: LabourCostRow[]): number {
     return rows.reduce((sum, row) => sum + this.rowTotal(row), 0);
   }
 
+  private rowsCost(rows: LabourCostRow[]): number {
+    return rows.reduce((sum, row) => sum + this.rowCost(row), 0);
+  }
+
   get inHouseLabourTotal(): number { return this.rowsTotal(this.inHouseLabourRows); }
   get outsourcedLabourTotal(): number { return this.rowsTotal(this.outsourcedLabourRows); }
   get machineryTotal(): number { return this.rowsTotal(this.machineryRows); }
 
+  // ยอดขายรวม section 6 (ใช้เป็น Sale/Total ของ Installation ทุกที่)
   get installationSectionTotal(): number {
     return this.inHouseLabourTotal + this.outsourcedLabourTotal + this.machineryTotal;
   }
 
-  // output: จำนวนแถว Labour/Machinery ที่มียอด (unitRate × units > 0) แต่ Description ว่าง
+  get installationSectionCost(): number {
+    return this.rowsCost(this.inHouseLabourRows) + this.rowsCost(this.outsourcedLabourRows) + this.rowsCost(this.machineryRows);
+  }
+
+  // output: จำนวนแถว Labour/Machinery ที่มียอด (cost หรือ sale × units > 0) แต่ Description ว่าง
   // ทำไม: แถวพวกนี้ถูกนับในยอดรวม แต่ buildItemsPayload ข้ามแถวที่ไม่มี description → ยอดที่ save ไม่ตรงกับหน้าจอ/PDF
   get labourRowsMissingDescription(): number {
     return [...this.inHouseLabourRows, ...this.outsourcedLabourRows, ...this.machineryRows]
-      .filter((row) => this.rowTotal(row) > 0 && !row.description?.trim())
+      .filter((row) => (this.rowTotal(row) > 0 || this.rowCost(row) > 0) && !row.description?.trim())
       .length;
   }
 
@@ -1447,24 +1483,22 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
     return false;
   }
 
-  // สรุป section 6 เป็นแถวเดียวต่อหมวด 6.1/6.2/6.3 ที่มียอด > 0
-  // ไม่มี markup (ตามที่ตกลงกับ user): salePrice = totalCost จึง profit = 0
+  // สรุป section 6 เป็นแถวเดียวต่อหมวด 6.1/6.2/6.3 ที่มียอด (cost หรือ sale > 0)
+  // totalCost = Σ costPrice × units, salePrice = total = Σ salePrice × units
   get installationSummaryRows(): SectionSummaryRow[] {
-    const categories: { name: string; totalCost: number }[] = [
-      { name: 'In-House Labour Costs', totalCost: this.inHouseLabourTotal },
-      { name: 'Outsourced Labour Costs', totalCost: this.outsourcedLabourTotal },
-      { name: 'Machinery', totalCost: this.machineryTotal },
+    const categories: { name: string; rows: LabourCostRow[] }[] = [
+      { name: 'In-House Labour Costs', rows: this.inHouseLabourRows },
+      { name: 'Outsourced Labour Costs', rows: this.outsourcedLabourRows },
+      { name: 'Machinery', rows: this.machineryRows },
     ];
 
     return categories
-      .filter((category) => category.totalCost > 0)
-      .map((category) => ({
-        description: category.name,
-        totalCost: category.totalCost,
-        salePrice: category.totalCost,
-        profit: 0,
-        total: category.totalCost,
-      }));
+      .map((category) => {
+        const totalCost = this.rowsCost(category.rows);
+        const salePrice = this.rowsTotal(category.rows);
+        return { description: category.name, totalCost, salePrice, profit: salePrice - totalCost, total: salePrice };
+      })
+      .filter((row) => row.totalCost > 0 || row.salePrice > 0);
   }
 
   // ===== 7. Documentation — เลือก Type จาก catalog (ตั้งค่าที่ Settings > Products > Documentation), unit rate มาจาก type =====
@@ -1510,14 +1544,14 @@ export class EstimatePageComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // ===== การ์ดสรุปล่างสุด — รวม Cost/Sale/Profit ของทุก section ที่เลือกไว้ =====
-  // Installation กับ Documentation ไม่มี markup (catalog ไม่มี cost/sale แยก) จึงถือ cost = sale เหมือนกับ installationSummaryRows
+  // Installation มี cost แยกจริง (section 6); Documentation ไม่มี markup (catalog ไม่มี cost/sale แยก) จึงถือ cost = sale
   get grandTotalCost(): number {
     const panelCost = this.panelSummaryRows[0]?.totalCost ?? 0;
     const inverterCost = this.inverterSummaryRows[0]?.totalCost ?? 0;
     const batteryCost = this.batterySummaryRows[0]?.totalCost ?? 0;
     const rackingCost = this.roofTypeTotals.reduce((sum, r) => sum + r.totalCost, 0);
     return panelCost + inverterCost + batteryCost + rackingCost
-      + this.bosSectionTotal + this.installationSectionTotal + this.documentationSectionTotal;
+      + this.bosSectionTotal + this.installationSectionCost + this.documentationSectionTotal;
   }
 
   get grandTotalSale(): number {

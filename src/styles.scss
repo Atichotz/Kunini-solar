@@ -114,6 +114,12 @@ h1.k-header {
   transition: all 0.2s ease;
 }
 
+// ปุ่ม Export to PDF ใน header ข้างปุ่ม X (p-button สูง 34px) — ใช้คู่กับ .k-btn-sm เพื่อคงสไตล์เดิมแต่สูงเท่า X
+// 34px = 2 × 6.25px (padding) + 19.5px (line-height 13px × 1.5) + 2px (border)
+.k-btn-sm.k-btn-header {
+  padding-block: 6.25px;
+}
+
 .k-btn-primary {
   background-color: var(--k-red);
   color: #ffffff;
@@ -207,6 +213,21 @@ h1.k-header {
   object-fit: cover;
   border: 1px solid var(--k-light-grey);
   border-radius: var(--radius-sm);
+}
+
+// รูปใน Site Survey Report (ช่องรูป + sketch) — กดดูใหญ่ได้ด้วย p-image; ต้อง global เหมือน .attachment-image เพราะ span/<img> อยู่ใน template ของ p-image
+.survey-photo-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  line-height: 0;
+}
+
+.survey-photo-thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 // ไฟล์แนบของ task/ticket ใน drawer (รูป = .attachment-image, ไฟล์อื่น = .task-attachment-link)

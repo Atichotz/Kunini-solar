@@ -1,0 +1,278 @@
+:host {
+  display: block;
+}
+
+/* ===== หน้าจอ: กระดาษวางบนพื้นเทา (โครงเดียวกับ pdf-bos-preview) ===== */
+.preview-shell {
+  min-height: 100vh;
+  background: var(--bg-color);
+  padding: 24px 16px 64px;
+  overflow-x: auto; // แผ่นกว้าง 210mm ตายตัว (ต้องเท่ากับตอนพิมพ์ ไม่งั้นการตัดหน้าเพี้ยน) จอแคบกว่านี้ให้เลื่อนซ้าย-ขวา
+}
+
+.preview-toolbar {
+  max-width: 210mm;
+  margin: 0 auto 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ===== กระดาษ A4 =====
+   เนื้อหาเป็น .pg-block ต่อกันเป็นเส้นเดียว; component ts (paginate) ดันก้อนแรกของแต่ละหน้าลงไปอยู่ในแผ่นถัดไป
+   พื้นหลังวาดแผ่นสีขาวซ้ำทุก (297mm + ช่องไฟ 12mm) จึงเห็นเป็นหลายแผ่นแยกกัน */
+.survey-doc {
+  box-sizing: border-box;
+  width: 210mm;
+  margin: 0 auto;
+  // padding ขวาเกิน 0.5mm = ช่องเว้นขอบขวาที่ตอนพิมพ์ก็ใช้ (ดู @media print) เพื่อให้ความกว้างเนื้อหาเท่ากันทั้งสองโหมด
+  padding: 12mm calc(12mm + 0.5mm) 12mm 12mm;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--k-white) 0,
+    var(--k-white) 297mm,
+    transparent 297mm,
+    transparent 309mm
+  );
+  // เงารอบแผ่น (filter ตามรูปทรงพื้นหลังที่วาด ไม่ใช่กล่องสี่เหลี่ยมก้อนเดียว)
+  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--k-black) 14%, transparent));
+  color: var(--k-black);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+// ระหว่างรอจัดหน้า: ซ่อนแต่ยังคิด layout อยู่ (วัดความสูงได้) กันภาพกระโดด
+.survey-doc--pending {
+  visibility: hidden;
+}
+
+// บนจอ: ก้อนแรกของแต่ละหน้าถูกดันลงด้วยระยะที่ ts คำนวณไว้ (ทับ margin เดิมของก้อนนั้น)
+.pg-block {
+  break-inside: avoid;
+}
+
+.pg-block.pg-start {
+  margin-top: var(--pg-skip, 0);
+}
+
+/* ---- Header (หน้าแรกเท่านั้น เหมือน BOS) ---- */
+.q-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding-bottom: 10px;
+}
+
+.q-logo {
+  width: 68px;
+  height: 68px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.q-company {
+  font-size: 10px;
+  color: var(--k-dark-grey);
+}
+
+.q-company-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--k-black);
+  margin-bottom: 2px;
+}
+
+.q-title {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: underline;
+  margin: 14px 0 16px;
+}
+
+/* ---- หัวข้อ section ---- */
+.s-title {
+  font-size: 12px;
+  font-weight: 700;
+  padding-bottom: 3px;
+  margin: 16px 0 6px;
+  border-bottom: 1px solid var(--k-black);
+  break-after: avoid; // กันหัวข้อไปค้างท้ายหน้าโดยเนื้อหาข้ามไปหน้าถัดไป
+}
+
+.s-title-sub {
+  font-weight: 400;
+  color: var(--k-dark-grey);
+}
+
+/* ---- ตาราง key-value แบบกริด (เส้นขอบเดียวกับ .q-customer ของ BOS) ---- */
+.s-grid {
+  display: grid;
+  border-top: 1px solid var(--k-black);
+  border-left: 1px solid var(--k-black);
+}
+
+.s-grid--1 { grid-template-columns: 1fr; }
+.s-grid--2 { grid-template-columns: repeat(2, 1fr); }
+.s-grid--3 { grid-template-columns: repeat(3, 1fr); }
+.s-grid--4 { grid-template-columns: repeat(4, 1fr); }
+
+// กริดที่ต่อจากกริดก่อนหน้า: ทับเส้นบนซ้อนกันเพื่อไม่ให้เส้นหนาเป็น 2 เท่า
+.s-grid--stacked {
+  margin-top: -1px;
+}
+
+.s-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 8px;
+  border-right: 1px solid var(--k-black);
+  border-bottom: 1px solid var(--k-black);
+  min-width: 0;
+  break-inside: avoid;
+}
+
+.s-cell--full {
+  grid-column: 1 / -1;
+}
+
+.s-cell--head {
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.s-cell--none,
+.s-none {
+  color: var(--k-mid-grey);
+  font-style: italic;
+}
+
+.s-label {
+  font-size: 9px;
+  color: var(--k-dark-grey);
+}
+
+.s-value {
+  font-weight: 600;
+  overflow-wrap: anywhere; // ข้อความยาว/ไม่มีเว้นวรรค (ไทย, URL) ไม่ดันกริดทะลุขอบกระดาษ
+}
+
+// ข้อความหลายบรรทัดจาก textarea — แสดงเป็นข้อความธรรมดา ไม่ใช้ <textarea> เพราะตอนพิมพ์จะถูกตัดเป็นกล่อง scroll
+.s-value--text {
+  font-weight: 400;
+  white-space: pre-wrap;
+}
+
+/* ---- รูป: 1 แถว = 1 .pg-block (ts จัดกลุ่มแถวละ 3 ใบ, รูป layout แถวละ 1 ใบ) ---- */
+.s-photo-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.s-photo-row--large {
+  grid-template-columns: 1fr;
+}
+
+.s-photo {
+  margin: 0;
+}
+
+.s-photo img {
+  display: block;
+  width: 100%;
+  height: 40mm; // ความสูงตายตัว: จัดหน้าวัดได้ทันทีโดยไม่ต้องรอรูปโหลด
+  object-fit: contain; // เห็นรูปครบ (บิล/แปลนต้องอ่านออก) ไม่ crop
+  background: var(--k-light-grey);
+  border: 1px solid var(--k-light-grey);
+}
+
+.s-photo-row--large .s-photo img {
+  height: 88mm;
+}
+
+.s-photo figcaption {
+  font-size: 9px;
+  color: var(--k-dark-grey);
+  margin-top: 2px;
+}
+
+/* ---- Signatures (เหมือน BOS) ---- */
+.q-signatures {
+  display: flex;
+  gap: 48px;
+  margin: 40px 0 24px;
+  break-inside: avoid;
+}
+
+.q-sign {
+  flex: 1 1 0;
+}
+
+.q-sign-line {
+  border-top: 1px solid var(--k-black);
+  margin-bottom: 4px;
+  margin-top: 40px;
+}
+
+.q-sign-label {
+  font-size: 10px;
+  color: var(--k-dark-grey);
+}
+
+/* ---- Empty / error state ---- */
+.q-empty {
+  max-width: 480px;
+  margin: 80px auto 0;
+  text-align: center;
+  background: var(--k-white);
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-sm);
+  padding: 32px 24px;
+}
+
+.q-empty p {
+  margin: 0 0 20px;
+}
+
+/* ===== พิมพ์ / บันทึกเป็น PDF ===== */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .preview-shell {
+    background: var(--k-white);
+    padding: 0;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .survey-doc {
+    width: auto;
+    height: auto !important; // ทับ [style.height.mm] ที่ใช้วาดแผ่นบนจอ
+    margin: 0;
+    // เว้นขอบขวาเล็กน้อย: ตาราง/กริดกว้าง 100% ทำให้เส้นขอบขวา 1px ชิดขอบพื้นที่พิมพ์พอดี Chrome ตัดไปครึ่งเส้น (บางกว่าเส้นอื่น)
+    padding: 0 0.5mm 0 0;
+    background: none;
+    filter: none;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact; // ให้พื้นหลังรูป/ตัวอักษรสีเทาออกตามจอ
+  }
+
+  // ก้อนแรกของแต่ละหน้าที่ ts คำนวณไว้ → ขึ้นหน้าใหม่ตรงจุดเดียวกับที่เห็นบนจอ (margin ทิ้ง ไม่ให้เลื่อนซ้ำ)
+  .pg-block.pg-start {
+    margin-top: 0;
+    break-before: page;
+  }
+}

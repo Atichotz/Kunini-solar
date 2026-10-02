@@ -10,6 +10,7 @@ import { forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { ScrollSpy } from '../../scroll-spy.util';
 import { ScrollToTopComponent } from '../../scroll-to-top/scroll-to-top.component';
+import { KLoadingComponent } from '../../k-loading/k-loading.component';
 import { buildQuotationSnapshot, salesRepNameOf } from '../../quotation-snapshot.util';
 import { EstimateService } from '../../services/estimate.service';
 import { CustomerService } from '../../services/customer.service';
@@ -58,7 +59,7 @@ const LABOUR_CATEGORY_LABELS: Record<string, string> = {
 
 @Component({
   selector: 'app-estimate-history-page',
-  imports: [CommonModule, RouterLink, ButtonModule, Tooltip, ToastModule, ScrollToTopComponent],
+  imports: [CommonModule, RouterLink, ButtonModule, Tooltip, ToastModule, ScrollToTopComponent, KLoadingComponent],
   templateUrl: './estimate-history-page.component.html',
   styleUrl: './estimate-history-page.component.scss',
   providers: [MessageService],
@@ -335,7 +336,8 @@ export class EstimateHistoryPageComponent implements OnInit, AfterViewInit, OnDe
     const rackingCost = this.rackingRoofTypeTotals.reduce((sum, r) => sum + r.totalCost, 0);
     // BOS: sectionTotal(detail.bosItems) = cost×qty ล้วน (ไม่มี markup) ตรงกับ bosSectionTotal ใน estimate-page
     return panelCost + inverterCost + batteryCost + rackingCost
-      + this.sectionTotal(this.detail.bosItems) + this.sectionTotal(this.detail.labourItems)
+      + this.sectionTotal(this.detail.bosItems)
+      + this.detail.labourItems.reduce((sum, i) => sum + i.costPrice * i.units, 0)
       + this.sectionTotal(this.detail.documentationItems);
   }
 
@@ -405,17 +407,14 @@ export class EstimateHistoryPageComponent implements OnInit, AfterViewInit, OnDe
         };
       });
 
-    // Installation: ไม่มี markup (salePrice = totalCost, profit = 0) และข้ามหมวดที่ยอดเป็น 0
+    // Installation: cost = Σ costPrice × units, sale = total ของแถว (salePrice × units) และข้ามหมวดที่ cost/sale เป็น 0 ทั้งคู่
     this.installationSummaryRows = Object.keys(LABOUR_CATEGORY_LABELS)
-      .map((category) => ({ name: LABOUR_CATEGORY_LABELS[category], totalCost: this.labourCategoryTotal(category) }))
-      .filter((category) => category.totalCost > 0)
-      .map((category) => ({
-        description: category.name,
-        totalCost: category.totalCost,
-        salePrice: category.totalCost,
-        profit: 0,
-        total: category.totalCost,
-      }));
+      .map((category) => {
+        const totalCost = this.labourItemsFor(category).reduce((sum, i) => sum + i.costPrice * i.units, 0);
+        const salePrice = this.labourCategoryTotal(category);
+        return { description: LABOUR_CATEGORY_LABELS[category], totalCost, salePrice, profit: salePrice - totalCost, total: salePrice };
+      })
+      .filter((row) => row.totalCost > 0 || row.salePrice > 0);
   }
 
   // สรุป section เครื่องจักรเป็นแถวเดียว: cost = ผลรวม cost×qty ของ main + accessories, sale = ผลรวม total ของทุก row

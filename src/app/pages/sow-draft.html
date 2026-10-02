@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scope of Work - KUNINI SOLAR</title>
+    <style>
+        /* =========================================
+           1. BRAND CSS VARIABLES
+           ========================================= */
+        :root {
+            --kunini-red: #b01d2a;
+            --kunini-black: #000000;
+            --kunini-dark-grey: #414142;
+            --kunini-mid-grey: #a7a9ac;
+            --kunini-light-grey: #dcddde;
+            --accent-blue: #0088c2;
+            --accent-green: #55b1a5;
+
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --radius-lg: 16px;
+            --radius-pill: 999px;
+            --radius-sm: 8px;
+        }
+
+        /* =========================================
+           2. RESET & BASE STYLES
+           ========================================= */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--kunini-dark-grey);
+            line-height: 1.5;
+            padding: 40px 24px;
+            font-size: 14px;
+        }
+
+        h1 {
+            color: var(--kunini-black);
+            font-weight: 700;
+            font-size: 24px;
+            margin: 0;
+        }
+
+        h2,
+        h3 {
+            color: var(--kunini-black);
+            font-weight: 700;
+        }
+
+        .max-w-container {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* =========================================
+           3. LAYOUT UTILITIES
+           ========================================= */
+        .flex {
+            display: flex;
+        }
+
+        .flex-col {
+            flex-direction: column;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .gap-2 {
+            gap: 8px;
+        }
+
+        .gap-3 {
+            gap: 12px;
+        }
+
+        .gap-4 {
+            gap: 16px;
+        }
+
+        .mt-4 {
+            margin-top: 16px;
+        }
+
+        .mb-2 {
+            margin-bottom: 8px;
+        }
+
+        .mb-4 {
+            margin-bottom: 16px;
+        }
+
+        .mb-6 {
+            margin-bottom: 24px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .grid-cols-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .grid-cols-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* =========================================
+           4. COMPONENTS
+           ========================================= */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            border: 1px solid var(--kunini-light-grey);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+            page-break-inside: avoid;
+        }
+
+        .card-header {
+            font-size: 16px;
+            border-bottom: 2px solid var(--bg-color);
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-header h2 {
+            font-size: 16px;
+            margin: 0;
+        }
+
+        /* Inputs & Data Display */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .input-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--kunini-mid-grey);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input,
+        select,
+        textarea {
+            padding: 10px 14px;
+            border: 1px solid var(--kunini-mid-grey);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            outline: none;
+            color: var(--kunini-black);
+            font-family: inherit;
+            width: 100%;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--kunini-red);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 24px;
+            border-radius: var(--radius-pill);
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--kunini-red);
+            color: #ffffff;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border-color: var(--kunini-mid-grey);
+            color: var(--kunini-dark-grey);
+        }
+
+        .btn-text {
+            background: none;
+            border: none;
+            color: var(--accent-blue);
+            padding: 0;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* Icon Button */
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--kunini-mid-grey);
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s ease;
+        }
+
+        .icon-btn:hover {
+            color: var(--kunini-red);
+        }
+
+        /* Custom Checkbox/Toggle styling for Machinery */
+        .checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--kunini-black);
+            cursor: pointer;
+        }
+
+        .checkbox-label input {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--kunini-red);
+            cursor: pointer;
+        }
+
+        /* Day/EOD Block */
+        .day-block {
+            background: var(--bg-color);
+            border: 1px solid var(--kunini-light-grey);
+            border-radius: var(--radius-sm);
+            padding: 24px;
+            margin-bottom: 24px;
+            page-break-inside: avoid;
+        }
+
+        .day-block:last-child {
+            margin-bottom: 0;
+        }
+
+        .day-block-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--kunini-light-grey);
+        }
+
+        /* Weather Selector */
+        .weather-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .weather-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--kunini-mid-grey);
+            border-radius: var(--radius-pill);
+            font-size: 12px;
+            font-weight: 700;
+            background: #fff;
+            color: var(--kunini-dark-grey);
+            cursor: pointer;
+        }
+
+        .weather-btn.active {
+            background: var(--kunini-dark-grey);
+            color: white;
+            border-color: var(--kunini-dark-grey);
+        }
+
+        /* Photo Upload Boxes */
+        .photo-box {
+            border: 2px dashed var(--kunini-mid-grey);
+            border-radius: var(--radius-sm);
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--kunini-mid-grey);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            background: #fafafa;
+            text-align: center;
+            padding: 16px;
+        }
+
+        /* Task List Row */
+        .task-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .task-row input {
+            flex: 1;
+        }
+
+        /* =========================================
+           5. PDF PRINT STYLES
+           ========================================= */
+        .print-header,
+        .print-footer {
+            display: none;
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 25mm 15mm;
+            }
+
+            body {
+                background-color: #ffffff;
+                padding: 0;
+            }
+
+            .print-header {
+                display: flex;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                justify-content: space-between;
+                align-items: flex-end;
+                padding-bottom: 10px;
+                border-bottom: 2px solid var(--kunini-red);
+            }
+
+            .print-footer {
+                display: block;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                text-align: center;
+                font-size: 10px;
+                color: var(--kunini-mid-grey);
+                padding-top: 10px;
+                border-top: 1px solid var(--kunini-light-grey);
+            }
+
+            .max-w-container {
+                width: 100%;
+                max-width: 100%;
+                gap: 16px;
+                margin-top: 20px;
+            }
+
+            .card {
+                box-shadow: none;
+                border: 1px solid #ddd;
+                padding: 24px;
+                break-inside: avoid;
+                margin-bottom: 20px;
+            }
+
+            .day-block {
+                background: transparent;
+                border-color: #ccc;
+                padding: 16px;
+            }
+
+            .page-break {
+                page-break-before: always;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            input,
+            select,
+            textarea {
+                border: none;
+                border-bottom: 1px solid #ccc;
+                border-radius: 0;
+                padding: 4px 0;
+                background: transparent;
+                resize: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Repeating PDF Header -->
+    <div class="print-header">
+        <div style="font-weight: 700; font-size: 18px; color: var(--kunini-black);">KUNINI <span
+                style="font-weight: 400;">SOLAR</span></div>
+        <div style="font-size: 12px; color: var(--kunini-dark-grey);">Scope of Work & Daily Planner</div>
+    </div>
+
+    <!-- Repeating PDF Footer -->
+    <div class="print-footer">
+        HUAHIN • PATTAYA • BANGKOK | ELECTRICAL & SOLAR EPC CONTRACTORS | www.kunini.com
+    </div>
+
+    <!-- Page Header (Web Only) -->
+    <div class="max-w-container no-print"
+        style="margin-bottom: 10px; flex-direction: row; justify-content: space-between; align-items: center;">
+        <h1>Scope of Work (SOW)</h1>
+        <div class="flex gap-2">
+            <button class="btn btn-outline">Save</button>
+            <button class="btn btn-primary" onclick="window.print()">Export to PDF</button>
+        </div>
+    </div>
+
+    <div class="max-w-container">
+
+        <!-- ================= PAGE 1 ================= -->
+
+        <!-- 1. Project Info -->
+        <div class="card">
+            <div class="card-header">
+                <h2>1. Project Overview</h2>
+            </div>
+            <div class="grid grid-cols-2">
+                <div class="input-group">
+                    <span class="input-label">Customer / Site Name</span>
+                    <div style="font-size: 15px; font-weight: 700; color: var(--kunini-black);">John Doe Residence</div>
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Location</span>
+                    <div style="font-size: 14px;">123/45 Sukhumvit Road, Pattaya</div>
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Planned Start Date</span>
+                    <input type="date" value="2026-10-01">
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Est. Completion Date</span>
+                    <input type="date" value="2026-10-03">
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Customer Notes & Concerns -->
+        <div class="card">
+            <div class="card-header">
+                <h2>2. Customer Notes & Concerns</h2>
+            </div>
+            <div class="input-group full-width">
+                <textarea style="min-height: 80px;"
+                    placeholder="Note any specific customer requests, concerns, or access restrictions (e.g., 'Do not block driveway between 2-4 PM', 'Beware of dog', etc.)."></textarea>
+            </div>
+        </div>
+
+        <!-- 3. Execution Plan & Resources -->
+        <div class="card">
+            <div class="card-header">
+                <h2>3. Execution Plan & Resource Allocation</h2>
+                <button class="btn-text no-print">+ Add Day</button>
+            </div>
+
+            <!-- Day 1 Block -->
+            <div class="day-block">
+                <div class="day-block-header">
+                    <div class="flex items-center gap-4">
+                        <h3 style="margin:0; font-size: 16px;">Day 1</h3>
+                        <input type="date" value="2026-10-01" style="width: 140px; padding: 6px 10px;">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select style="width: auto; padding: 6px 10px; font-weight: 600; background-color: #fff;">
+                            <option>Pending</option>
+                            <option selected>In Progress</option>
+                            <option>Completed</option>
+                            <option>Delayed</option>
+                        </select>
+                        <button class="icon-btn no-print" title="Remove">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path
+                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Resources (Moved UP) -->
+                <div class="grid grid-cols-2 mb-6" style="gap: 32px;">
+                    <!-- Personnel -->
+                    <div class="flex flex-col gap-3">
+                        <span class="input-label" style="color: var(--accent-blue);">Team & Personnel</span>
+                        <div class="grid grid-cols-2" style="gap: 12px;">
+                            <input type="number" placeholder="Total Headcount" title="Total Headcount" value="4">
+                            <input type="text" placeholder="Lead Tech" title="Lead Technician" value="Somchai S.">
+                        </div>
+                        <input type="text" placeholder="Subcontractors / Notes (e.g., external roofers)">
+                    </div>
+
+                    <!-- Machinery -->
+                    <div class="flex flex-col gap-3">
+                        <span class="input-label" style="color: var(--accent-blue);">Machinery & Equipment</span>
+                        <div class="checkbox-grid">
+                            <label class="checkbox-label"><input type="checkbox" checked> Scaffolding</label>
+                            <label class="checkbox-label"><input type="checkbox"> Mobile Crane</label>
+                            <label class="checkbox-label"><input type="checkbox"> Boom Lift</label>
+                            <label class="checkbox-label"><input type="checkbox" checked> Fall Protection</label>
+                            <label class="checkbox-label"><input type="checkbox"> Generator</label>
+                        </div>
+                        <input type="text" placeholder="Other machinery notes (e.g. Crane rental 09:00-12:00)">
+                    </div>
+                </div>
+
+                <!-- Planned Tasks (Moved DOWN and converted to list) -->
+                <div class="flex flex-col gap-2">
+                    <span class="input-label">Planned Tasks</span>
+                    <div class="task-row">
+                        <input type="text" value="Safety briefing and site preparation.">
+                        <button class="icon-btn no-print" title="Remove">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path
+                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="task-row">
+                        <input type="text" value="Erect scaffolding on South side.">
+                        <button class="icon-btn no-print" title="Remove">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path
+                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="task-row">
+                        <input type="text" value="Install roof hooks and mounting rails.">
+                        <button class="icon-btn no-print" title="Remove">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path
+                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                    <button class="btn-text no-print" style="align-self: flex-start; margin-top: 4px;">+ Add
+                        Task</button>
+                </div>
+            </div>
+
+            <!-- Day 2 Block -->
+            <div class="day-block">
+                <div class="day-block-header">
+                    <div class="flex items-center gap-4">
+                        <h3 style="margin:0; font-size: 16px;">Day 2</h3>
+                        <input type="date" value="2026-10-02" style="width: 140px; padding: 6px 10px;">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select style="width: auto; padding: 6px 10px; font-weight: 600; background-color: #fff;">
+                            <option selected>Pending</option>
+                            <option>In Progress</option>
+                            <option>Completed</option>
+                            <option>Delayed</option>
+                        </select>
+                        <button class="icon-btn no-print" title="Remove">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path
+                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Resources -->
+                <div class="grid grid-cols-2 mb-6" style="gap: 32px;">
+                    <div class="flex flex-col gap-3">
+                        <span class="input-label" style="color: var(--accent-blue);">Team & Personnel</span>
+                        <div class="grid grid-cols-2" style="gap: 12px;">
+                            <input type="number" placeholder="Total Headcount" title="Total Headcount" value="3">
+                            <input type="text" placeholder="Lead Tech" title="Lead Technician" value="Somchai S.">
+                        </div>
+                        <input type="text" placeholder="Subcontractors / Notes">
+                    </div>
+
+                    <div class="flex flex-col gap-3">
+                        <span class="input-label" style="color: var(--accent-blue);">Machinery & Equipment</span>
+                        <div class="checkbox-grid">
+                            <label class="checkbox-label"><input type="checkbox" checked> Scaffolding</label>
+                            <label class="checkbox-label"><input type="checkbox"> Mobile Crane</label>
+                            <label class="checkbox-label"><input type="checkbox"> Boom Lift</label>
+                            <label class="checkbox-label"><input type="checkbox" checked> Fall Protection</label>
+                            <label class="checkbox-label"><input type="checkbox"> Generator</label>
+                        </div>
+                        <input type="text" placeholder="Other machinery notes">
+                    </div>
+                </div>
+
+                <!-- Planned Tasks -->
+                <div class="flex flex-col gap-2">
+                    <span class="input-label">Planned Tasks</span>
+                    <div class="task-row">
+                        <input type="text" value="Hoist 19x Jinko panels to roof.">
+                        <button class="icon-btn no-print" title="Remove">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path
+                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="task-row">
+                        <input type="text" value="Lay panels and connect optimizers.">
+                        <button class="icon-btn no-print" title="Remove">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path
+                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="task-row">
+                        <input type="text" value="Run DC cabling to inverter location.">
+                        <button class="icon-btn no-print" title="Remove">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path
+                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                    <button class="btn-text no-print" style="align-self: flex-start; margin-top: 4px;">+ Add
+                        Task</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ================= PAGE 2 ================= -->
+        <div class="page-break"></div>
+
+        <!-- 4. Daily Summary / Remarks -->
+        <div class="card">
+            <div class="card-header">
+                <div class="flex items-center gap-2">
+                    <h2>4. Daily EOD Summaries</h2>
+                    <span style="font-size: 12px; color: var(--kunini-mid-grey); font-weight: normal;">(Filled by Lead
+                        Tech)</span>
+                </div>
+                <button class="btn-text no-print">+ Add Day Report</button>
+            </div>
+
+            <!-- EOD Report Block (Day 1) -->
+            <div class="day-block" style="background: transparent; border-color: var(--kunini-light-grey);">
+                <div class="day-block-header" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+                    <h3 style="margin:0; font-size: 14px; color: var(--kunini-black);">Report: Day 1</h3>
+                    <button class="icon-btn no-print" title="Remove"><svg width="16" height="16" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                            </path>
+                        </svg></button>
+                </div>
+
+                <div class="grid grid-cols-2" style="margin: 16px 0 20px 0;">
+                    <div class="input-group">
+                        <span class="input-label">Date of Report</span>
+                        <input type="date" value="2026-10-01">
+                    </div>
+                    <div class="input-group">
+                        <span class="input-label">Weather Conditions</span>
+                        <div class="weather-group">
+                            <div class="weather-btn active">☀️ Clear / Sunny</div>
+                            <div class="weather-btn">☁️ Overcast</div>
+                            <div class="weather-btn">🌧️ Rain (Delayed)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-group full-width mb-4">
+                    <span class="input-label">Daily Progress & Issues</span>
+                    <textarea style="min-height: 80px;"
+                        placeholder="Summarize today's progress. Note any issues, missing materials, or delays encountered on site."></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 mt-4">
+                    <div class="input-group">
+                        <span class="input-label">EOD Site Photos (Roof)</span>
+                        <div class="photo-box no-print">+ Upload Progress Photos</div>
+                    </div>
+                    <div class="input-group">
+                        <span class="input-label">EOD Site Photos (Ground/Inverter)</span>
+                        <div class="photo-box no-print">+ Upload Progress Photos</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 5. Final Project Notes -->
+        <div class="card">
+            <div class="card-header">
+                <h2>5. Final Project Notes & Remarks</h2>
+            </div>
+
+            <div class="input-group full-width">
+                <textarea style="min-height: 120px;"
+                    placeholder="Enter any general remarks, overall project feedback, pending items, or final handover notes here..."></textarea>
+            </div>
+        </div>
+
+        <!-- Bottom Actions (Hidden on Print) -->
+        <div class="no-print"
+            style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; padding-top: 24px; border-top: 1px solid var(--kunini-light-grey);">
+            <button class="btn btn-outline">Save Report</button>
+            <button class="btn btn-primary" onclick="window.print()">Export to PDF</button>
+        </div>
+
+    </div>
+
+</body>
+
+</html>

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site Survey Report - KUNINI SOLAR</title>
+    <style>
+        /* =========================================
+           1. BRAND CSS VARIABLES
+           ========================================= */
+        :root {
+            --kunini-red: #b01d2a;
+            --kunini-black: #000000;
+            --kunini-dark-grey: #414142;
+            --kunini-mid-grey: #a7a9ac;
+            --kunini-light-grey: #dcddde;
+            --accent-blue: #0088c2;
+            --accent-green: #55b1a5;
+
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --radius-lg: 16px;
+            --radius-pill: 999px;
+            --radius-sm: 8px;
+        }
+
+        /* =========================================
+           2. RESET & BASE STYLES
+           ========================================= */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--kunini-dark-grey);
+            line-height: 1.5;
+            padding: 40px 24px;
+            font-size: 14px;
+        }
+
+        h1 {
+            color: var(--kunini-black);
+            font-weight: 700;
+            font-size: 24px;
+            margin: 0;
+        }
+
+        h2,
+        h3 {
+            color: var(--kunini-black);
+            font-weight: 700;
+        }
+
+        .max-w-container {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* =========================================
+           3. LAYOUT UTILITIES
+           ========================================= */
+        .flex {
+            display: flex;
+        }
+
+        .flex-col {
+            flex-direction: column;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .gap-2 {
+            gap: 8px;
+        }
+
+        .gap-4 {
+            gap: 16px;
+        }
+
+        .mb-2 {
+            margin-bottom: 8px;
+        }
+
+        .mb-4 {
+            margin-bottom: 16px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .grid-cols-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .grid-cols-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* =========================================
+           4. COMPONENTS
+           ========================================= */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            border: 1px solid var(--kunini-light-grey);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+            page-break-inside: avoid;
+        }
+
+        .card-header {
+            font-size: 16px;
+            border-bottom: 2px solid var(--bg-color);
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-header h2 {
+            font-size: 16px;
+            margin: 0;
+        }
+
+        /* Inputs & Data Display */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .input-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--kunini-mid-grey);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input[type="text"],
+        input[type="date"],
+        input[type="number"],
+        select,
+        textarea {
+            padding: 10px 14px;
+            border: 1px solid var(--kunini-mid-grey);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            outline: none;
+            color: var(--kunini-black);
+            font-family: inherit;
+            width: 100%;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--kunini-red);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 24px;
+            border-radius: var(--radius-pill);
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--kunini-red);
+            color: #ffffff;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border-color: var(--kunini-mid-grey);
+            color: var(--kunini-dark-grey);
+        }
+
+        .btn-text {
+            background: none;
+            border: none;
+            color: var(--accent-blue);
+            padding: 0;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* Photo Upload Boxes */
+        .photo-box {
+            border: 2px dashed var(--kunini-mid-grey);
+            border-radius: var(--radius-sm);
+            height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--kunini-mid-grey);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            background: #fafafa;
+            text-align: center;
+            padding: 16px;
+        }
+
+        /* Options/Toggles */
+        .checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            background: var(--bg-color);
+            padding: 16px;
+            border-radius: var(--radius-sm);
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--kunini-black);
+            cursor: pointer;
+        }
+
+        .checkbox-label input[type="radio"],
+        .checkbox-label input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--kunini-red);
+            cursor: pointer;
+        }
+
+        /* PV Layout Container */
+        .layout-option-box {
+            border: 1px solid var(--kunini-light-grey);
+            border-radius: var(--radius-sm);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .layout-option-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        /* =========================================
+           5. PDF PRINT STYLES
+           ========================================= */
+        .print-header,
+        .print-footer {
+            display: none;
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 25mm 15mm;
+            }
+
+            body {
+                background-color: #ffffff;
+                padding: 0;
+            }
+
+            .print-header {
+                display: flex;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                justify-content: space-between;
+                align-items: flex-end;
+                padding-bottom: 10px;
+                border-bottom: 2px solid var(--kunini-red);
+            }
+
+            .print-footer {
+                display: block;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                text-align: center;
+                font-size: 10px;
+                color: var(--kunini-mid-grey);
+                padding-top: 10px;
+                border-top: 1px solid var(--kunini-light-grey);
+            }
+
+            .max-w-container {
+                width: 100%;
+                max-width: 100%;
+                gap: 16px;
+                margin-top: 20px;
+            }
+
+            .card {
+                box-shadow: none;
+                border: 1px solid #ddd;
+                padding: 24px;
+                break-inside: avoid;
+                margin-bottom: 20px;
+            }
+
+            .page-break {
+                page-break-before: always;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            input[type="text"],
+            input[type="date"],
+            input[type="number"],
+            select,
+            textarea {
+                border: none;
+                border-bottom: 1px solid #ccc;
+                border-radius: 0;
+                padding: 4px 0;
+                background: transparent;
+                resize: none;
+            }
+
+            .photo-box {
+                border: 1px solid #ddd;
+                background: transparent;
+            }
+
+            .checkbox-grid {
+                background: transparent;
+                border: 1px solid #ddd;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Repeating PDF Header -->
+    <div class="print-header">
+        <div style="font-weight: 700; font-size: 18px; color: var(--kunini-black);">KUNINI <span
+                style="font-weight: 400;">SOLAR</span></div>
+        <div style="font-size: 12px; color: var(--kunini-dark-grey);">Site Survey Report</div>
+    </div>
+
+    <!-- Repeating PDF Footer -->
+    <div class="print-footer">
+        HUAHIN • PATTAYA • BANGKOK | ELECTRICAL & SOLAR EPC CONTRACTORS | www.kunini.com
+    </div>
+
+    <!-- Page Header (Web Only) -->
+    <div class="max-w-container no-print"
+        style="margin-bottom: 10px; flex-direction: row; justify-content: space-between; align-items: center;">
+        <h1>Site Survey Report</h1>
+        <div class="flex gap-2">
+            <button class="btn btn-outline">Save Draft</button>
+            <button class="btn btn-primary" onclick="window.print()">Export to PDF</button>
+        </div>
+    </div>
+
+    <div class="max-w-container">
+
+        <!-- ================= PAGE 1 ================= -->
+
+        <!-- 1. General & Electric Bill -->
+        <div class="card">
+            <div class="card-header">
+                <h2>1. General Information & Electric Bill</h2>
+                <span class="btn-text no-print">Sync from Profile</span>
+            </div>
+
+            <div class="grid grid-cols-2 mb-4">
+                <div class="input-group">
+                    <span class="input-label">Customer Name / Company</span>
+                    <div style="font-size: 16px; font-weight: 700; color: var(--kunini-black);">John Doe Residence</div>
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Survey Date & Time</span>
+                    <input type="datetime-local" value="2026-09-25T10:00">
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Site Address</span>
+                    <div style="font-size: 14px;">123/45 Sukhumvit Road, Nong Prue, Bang Lamung, Pattaya</div>
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Surveyed By (Engineer/Tech)</span>
+                    <input type="text" value="Mark S.">
+                </div>
+            </div>
+
+            <div style="height: 1px; background: var(--bg-color); margin: 24px 0;"></div>
+
+            <div class="grid grid-cols-3">
+                <div class="input-group">
+                    <span class="input-label">Avg. Monthly Bill (฿)</span>
+                    <input type="text" placeholder="e.g. 5,500">
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Avg. Usage (kWh)</span>
+                    <input type="text" placeholder="e.g. 1,200">
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Tariff Type</span>
+                    <select>
+                        <option>Standard Residential</option>
+                        <option>TOU (Time of Use)</option>
+                        <option>Commercial</option>
+                    </select>
+                </div>
+                <div class="input-group full-width no-print">
+                    <span class="input-label">Upload Electric Bill / PEA App Screenshot</span>
+                    <div class="photo-box" style="height: 100px;">+ Drag & Drop Bill Image</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Roof Findings -->
+        <div class="card">
+            <div class="card-header">
+                <h2>2. Roof Findings & Structural Assessment</h2>
+            </div>
+
+            <div class="mb-4">
+                <span class="input-label mb-2">Roof Material Type</span>
+                <div class="checkbox-grid">
+                    <label class="checkbox-label"><input type="radio" name="roof_type" checked> CPAC Monier (Concrete
+                        Tile)</label>
+                    <label class="checkbox-label"><input type="radio" name="roof_type"> Metal Sheet (Klip-lok /
+                        PU)</label>
+                    <label class="checkbox-label"><input type="radio" name="roof_type"> Flat Roof (Concrete
+                        Deck)</label>
+                    <label class="checkbox-label"><input type="radio" name="roof_type"> Shingle Roof</label>
+                    <label class="checkbox-label"><input type="radio" name="roof_type"> Ceramic / Excella</label>
+                    <label class="checkbox-label"><input type="radio" name="roof_type"> Other</label>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 mb-4">
+                <div class="input-group">
+                    <span class="input-label">Roof Condition & Age</span>
+                    <input type="text" placeholder="e.g. Good condition, approx 5 years old">
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Pitch / Angle (Degrees)</span>
+                    <input type="text" placeholder="e.g. 15-20 degrees">
+                </div>
+                <div class="input-group full-width">
+                    <span class="input-label">Shading Issues / Obstacles</span>
+                    <textarea style="min-height: 60px;"
+                        placeholder="Note any chimneys, vents, neighboring trees, or adjacent buildings causing shade..."></textarea>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3">
+                <div class="input-group">
+                    <span class="input-label">Drone Aerial View</span>
+                    <div class="photo-box no-print">+ Upload Photo</div>
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Roof Surface Close-up</span>
+                    <div class="photo-box no-print">+ Upload Photo</div>
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Obstacles / Shading</span>
+                    <div class="photo-box no-print">+ Upload Photo</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PAGE 2 ================= -->
+        <div class="page-break"></div>
+
+        <!-- 3. Electrical Room & Inverter Location -->
+        <div class="card">
+            <div class="card-header">
+                <h2>3. Electrical Room & System Layout</h2>
+            </div>
+
+            <div class="grid grid-cols-2 mb-4">
+                <!-- Electrical Findings -->
+                <div class="flex-col gap-4">
+                    <span class="input-label" style="color: var(--accent-blue);">Main Distribution Board (MDB)</span>
+                    <div class="input-group">
+                        <span class="input-label">Electrical Phase</span>
+                        <select>
+                            <option>1-Phase (220V)</option>
+                            <option selected>3-Phase (380V)</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <span class="input-label">Main Breaker Size (Amps)</span>
+                        <input type="text" placeholder="e.g. 50A">
+                    </div>
+                    <div class="input-group">
+                        <span class="input-label">Grounding Check</span>
+                        <input type="text" placeholder="e.g. Exists, measured at < 5 Ohms">
+                    </div>
+                </div>
+
+                <!-- Location & Cable Runs -->
+                <div class="flex-col gap-4">
+                    <span class="input-label" style="color: var(--accent-blue);">Combiner & Inverter Placement</span>
+                    <div class="input-group">
+                        <span class="input-label">Proposed Inverter Location</span>
+                        <input type="text" placeholder="e.g. Garage wall, right side">
+                    </div>
+                    <div class="input-group">
+                        <span class="input-label">Est. AC Cable Run (Inverter to MDB)</span>
+                        <input type="text" placeholder="e.g. 15 meters">
+                    </div>
+                    <div class="input-group">
+                        <span class="input-label">Est. DC Cable Run (Roof to Inverter)</span>
+                        <input type="text" placeholder="e.g. 20 meters">
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3">
+                <div class="input-group">
+                    <span class="input-label">Main Breaker / MDB Open</span>
+                    <div class="photo-box no-print">+ Upload Photo</div>
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Proposed Inverter Wall</span>
+                    <div class="photo-box no-print">+ Upload Photo</div>
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Cable Routing Path</span>
+                    <div class="photo-box no-print">+ Upload Photo</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. PV Layout Suggestions -->
+        <div class="card">
+            <div class="card-header">
+                <h2>4. PV Layout Suggestions</h2>
+                <button class="btn-text no-print" style="font-size: 14px;">+ Add Another Layout Option</button>
+            </div>
+
+            <!-- Option 1 Box -->
+            <div class="layout-option-box">
+                <div class="layout-option-header">
+                    <h3 style="margin: 0; font-size: 15px; color: var(--kunini-black);">Option 1 (Primary
+                        Recommendation)</h3>
+                    <button class="btn-text no-print" style="color: var(--kunini-red);">Remove</button>
+                </div>
+
+                <div class="grid grid-cols-2">
+                    <div class="input-group full-width">
+                        <span class="input-label">Layout Sketch / Roof Plan</span>
+                        <div class="photo-box no-print" style="height: 200px;">+ Upload PV Layout Design</div>
+                    </div>
+                    <div class="input-group">
+                        <span class="input-label">Estimated Capacity (kWp)</span>
+                        <input type="text" placeholder="e.g. 10.5 kWp (19 Panels)">
+                    </div>
+                    <div class="input-group">
+                        <span class="input-label">Orientation / Azimuth</span>
+                        <input type="text" placeholder="e.g. South facing, minor West offset">
+                    </div>
+                    <div class="input-group full-width">
+                        <span class="input-label">Design Rationale</span>
+                        <textarea style="min-height: 60px;"
+                            placeholder="Brief explanation of why this layout is recommended..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Option Placeholder (For Visual Draft) -->
+            <div class="no-print"
+                style="border: 1px dashed var(--kunini-mid-grey); border-radius: var(--radius-sm); padding: 16px; text-align: center;">
+                <button class="btn btn-outline" style="font-size: 12px;">+ Add Layout Option 2</button>
+            </div>
+
+        </div>
+
+        <!-- ================= PAGE 3 ================= -->
+        <div class="page-break"></div>
+
+        <!-- 5. Notes & Remarks -->
+        <div class="card">
+            <div class="card-header">
+                <h2>5. Notes & Remarks</h2>
+            </div>
+
+            <div class="flex-col gap-6">
+                <!-- Client Notes (Gathered during survey) -->
+                <div class="input-group">
+                    <span class="input-label" style="color: var(--accent-blue);">Client Notes & Requests</span>
+                    <p style="font-size: 12px; color: var(--kunini-mid-grey); margin: -2px 0 4px 0;">Information,
+                        questions, or concerns raised by the client during the visit.</p>
+                    <textarea style="min-height: 80px;"
+                        placeholder="e.g. Client requested all cabling to be completely hidden. Wants to future-proof for an EV charger..."></textarea>
+                </div>
+
+                <!-- Notes FOR Customer (Visible on client-facing export) -->
+                <div class="input-group">
+                    <span class="input-label" style="color: var(--accent-green);">Notes For Customer</span>
+                    <p style="font-size: 12px; color: var(--kunini-mid-grey); margin: -2px 0 4px 0;">Action items or
+                        important structural notices the client needs to be aware of.</p>
+                    <textarea style="min-height: 80px;"
+                        placeholder="e.g. Tree on South-West corner requires trimming prior to installation day to prevent shading..."></textarea>
+                </div>
+
+                <!-- Notes FOR Team (Internal Only) -->
+                <div class="input-group">
+                    <span class="input-label" style="color: var(--kunini-red);">Internal Team Notes (Do Not Print for
+                        Client)</span>
+                    <p style="font-size: 12px; color: var(--kunini-mid-grey); margin: -2px 0 4px 0;">Instructions for
+                        the design or installation team.</p>
+                    <textarea style="min-height: 80px; border-color: var(--kunini-red);"
+                        placeholder="e.g. Beware of dog on property. Will need scaffolding on the North side due to narrow walkway..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Actions (Hidden on Print) -->
+        <div class="no-print"
+            style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; padding-top: 24px; border-top: 1px solid var(--kunini-light-grey);">
+            <button class="btn btn-outline">Save Draft</button>
+            <button class="btn btn-primary" onclick="window.print()">Export to PDF</button>
+        </div>
+
+    </div>
+
+</body>
+
+</html>

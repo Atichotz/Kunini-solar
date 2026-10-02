@@ -1,4 +1,6 @@
-<div class="max-w-container p-[24px]">
+<p-confirmDialog></p-confirmDialog>
+<!-- inert ระหว่าง save: กัน Tab/คีย์บอร์ดเข้าถึงฟอร์มที่อยู่หลัง overlay -->
+<div class="max-w-container p-[24px]" [attr.inert]="isSaving ? '' : null">
 
   <!-- Repeating PDF Header -->
   <div class="print-header">
@@ -15,13 +17,26 @@
   <div class="flex justify-between items-start no-print !mb-2 flex-wrap">
     <div>
       <h1 class="k-header mb-1">Site Survey Report</h1>
-      @if (!loadErrorMessage) {
-      <div class="item-meta">Draft only — data is not saved to the database yet and will be lost on reload</div>
+      @if (!loadErrorMessage && !isLoadingReport) {
+      @if (reportId && createdAt) {
+      <div class="item-meta">
+        Created {{ createdAt | date:'dd MMM yyyy' }}
+        @if (createdBy) { by <strong>{{ createdBy }}</strong> }
+        · Last edited {{ updatedAt | date:'dd MMM yyyy, HH:mm' }}
+        @if (updatedBy) { by <strong>{{ updatedBy }}</strong> }
+      </div>
+      } @else {
+      <div class="item-meta">New report — not saved yet. Photos you pick are uploaded when you press Save</div>
+      }
       }
     </div>
     <div class="flex gap-2 items-center">
-      @if (hasSavedLocally) {
-      <span class="text-sm" style="color: var(--k-accent-green);">Saved locally</span>
+      @if (saveNotice) {
+      <span class="text-sm" style="color: var(--k-accent-green);">{{ saveNotice }}</span>
+      }
+      <!-- รายงานที่เคยบันทึกแล้ว (มี reportId) → มีปุ่ม Export ด้านบนด้วย; รายงานใหม่ต้องกด Save ก่อน จึงยังไม่โชว์ -->
+      @if (reportId && !loadErrorMessage && !isLoadingReport) {
+      <button type="button" class="k-btn k-btn-outline k-btn-sm k-btn-header no-print" [disabled]="isSaving" (click)="exportToPdf()">Export to PDF</button>
       }
       <p-button [routerLink]="backLink" [rounded]="true" variant="outlined" severity="danger">
         <i class="fa-solid fa-xmark"></i>
@@ -31,7 +46,21 @@
 
   @if (loadErrorMessage) {
   <div class="card" style="color: var(--k-red);">{{ loadErrorMessage }}</div>
+  } @else if (isLoadingReport) {
+  <div class="text-sm p-[24px]" style="color: var(--k-mid-grey);">Loading...</div>
   } @else {
+
+  @if (saveErrorMessage) {
+  <div class="card mb-6 no-print" role="alert" style="color: var(--k-red);">
+    <div>{{ saveErrorMessage }}</div>
+    @if (isConflict) {
+    <button type="button" class="k-btn k-btn-outline mt-2" (click)="confirmReloadLatest()">Reload latest version</button>
+    }
+  </div>
+  }
+  @if (photoErrorMessage) {
+  <div class="card mb-6 no-print" role="alert" style="color: var(--k-red);">{{ photoErrorMessage }}</div>
+  }
 
   <div class="flex-col gap-6">
 
@@ -49,8 +78,8 @@
         </div>
         <div class="input-group">
           <label class="input-label" for="surveyDateTime">Survey Date &amp; Time</label>
-          <p-datepicker inputId="surveyDateTime" [(ngModel)]="surveyDateTime" appendTo="body" [showIcon]="true"
-            [showTime]="true" [fluid]="true" placeholder="Select date & time" />
+          <p-datepicker inputId="surveyDateTime" [(ngModel)]="surveyDateTime" dateFormat="dd/mm/yy" hourFormat="24"
+            appendTo="body" [showIcon]="true" [showTime]="true" [fluid]="true" placeholder="dd/mm/yyyy hh:mm" />
         </div>
         <div class="input-group full-width">
           <label class="input-label" for="surveyAddress">Site Address</label>
@@ -81,22 +110,22 @@
 
         <div class="input-group full-width no-print">
           <label class="input-label">Upload Electric Bill / PEA App Screenshot</label>
-          @if (photosBySlot.bill.length > 0) {
-          <div class="survey-photo-grid">
+          <div class="survey-photo-grid" [class.survey-photo-grid--empty]="photosBySlot.bill.length === 0">
             @for (photo of photosBySlot.bill; track photo.id) {
-            <div class="survey-photo-item">
-              <img [src]="photo.previewUrl" [alt]="photo.file.name">
-              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+            <div class="survey-photo-item" [class.survey-photo-item--pending]="!!photo.file">
+              <p-image [src]="photo.previewUrl" [alt]="photo.name" [preview]="true" appendTo="body"
+                styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+              @if (photo.file) { <span class="survey-photo-pending-badge no-print">Pending</span> }
+              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo" [disabled]="isPhotoRemoving(photo)"
                 (click)="removePhoto('bill', photo)">
                 <i class="fa-solid fa-times"></i>
               </button>
             </div>
             }
-          </div>
-          }
-          <div class="photo-box" style="height: 100px;" (dragover)="$event.preventDefault()"
+            <div class="photo-box survey-bill-photo-box" [class.survey-photo-add]="photosBySlot.bill.length > 0" (dragover)="$event.preventDefault()"
             (drop)="onPhotoDrop('bill', $event)" (click)="billPhotoInput.click()">
             + Drag &amp; Drop Bill Image
+          </div>
           </div>
           <input #billPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
             (change)="onPhotoFilesSelected('bill', $event)">
@@ -143,63 +172,63 @@
       <div class="grid grid-cols-3 gap-4">
         <div class="input-group no-print">
           <label class="input-label">Drone Aerial View</label>
-          @if (photosBySlot.drone.length > 0) {
-          <div class="survey-photo-grid">
+          <div class="survey-photo-grid" [class.survey-photo-grid--empty]="photosBySlot.drone.length === 0">
             @for (photo of photosBySlot.drone; track photo.id) {
-            <div class="survey-photo-item">
-              <img [src]="photo.previewUrl" [alt]="photo.file.name">
-              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+            <div class="survey-photo-item" [class.survey-photo-item--pending]="!!photo.file">
+              <p-image [src]="photo.previewUrl" [alt]="photo.name" [preview]="true" appendTo="body"
+                styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+              @if (photo.file) { <span class="survey-photo-pending-badge no-print">Pending</span> }
+              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo" [disabled]="isPhotoRemoving(photo)"
                 (click)="removePhoto('drone', photo)">
                 <i class="fa-solid fa-times"></i>
               </button>
             </div>
             }
-          </div>
-          }
-          <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('drone', $event)"
+            <div class="photo-box" [class.survey-photo-add]="photosBySlot.drone.length > 0" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('drone', $event)"
             (click)="dronePhotoInput.click()">+ Upload Photo</div>
+          </div>
           <input #dronePhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
             (change)="onPhotoFilesSelected('drone', $event)">
         </div>
 
         <div class="input-group no-print">
           <label class="input-label">Roof Surface Close-up</label>
-          @if (photosBySlot.roofSurface.length > 0) {
-          <div class="survey-photo-grid">
+          <div class="survey-photo-grid" [class.survey-photo-grid--empty]="photosBySlot.roofSurface.length === 0">
             @for (photo of photosBySlot.roofSurface; track photo.id) {
-            <div class="survey-photo-item">
-              <img [src]="photo.previewUrl" [alt]="photo.file.name">
-              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+            <div class="survey-photo-item" [class.survey-photo-item--pending]="!!photo.file">
+              <p-image [src]="photo.previewUrl" [alt]="photo.name" [preview]="true" appendTo="body"
+                styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+              @if (photo.file) { <span class="survey-photo-pending-badge no-print">Pending</span> }
+              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo" [disabled]="isPhotoRemoving(photo)"
                 (click)="removePhoto('roofSurface', photo)">
                 <i class="fa-solid fa-times"></i>
               </button>
             </div>
             }
-          </div>
-          }
-          <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('roofSurface', $event)"
+            <div class="photo-box" [class.survey-photo-add]="photosBySlot.roofSurface.length > 0" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('roofSurface', $event)"
             (click)="roofSurfacePhotoInput.click()">+ Upload Photo</div>
+          </div>
           <input #roofSurfacePhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
             (change)="onPhotoFilesSelected('roofSurface', $event)">
         </div>
 
         <div class="input-group no-print">
           <label class="input-label">Obstacles / Shading</label>
-          @if (photosBySlot.shading.length > 0) {
-          <div class="survey-photo-grid">
+          <div class="survey-photo-grid" [class.survey-photo-grid--empty]="photosBySlot.shading.length === 0">
             @for (photo of photosBySlot.shading; track photo.id) {
-            <div class="survey-photo-item">
-              <img [src]="photo.previewUrl" [alt]="photo.file.name">
-              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+            <div class="survey-photo-item" [class.survey-photo-item--pending]="!!photo.file">
+              <p-image [src]="photo.previewUrl" [alt]="photo.name" [preview]="true" appendTo="body"
+                styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+              @if (photo.file) { <span class="survey-photo-pending-badge no-print">Pending</span> }
+              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo" [disabled]="isPhotoRemoving(photo)"
                 (click)="removePhoto('shading', photo)">
                 <i class="fa-solid fa-times"></i>
               </button>
             </div>
             }
-          </div>
-          }
-          <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('shading', $event)"
+            <div class="photo-box" [class.survey-photo-add]="photosBySlot.shading.length > 0" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('shading', $event)"
             (click)="shadingPhotoInput.click()">+ Upload Photo</div>
+          </div>
           <input #shadingPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
             (change)="onPhotoFilesSelected('shading', $event)">
         </div>
@@ -219,9 +248,8 @@
           <span class="input-label survey-section-label">Main Distribution Board (MDB)</span>
           <div class="input-group">
             <label class="input-label" for="surveyElectricalPhase">Electrical Phase</label>
-            <p-select inputId="surveyElectricalPhase" [(ngModel)]="electricalPhase"
-              [options]="electricalPhaseOptions" optionLabel="label" optionValue="value" appendTo="body"
-              placeholder="Select phase" class="w-full" />
+            <p-select inputId="surveyElectricalPhase" [(ngModel)]="electricalPhase" [options]="electricalPhaseOptions"
+              optionLabel="label" optionValue="value" appendTo="body" placeholder="Select phase" class="w-full" />
           </div>
           <div class="input-group">
             <label class="input-label">Main Breaker Size (Amps)</label>
@@ -253,63 +281,63 @@
       <div class="grid grid-cols-3 gap-4">
         <div class="input-group no-print">
           <label class="input-label">Main Breaker / MDB Open</label>
-          @if (photosBySlot.mdb.length > 0) {
-          <div class="survey-photo-grid">
+          <div class="survey-photo-grid" [class.survey-photo-grid--empty]="photosBySlot.mdb.length === 0">
             @for (photo of photosBySlot.mdb; track photo.id) {
-            <div class="survey-photo-item">
-              <img [src]="photo.previewUrl" [alt]="photo.file.name">
-              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+            <div class="survey-photo-item" [class.survey-photo-item--pending]="!!photo.file">
+              <p-image [src]="photo.previewUrl" [alt]="photo.name" [preview]="true" appendTo="body"
+                styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+              @if (photo.file) { <span class="survey-photo-pending-badge no-print">Pending</span> }
+              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo" [disabled]="isPhotoRemoving(photo)"
                 (click)="removePhoto('mdb', photo)">
                 <i class="fa-solid fa-times"></i>
               </button>
             </div>
             }
-          </div>
-          }
-          <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('mdb', $event)"
+            <div class="photo-box" [class.survey-photo-add]="photosBySlot.mdb.length > 0" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('mdb', $event)"
             (click)="mdbPhotoInput.click()">+ Upload Photo</div>
+          </div>
           <input #mdbPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
             (change)="onPhotoFilesSelected('mdb', $event)">
         </div>
 
         <div class="input-group no-print">
           <label class="input-label">Proposed Inverter Wall</label>
-          @if (photosBySlot.inverterWall.length > 0) {
-          <div class="survey-photo-grid">
+          <div class="survey-photo-grid" [class.survey-photo-grid--empty]="photosBySlot.inverterWall.length === 0">
             @for (photo of photosBySlot.inverterWall; track photo.id) {
-            <div class="survey-photo-item">
-              <img [src]="photo.previewUrl" [alt]="photo.file.name">
-              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+            <div class="survey-photo-item" [class.survey-photo-item--pending]="!!photo.file">
+              <p-image [src]="photo.previewUrl" [alt]="photo.name" [preview]="true" appendTo="body"
+                styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+              @if (photo.file) { <span class="survey-photo-pending-badge no-print">Pending</span> }
+              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo" [disabled]="isPhotoRemoving(photo)"
                 (click)="removePhoto('inverterWall', photo)">
                 <i class="fa-solid fa-times"></i>
               </button>
             </div>
             }
-          </div>
-          }
-          <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('inverterWall', $event)"
+            <div class="photo-box" [class.survey-photo-add]="photosBySlot.inverterWall.length > 0" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('inverterWall', $event)"
             (click)="inverterWallPhotoInput.click()">+ Upload Photo</div>
+          </div>
           <input #inverterWallPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
             (change)="onPhotoFilesSelected('inverterWall', $event)">
         </div>
 
         <div class="input-group no-print">
           <label class="input-label">Cable Routing Path</label>
-          @if (photosBySlot.cableRouting.length > 0) {
-          <div class="survey-photo-grid">
+          <div class="survey-photo-grid" [class.survey-photo-grid--empty]="photosBySlot.cableRouting.length === 0">
             @for (photo of photosBySlot.cableRouting; track photo.id) {
-            <div class="survey-photo-item">
-              <img [src]="photo.previewUrl" [alt]="photo.file.name">
-              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+            <div class="survey-photo-item" [class.survey-photo-item--pending]="!!photo.file">
+              <p-image [src]="photo.previewUrl" [alt]="photo.name" [preview]="true" appendTo="body"
+                styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+              @if (photo.file) { <span class="survey-photo-pending-badge no-print">Pending</span> }
+              <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo" [disabled]="isPhotoRemoving(photo)"
                 (click)="removePhoto('cableRouting', photo)">
                 <i class="fa-solid fa-times"></i>
               </button>
             </div>
             }
-          </div>
-          }
-          <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('cableRouting', $event)"
+            <div class="photo-box" [class.survey-photo-add]="photosBySlot.cableRouting.length > 0" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('cableRouting', $event)"
             (click)="cableRoutingPhotoInput.click()">+ Upload Photo</div>
+          </div>
           <input #cableRoutingPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
             (change)="onPhotoFilesSelected('cableRouting', $event)">
         </div>
@@ -318,10 +346,169 @@
 
     <div class="page-break"></div>
 
-    <!-- 4. PV Layout Suggestions -->
+    <!-- 4. Inverter, Optimizer & Battery -->
     <div class="card mb-6">
       <div class="card-header">
-        <h2>4. PV Layout Suggestions</h2>
+        <h2>4. Inverter, Optimizer &amp; Battery</h2>
+      </div>
+
+      <span class="input-label survey-section-label">Inverter</span>
+      <div class="grid grid-cols-3 gap-4 mt-2">
+        <div class="input-group">
+          <label class="input-label" for="inverterBrand">Brand</label>
+          <p-select inputId="inverterBrand" [ngModel]="inverterBrandSelection"
+            (ngModelChange)="onInverterBrandChange($event)" [options]="inverterBrandOptions" optionLabel="label"
+            optionValue="value" appendTo="body" placeholder="Select brand" class="w-full" />
+          @if (inverterBrandSelection === otherOptionValue) {
+          <input type="text" [(ngModel)]="inverterBrand" placeholder="Type brand name" aria-label="Inverter brand">
+          }
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="inverterModel">Model</label>
+          @if (inverterBrandSelection !== otherOptionValue) {
+          <p-select inputId="inverterModel" [ngModel]="inverterModelSelection"
+            (ngModelChange)="onInverterModelChange($event)" [options]="inverterModelOptions" optionLabel="label"
+            optionValue="value" appendTo="body" [disabled]="inverterBrandSelection === null" placeholder="Select model"
+            class="w-full" />
+          }
+          @if (inverterBrandSelection === otherOptionValue || inverterModelSelection === otherOptionValue) {
+          <input type="text" [(ngModel)]="inverterModel" placeholder="Type model name" aria-label="Inverter model">
+          }
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="inverterPhase">Inverter Phase</label>
+          <p-select inputId="inverterPhase" [(ngModel)]="inverterPhase" [options]="inverterPhaseOptions"
+            optionLabel="label" optionValue="value" appendTo="body" placeholder="Select phase" class="w-full" />
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="inverterPowerKw">Power (kW)</label>
+          <input id="inverterPowerKw" type="number" min="0" step="0.1" [(ngModel)]="inverterPowerKw"
+            placeholder="e.g. 10">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="inverterQuantity">Quantity</label>
+          <input id="inverterQuantity" type="number" min="1" step="1" [(ngModel)]="inverterQuantity"
+            placeholder="e.g. 1">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="inverterSize">Size (W × H × D)</label>
+          <input id="inverterSize" type="text" [(ngModel)]="inverterSize" placeholder="e.g. 335 × 560 × 253 mm">
+        </div>
+      </div>
+
+      <div class="survey-divider"></div>
+
+      <div class="flex items-center justify-between">
+        <span class="input-label survey-section-label">Optimizer</span>
+        <label class="checkbox-label no-print">
+          <input type="checkbox" [checked]="!hasOptimizer" (change)="hasOptimizer = !hasOptimizer"> No optimizer
+        </label>
+      </div>
+      @if (hasOptimizer) {
+      <div class="grid grid-cols-4 gap-4 mt-2">
+        <div class="input-group">
+          <label class="input-label" for="optimizerBrand">Brand</label>
+          <input id="optimizerBrand" type="text" [(ngModel)]="optimizerBrand" placeholder="e.g. Huawei">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="optimizerModel">Model</label>
+          <input id="optimizerModel" type="text" [(ngModel)]="optimizerModel" placeholder="e.g. MERC-600W-PA0">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="optimizerQuantity">Quantity</label>
+          <input id="optimizerQuantity" type="number" min="0" step="1" [(ngModel)]="optimizerQuantity"
+            placeholder="e.g. 10">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="optimizerRatio">Ratio</label>
+          <p-select inputId="optimizerRatio" [(ngModel)]="optimizerRatio" [options]="optimizerRatioOptions"
+            optionLabel="label" optionValue="value" appendTo="body" placeholder="Select ratio" class="w-full" />
+        </div>
+      </div>
+      } @else {
+      <p class="survey-note-hint mt-2">No optimizer at this site</p>
+      }
+
+      <div class="survey-divider"></div>
+
+      <div class="flex items-center justify-between">
+        <span class="input-label survey-section-label">Battery</span>
+        <label class="checkbox-label no-print">
+          <input type="checkbox" [checked]="!hasBattery" (change)="hasBattery = !hasBattery"> No battery
+        </label>
+      </div>
+      @if (hasBattery) {
+      <div class="grid grid-cols-4 gap-4 mt-2">
+        <div class="input-group">
+          <label class="input-label" for="batteryBrand">Brand</label>
+          <p-select inputId="batteryBrand" [ngModel]="batteryBrandSelection"
+            (ngModelChange)="onBatteryBrandChange($event)" [options]="batteryBrandOptions" optionLabel="label"
+            optionValue="value" appendTo="body" placeholder="Select brand" class="w-full" />
+          @if (batteryBrandSelection === otherOptionValue) {
+          <input type="text" [(ngModel)]="batteryBrand" placeholder="Type brand name" aria-label="Battery brand">
+          }
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="batteryModel">Model</label>
+          @if (batteryBrandSelection !== otherOptionValue) {
+          <p-select inputId="batteryModel" [ngModel]="batteryModelSelection"
+            (ngModelChange)="onBatteryModelChange($event)" [options]="batteryModelOptions" optionLabel="label"
+            optionValue="value" appendTo="body" [disabled]="batteryBrandSelection === null" placeholder="Select model"
+            class="w-full" />
+          }
+          @if (batteryBrandSelection === otherOptionValue || batteryModelSelection === otherOptionValue) {
+          <input type="text" [(ngModel)]="batteryModel" placeholder="Type model name" aria-label="Battery model">
+          }
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="batteryCapacityKwh">Capacity per Unit (kWh)</label>
+          <input id="batteryCapacityKwh" type="number" min="0" step="0.1" [(ngModel)]="batteryCapacityKwh"
+            placeholder="e.g. 16">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="batteryCount">Number of Battery</label>
+          <input id="batteryCount" type="number" min="1" step="1" [(ngModel)]="batteryCount" placeholder="e.g. 1">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="batteryTotalCapacity">Total Capacity (kWh)</label>
+          <input id="batteryTotalCapacity" type="text" readonly [value]="totalBatteryCapacityKwh"
+            placeholder="Auto-calculated">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="batteryVoltageMin">Voltage Min (V)</label>
+          <input id="batteryVoltageMin" type="number" min="0" step="0.1" [(ngModel)]="batteryVoltageMin"
+            placeholder="e.g. 44.8">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="batteryVoltageMax">Voltage Max (V)</label>
+          <input id="batteryVoltageMax" type="number" min="0" step="0.1" [(ngModel)]="batteryVoltageMax"
+            placeholder="e.g. 57.6">
+          @if (isBatteryVoltageRangeInvalid) {
+          <span class="survey-note-hint no-print">Max must be greater than Min</span>
+          }
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="batteryCurrentAh">Current (Ah)</label>
+          <input id="batteryCurrentAh" type="number" min="0" step="1" [(ngModel)]="batteryCurrentAh"
+            placeholder="e.g. 314">
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="batteryInstallDate">Installation Date</label>
+          <p-datepicker inputId="batteryInstallDate" [(ngModel)]="batteryInstallDate" dateFormat="dd/mm/yy"
+            appendTo="body" [showIcon]="true" [fluid]="true" placeholder="dd/mm/yyyy" />
+        </div>
+      </div>
+      } @else {
+      <p class="survey-note-hint mt-2">No battery at this site</p>
+      }
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- 5. PV Layout Suggestions -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h2>5. PV Layout Suggestions</h2>
         <button type="button" class="k-btn-text no-print" (click)="addLayoutOption()">+ Add Another Layout
           Option</button>
       </div>
@@ -329,7 +516,7 @@
       @for (option of layoutOptions; track option.id) {
       <div class="survey-layout-option-box">
         <div class="survey-layout-option-header">
-          <h3 class="survey-layout-option-title">{{ option.title }}</h3>
+          <h3 class="survey-layout-option-title" style="font-weight: bold;">{{ option.title }}</h3>
           @if (layoutOptions.length > 1) {
           <button type="button" class="k-btn-text no-print survey-layout-remove-btn"
             (click)="removeLayoutOption(option)">Remove</button>
@@ -339,25 +526,48 @@
         <div class="grid grid-cols-2 gap-4">
           <div class="input-group full-width no-print">
             <label class="input-label">Layout Sketch / Roof Plan</label>
-            @if (option.sketchPhotos.length > 0) {
-            <div class="survey-photo-grid">
+            <div class="survey-photo-grid" [class.survey-photo-grid--empty]="option.sketchPhotos.length === 0">
               @for (photo of option.sketchPhotos; track photo.id) {
-              <div class="survey-photo-item">
-                <img [src]="photo.previewUrl" [alt]="photo.file.name">
-                <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
-                  (click)="removeLayoutPhoto(option, photo)">
+              <div class="survey-photo-item" [class.survey-photo-item--pending]="!!photo.file">
+                <p-image [src]="photo.previewUrl" [alt]="photo.name" [preview]="true" appendTo="body"
+                styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+              @if (photo.file) { <span class="survey-photo-pending-badge no-print">Pending</span> }
+                <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo" [disabled]="isPhotoRemoving(photo)"
+                  (click)="removeLayoutPhoto(option, 'sketch', photo)">
                   <i class="fa-solid fa-times"></i>
                 </button>
               </div>
               }
-            </div>
-            }
-            <div class="photo-box survey-layout-photo-box" (dragover)="$event.preventDefault()"
-              (drop)="onLayoutPhotoDrop(option, $event)" (click)="layoutPhotoInput.click()">
+              <div class="photo-box survey-layout-photo-box" [class.survey-photo-add]="option.sketchPhotos.length > 0" (dragover)="$event.preventDefault()"
+              (drop)="onLayoutPhotoDrop(option, 'sketch', $event)" (click)="layoutPhotoInput.click()">
               + Upload PV Layout Design
             </div>
+            </div>
             <input #layoutPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
-              (change)="onLayoutPhotoFilesSelected(option, $event)">
+              (change)="onLayoutPhotoFilesSelected(option, 'sketch', $event)">
+          </div>
+
+          <div class="input-group full-width no-print">
+            <label class="input-label">PV String Design</label>
+            <div class="survey-photo-grid" [class.survey-photo-grid--empty]="option.stringDesignPhotos.length === 0">
+              @for (photo of option.stringDesignPhotos; track photo.id) {
+              <div class="survey-photo-item" [class.survey-photo-item--pending]="!!photo.file">
+                <p-image [src]="photo.previewUrl" [alt]="photo.name" [preview]="true" appendTo="body"
+                styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+              @if (photo.file) { <span class="survey-photo-pending-badge no-print">Pending</span> }
+                <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo" [disabled]="isPhotoRemoving(photo)"
+                  (click)="removeLayoutPhoto(option, 'stringDesign', photo)">
+                  <i class="fa-solid fa-times"></i>
+                </button>
+              </div>
+              }
+              <div class="photo-box survey-layout-photo-box" [class.survey-photo-add]="option.stringDesignPhotos.length > 0" (dragover)="$event.preventDefault()"
+              (drop)="onLayoutPhotoDrop(option, 'stringDesign', $event)" (click)="stringDesignPhotoInput.click()">
+              + Upload PV String Design
+            </div>
+            </div>
+            <input #stringDesignPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
+              (change)="onLayoutPhotoFilesSelected(option, 'stringDesign', $event)">
           </div>
           <div class="input-group">
             <label class="input-label">Estimated Capacity (kWp)</label>
@@ -379,21 +589,21 @@
 
     <div class="page-break"></div>
 
-    <!-- 5. Notes & Remarks -->
+    <!-- 6. Notes & Remarks -->
     <div class="card mb-6">
       <div class="card-header">
-        <h2>5. Notes &amp; Remarks</h2>
+        <h2>6. Notes &amp; Remarks</h2>
       </div>
 
       <div class="flex-col gap-6">
-        <div class="input-group">
+        <div class="input-group mb-3">
           <label class="input-label survey-note-label survey-note-label-blue">Client Notes &amp; Requests</label>
           <p class="survey-note-hint">Information, questions, or concerns raised by the client during the visit.</p>
           <textarea class="form-textarea" rows="4" [(ngModel)]="clientNotes"
             placeholder="e.g. Client requested all cabling to be completely hidden. Wants to future-proof for an EV charger..."></textarea>
         </div>
 
-        <div class="input-group">
+        <div class="input-group mb-3">
           <label class="input-label survey-note-label survey-note-label-green">Notes For Customer</label>
           <p class="survey-note-hint">Action items or important structural notices the client needs to be aware of.
           </p>
@@ -413,10 +623,20 @@
 
     <!-- Bottom Actions -->
     <div class="flex justify-end gap-2 no-print survey-bottom-actions">
-      <button type="button" class="k-btn k-btn-outline" (click)="saveDraft()">Save Report (local only)</button>
-      <button type="button" class="k-btn k-btn-primary" (click)="exportToPdf()">Export to PDF</button>
+      <button type="button" class="k-btn k-btn-primary" [disabled]="isSaving" (click)="saveReport()">
+        @if (isSaving) { <i class="fas fa-spinner fa-spin"></i> Saving… } @else { Save Report }
+      </button>
+      <button type="button" class="k-btn k-btn-outline" (click)="exportToPdf()">Export to PDF</button>
     </div>
 
   </div>
   }
 </div>
+
+<!-- Saving: บล็อกทั้งหน้าด้วย k-loading ระหว่าง save (ฟอร์ม + อัปโหลดรูป) กัน user แก้/ออกกลางทาง
+     ซ้อนทับฟอร์มแทนการสลับ @if เพื่อไม่ทำลาย DOM ฟอร์ม (scroll position จะได้ไม่เด้งขึ้นบน) -->
+@if (isSaving) {
+<div class="survey-saving-overlay no-print" role="alert" aria-busy="true" aria-live="assertive">
+  <app-k-loading></app-k-loading>
+</div>
+}

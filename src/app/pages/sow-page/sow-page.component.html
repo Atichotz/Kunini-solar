@@ -1,16 +1,31 @@
-<div class="max-w-container p-[24px]">
+<p-confirmDialog></p-confirmDialog>
+<!-- inert ระหว่าง save: กัน Tab/คีย์บอร์ดเข้าถึงฟอร์มที่อยู่หลัง overlay -->
+<div class="max-w-container p-[24px]" [attr.inert]="isSaving ? '' : null">
 
   <!-- Page Header (hidden on print) -->
   <div class="flex justify-between items-start no-print !mb-2 flex-wrap">
     <div>
       <h1 class="k-header mb-1">Scope of Work (SOW)</h1>
-      @if (!loadErrorMessage) {
-      <div class="item-meta">Draft only — data is not saved to the database yet and will be lost on reload</div>
+      @if (!loadErrorMessage && !isLoadingSow) {
+      @if (sowId && createdAt) {
+      <div class="item-meta">
+        Created {{ createdAt | date:'dd MMM yyyy' }}
+        @if (createdBy) { by <strong>{{ createdBy }}</strong> }
+        · Last edited {{ updatedAt | date:'dd MMM yyyy, HH:mm' }}
+        @if (updatedBy) { by <strong>{{ updatedBy }}</strong> }
+      </div>
+      } @else {
+      <div class="item-meta">New SOW — not saved yet. Photos you pick are uploaded when you press Save</div>
+      }
       }
     </div>
     <div class="flex gap-2 items-center">
-      @if (hasSavedLocally) {
-      <span class="text-sm" style="color: var(--k-accent-green);">Saved locally</span>
+      @if (saveNotice) {
+      <span class="text-sm" style="color: var(--k-accent-green);">{{ saveNotice }}</span>
+      }
+      <!-- SOW ที่เคยบันทึกแล้ว (มี sowId) → มีปุ่ม Export ด้านบนด้วย; SOW ใหม่ต้องกด Save ก่อน จึงยังไม่โชว์ -->
+      @if (sowId && !loadErrorMessage && !isLoadingSow) {
+      <button type="button" class="k-btn k-btn-outline k-btn-sm k-btn-header no-print" [disabled]="isSaving || startAfterEnd" (click)="exportToPdf()">Export to PDF</button>
       }
       <p-button [routerLink]="backLink" [rounded]="true" variant="outlined" severity="danger">
         <i class="fa-solid fa-xmark"></i>
@@ -20,7 +35,21 @@
 
   @if (loadErrorMessage) {
   <div class="card" style="color: var(--k-red);">{{ loadErrorMessage }}</div>
+  } @else if (isLoadingSow) {
+  <div class="text-sm p-[24px]" style="color: var(--k-mid-grey);">Loading...</div>
   } @else {
+
+  @if (saveErrorMessage) {
+  <div class="card mb-6 no-print" role="alert" style="color: var(--k-red);">
+    <div>{{ saveErrorMessage }}</div>
+    @if (isConflict) {
+    <button type="button" class="k-btn k-btn-outline mt-2" (click)="confirmReloadLatest()">Reload latest version</button>
+    }
+  </div>
+  }
+  @if (photoErrorMessage) {
+  <div class="card mb-6 no-print" role="alert" style="color: var(--k-red);">{{ photoErrorMessage }}</div>
+  }
 
   <div class="flex-col gap-6">
 
@@ -49,12 +78,12 @@
               </div>
               <div class="input-group">
                 <label class="input-label" for="sowStartDate">Planned Start Date</label>
-                <p-datepicker inputId="sowStartDate" [(ngModel)]="startDate" appendTo="body" [showIcon]="true"
+                <p-datepicker inputId="sowStartDate" [(ngModel)]="startDate" dateFormat="dd/mm/yy" appendTo="body" [showIcon]="true"
                   [fluid]="true" placeholder="Select date" />
               </div>
               <div class="input-group">
                 <label class="input-label" for="sowEndDate">Est. Completion Date</label>
-                <p-datepicker inputId="sowEndDate" [(ngModel)]="endDate" appendTo="body" [showIcon]="true"
+                <p-datepicker inputId="sowEndDate" [(ngModel)]="endDate" dateFormat="dd/mm/yy" appendTo="body" [showIcon]="true"
                   [fluid]="true" placeholder="Select date" />
               </div>
             </div>
@@ -69,7 +98,7 @@
               <h2>2. Customer Notes &amp; Concerns</h2>
             </div>
             <div class="input-group">
-              <textarea class="form-textarea" [(ngModel)]="customerNotes" rows="3"
+              <textarea maxlength="10000" class="form-textarea" [(ngModel)]="customerNotes" rows="3"
                 placeholder="Note any specific customer requests, concerns, or access restrictions (e.g., 'Do not block driveway between 2-4 PM', 'Beware of dog', etc.)."></textarea>
             </div>
           </div>
@@ -85,16 +114,12 @@
             <div class="day-block">
               <div class="day-block-header">
                 <div class="flex items-center gap-4">
-                  <h3 class="day-block-title">{{ dayLabel(i) }}</h3>
-                  <p-datepicker [(ngModel)]="day.date" appendTo="body" styleClass="day-date-input" placeholder="Date" />
+                  <h3 class="day-block-title font-bold">{{ dayLabel(i) }}</h3>
+                  <p-datepicker [(ngModel)]="day.date" dateFormat="dd/mm/yy" appendTo="body" styleClass="day-date-input" placeholder="Date" />
                 </div>
                 <div class="flex items-center gap-2">
-                  <select [(ngModel)]="day.status" class="day-status-select">
-                    <option>Pending</option>
-                    <option>In Progress</option>
-                    <option>Completed</option>
-                    <option>Delayed</option>
-                  </select>
+                  <p-select [options]="dayStatusOptions" [(ngModel)]="day.status" appendTo="body"
+                    styleClass="day-status-select" />
                   <button type="button" class="icon-btn no-print" title="Remove day" (click)="removeDay(day)">
                     <i class="fa-solid fa-trash"></i>
                   </button>
@@ -106,11 +131,11 @@
                 <div class="flex flex-col gap-3">
                   <span class="input-label sow-section-label">Team &amp; Personnel</span>
                   <div class="grid grid-cols-2 gap-3">
-                    <input type="number" min="0" placeholder="Total Headcount" title="Total Headcount"
+                    <input type="number" min="0" step="1" placeholder="Total Headcount" title="Total Headcount"
                       [(ngModel)]="day.headcount" (ngModelChange)="clampHeadcount(day)">
-                    <input type="text" placeholder="Lead Tech" title="Lead Technician" [(ngModel)]="day.leadTech">
+                    <input type="text" maxlength="100" placeholder="Lead Tech" title="Lead Technician" [(ngModel)]="day.leadTech">
                   </div>
-                  <input type="text" placeholder="Subcontractors / Notes (e.g., external roofers)"
+                  <input type="text" maxlength="500" placeholder="Subcontractors / Notes (e.g., external roofers)"
                     [(ngModel)]="day.subcontractorNotes">
                 </div>
 
@@ -133,7 +158,7 @@
                       <input type="checkbox" [(ngModel)]="day.machinery.generator"> Generator
                     </label>
                   </div>
-                  <input type="text" placeholder="Other machinery notes (e.g. Crane rental 09:00-12:00)"
+                  <input type="text" maxlength="500" placeholder="Other machinery notes (e.g. Crane rental 09:00-12:00)"
                     [(ngModel)]="day.machineryNotes">
                 </div>
               </div>
@@ -143,7 +168,7 @@
                 <span class="input-label sow-section-label">Planned Tasks</span>
                 @for (task of day.tasks; track task.id) {
                 <div class="task-row">
-                  <input type="text" [(ngModel)]="task.text" placeholder="Task description">
+                  <input type="text" maxlength="500" [(ngModel)]="task.text" placeholder="Task description">
                   <button type="button" class="icon-btn no-print" title="Remove task" (click)="removeTask(day, task)">
                     <i class="fa-solid fa-trash"></i>
                   </button>
@@ -177,11 +202,11 @@
               <button type="button" class="k-btn-text no-print" (click)="addEodReport()">+ Add Day Report</button>
             </div>
 
-            @for (report of eodReports; track report.id) {
+            @for (report of eodReports; track report.id; let i = $index) {
             <div class="day-block sow-eod-block">
               <div class="day-block-header sow-eod-header">
-                <h3 class="sow-eod-title">{{ report.dayLabel }}</h3>
-                <button type="button" class="icon-btn no-print" title="Remove report" (click)="removeEodReport(report)">
+                <h3 class="sow-eod-title font-bold">{{ eodLabel(i) }}</h3>
+                <button type="button" class="icon-btn no-print" title="Remove report" (click)="removeEodReport(report, i)">
                   <i class="fa-solid fa-trash"></i>
                 </button>
               </div>
@@ -189,7 +214,7 @@
               <div class="grid grid-cols-2 gap-4 mb-5">
                 <div class="input-group">
                   <label class="input-label">Date of Report</label>
-                  <p-datepicker [(ngModel)]="report.date" appendTo="body" [showIcon]="true" [fluid]="true"
+                  <p-datepicker [(ngModel)]="report.date" dateFormat="dd/mm/yy" appendTo="body" [showIcon]="true" [fluid]="true"
                     placeholder="Select date" />
                 </div>
                 <div class="input-group">
@@ -207,30 +232,41 @@
 
               <div class="input-group mb-4">
                 <span class="input-label">Daily Progress &amp; Issues</span>
-                <textarea class="form-textarea" rows="3" [(ngModel)]="report.progressNotes"
+                <textarea maxlength="10000" class="form-textarea" rows="3" [(ngModel)]="report.progressNotes"
                   placeholder="Summarize today's progress. Note any issues, missing materials, or delays encountered on site."></textarea>
               </div>
 
               <div class="input-group">
                 <span class="input-label">EOD Site Photos</span>
 
-                @if (report.photos.length > 0) {
-                <div class="sow-photo-grid">
-                  @for (photo of report.photos; track photo.id) {
+                <!-- มีรูปแล้ว → ปุ่มอัปโหลดเป็นช่องสี่เหลี่ยมในกริดเดียวกับรูป (ขนาดเท่ากัน); ยังไม่มีรูป → กล่องกว้างเต็มแถวเหมือนเดิม -->
+                <div [class.sow-photo-grid]="hasAnyPhoto(report)">
+                  @for (photo of report.savedPhotos; track photo.id) {
                   <div class="sow-photo-item">
-                    <img [src]="photo.previewUrl" [alt]="photo.file.name">
+                    <p-image [src]="photo.url" [alt]="photo.fileName" [preview]="true" appendTo="body"
+                      styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+                    <button type="button" class="icon-btn no-print sow-photo-remove" title="Delete photo"
+                      [disabled]="removingPhotoId === photo.id" (click)="removeSavedPhoto(report, photo)">
+                      <i class="fa-solid fa-times"></i>
+                    </button>
+                  </div>
+                  }
+                  @for (photo of report.photos; track photo.id) {
+                  <div class="sow-photo-item sow-photo-item--pending" title="Not uploaded yet — uploads when you press Save">
+                    <p-image [src]="photo.previewUrl" [alt]="photo.file.name" [preview]="true" appendTo="body"
+                      styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
                     <button type="button" class="icon-btn no-print sow-photo-remove" title="Remove photo"
                       (click)="removePhoto(report, photo)">
                       <i class="fa-solid fa-times"></i>
                     </button>
                   </div>
                   }
-                </div>
-                }
 
-                <div class="photo-box no-print" (dragover)="$event.preventDefault()"
-                  (drop)="onPhotoDrop(report, $event)" (click)="reportPhotoInput.click()">
-                  + Upload Progress Photos
+                  <div class="photo-box no-print" [class.sow-photo-upload-tile]="hasAnyPhoto(report)"
+                    (dragover)="$event.preventDefault()" (drop)="onPhotoDrop(report, $event)"
+                    (click)="reportPhotoInput.click()">
+                    + Upload Progress Photos
+                  </div>
                 </div>
                 <input #reportPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
                   (change)="onPhotoFilesSelected(report, $event)">
@@ -249,7 +285,7 @@
               <h2>5. Final Project Notes &amp; Remarks</h2>
             </div>
             <div class="input-group">
-              <textarea class="form-textarea" rows="4" [(ngModel)]="finalNotes"
+              <textarea maxlength="10000" class="form-textarea" rows="4" [(ngModel)]="finalNotes"
                 placeholder="Enter any general remarks, overall project feedback, pending items, or final handover notes here..."></textarea>
             </div>
           </div>
@@ -260,10 +296,18 @@
 
     <!-- Bottom Actions -->
     <div class="flex justify-end gap-2 no-print sow-bottom-actions">
-      <button type="button" class="k-btn k-btn-outline" (click)="saveDraft()">Save (local only)</button>
-      <button type="button" class="k-btn k-btn-primary" (click)="exportToPdf()">Export to PDF</button>
+      <button type="button" class="k-btn k-btn-primary" [disabled]="isSaving || startAfterEnd" (click)="saveSow()">Save</button>
+      <button type="button" class="k-btn k-btn-outline" [disabled]="isSaving || startAfterEnd" (click)="exportToPdf()">Export to PDF</button>
     </div>
 
   </div>
   }
 </div>
+
+<!-- Saving: บล็อกทั้งหน้าด้วย k-loading ระหว่าง save (ฟอร์ม + อัปโหลดรูป) กัน user แก้/ออกกลางทาง
+     ซ้อนทับฟอร์มแทนการสลับ @if เพื่อไม่ทำลาย DOM ฟอร์ม (scroll position จะได้ไม่เด้งขึ้นบน) -->
+@if (isSaving) {
+<div class="sow-saving-overlay no-print" role="alert" aria-busy="true" aria-live="assertive">
+  <app-k-loading></app-k-loading>
+</div>
+}

@@ -48,6 +48,14 @@ interface ChecklistItem {
   checked: boolean;
 }
 
+// แถว checklist ที่มี checkbox + ช่องกรอกค่า (Permits / Backup Loads / Load) — label คือคำถามที่ช่างต้องเติมค่า
+interface ValueCheckItem {
+  id: string;
+  label: string;
+  checked: boolean;
+  value: string;
+}
+
 // รูปที่เพิ่งเลือก/ลากมา — preview ในเครื่องเท่านั้น ไม่มีการอัปโหลดจริง (หน้านี้ยังไม่ต่อ backend)
 interface StagedPhoto {
   id: string;
@@ -102,6 +110,10 @@ export class ReportPageComponent implements OnInit, OnDestroy {
 
   checklist: ChecklistItem[] = [];
   technicianNotes = '';
+
+  permitChecklist: ValueCheckItem[] = [];
+  backupLoadChecklist: ValueCheckItem[] = [];
+  loadChecklist: ValueCheckItem[] = [];
 
   inverterSerials: SerialEntry[] = [];
   batterySerials: SerialEntry[] = [];
@@ -174,6 +186,31 @@ export class ReportPageComponent implements OnInit, OnDestroy {
       { id: nextId('chk'), label: 'Test Backup Loads (Hybrid) - power off utility 10 mins', checked: false },
       { id: nextId('chk'), label: 'Test ATS (Hybrid) - shut down solar inverter', checked: false },
     ];
+    this.permitChecklist = this.buildValueChecklist('permit', [
+      'PEA/MEA Meter Rating (A) + 3P or 1P',
+      'Main Cable Size + Type',
+      'DB or CU + Number of Ways',
+      'Main MCCB or MCB Rating (A)',
+      'MCB/CB to Combiner - Rating (A), Cable Size + Type, Location in DB or CU',
+    ]);
+    this.backupLoadChecklist = this.buildValueChecklist('backup', [
+      'CU #Ways',
+      'Main MCB Rating',
+      'Main MCB 2P or 3P',
+    ]);
+    this.loadChecklist = this.buildValueChecklist('load', [
+      'Ct.1',
+      'Ct.2',
+      'Ct.3',
+      'Ct.4',
+      'Ct.5',
+      'Ct.6',
+    ]);
+  }
+
+  // รับ: prefix สำหรับ id + รายการ label / คืน: แถว checklist ว่าง (ยังไม่ติ๊ก ยังไม่กรอกค่า)
+  private buildValueChecklist(prefix: string, labels: string[]): ValueCheckItem[] {
+    return labels.map((label) => ({ id: nextId(prefix), label, checked: false, value: '' }));
   }
 
   // ===== System configuration (Solar Array / Power & Storage) =====

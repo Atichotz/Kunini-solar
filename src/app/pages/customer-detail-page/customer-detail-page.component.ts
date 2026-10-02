@@ -13,7 +13,9 @@ import { RouterLink, ActivatedRoute } from '@angular/router';
 import { forkJoin, of, map, distinctUntilChanged, takeUntil, skip } from 'rxjs';
 import { CustomerService } from '../../services/customer.service';
 import { EstimateService } from '../../services/estimate.service';
-import { SurveyService } from '../../services/survey.service';
+import { SiteSurveyReportService } from '../../services/site-survey-report.service';
+import { SowService } from '../../services/sow.service';
+import { CallOutServiceReportService } from '../../services/call-out-service-report.service';
 import { PermissionService } from '../../services/permission.service';
 import { KLoadingComponent } from '../../k-loading/k-loading.component';
 import { TodoBoardComponent } from '../../todo-board/todo-board.component';
@@ -22,7 +24,9 @@ import { ScrollToTopComponent } from '../../scroll-to-top/scroll-to-top.componen
 import { LinkifyPipe } from '../../pipes/linkify.pipe';
 import type { CustomerDetail, ElectricBillDetail, NoteDetail, NoteCommentDetail, StatusOption, UpsertContactPayload } from '../../dto/customer.dto';
 import type { EstimateDetail, EstimateSummary } from '../../dto/estimate.dto';
-import type { SurveyHistoryItem } from '../../dto/survey.dto';
+import type { SiteSurveyReportSummary } from '../../dto/site-survey-report.dto';
+import type { SowSummary } from '../../dto/sow.dto';
+import type { CallOutResolutionStatus, CallOutServiceReportSummary } from '../../dto/call-out-service-report.dto';
 import type { TicketCard } from '../../dto/ticket.dto';
 
 interface Contact {
@@ -102,13 +106,30 @@ interface EstimateHistoryRow {
   grandTotal: number | null;
 }
 
-interface SurveyHistoryRow {
+interface SiteSurveyHistoryRow {
   id: string;
   dateIso: string;
   author: string;
   photoCount: number;
-  noteCount: number;
-  wasUpdated: boolean;
+  layoutOptionCount: number;
+}
+
+interface CallOutHistoryRow {
+  id: string;
+  dateIso: string;
+  author: string;
+  resolutionStatus: CallOutResolutionStatus;
+  statusLabel: string;
+  reportedErrorCode: string | null;
+  photoCount: number;
+}
+
+interface SowHistoryRow {
+  id: string;
+  dateIso: string;
+  author: string;
+  dayCount: number;
+  eodReportCount: number;
 }
 
 interface TicketHistoryRow {
@@ -127,8 +148,17 @@ interface TicketHistoryRow {
 // เพิ่ม field `kind` ให้ template แยกประเภทด้วย @if ได้โดยไม่ต้อง cast
 type HistoryTimelineRow =
   | ({ kind: 'estimate' } & EstimateHistoryRow)
-  | ({ kind: 'survey' } & SurveyHistoryRow)
+  | ({ kind: 'siteSurvey' } & SiteSurveyHistoryRow)
+  | ({ kind: 'callOut' } & CallOutHistoryRow)
+  | ({ kind: 'sow' } & SowHistoryRow)
   | ({ kind: 'ticket' } & TicketHistoryRow);
+
+// ป้ายสถานะของ Call Out Service Report ใน History — ตรงกับตัวเลือก Result ในหน้า report
+const CALL_OUT_STATUS_LABEL: Record<CallOutResolutionStatus, string> = {
+  resolved: 'Resolved',
+  monitoring: 'Monitoring',
+  unresolved: 'Unresolved',
+};
 
 // in: ISO date string → out: epoch ms (parse ไม่ได้คืน 0 เพราะ NaN ทำให้ sort ได้ลำดับไม่คงที่)
 function toTimestamp(iso: string): number {
@@ -157,7 +187,9 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly customerService = inject(CustomerService);
   private readonly estimateService = inject(EstimateService);
-  private readonly surveyService = inject(SurveyService);
+  private readonly siteSurveyReportService = inject(SiteSurveyReportService);
+  private readonly sowService = inject(SowService);
+  private readonly callOutServiceReportService = inject(CallOutServiceReportService);
   // ใช้ซ่อนปุ่ม/ข้อมูลตาม role เพื่อ UX เท่านั้น — สิทธิ์จริงบังคับที่ backend
   private readonly permission = inject(PermissionService);
   readonly canManage = this.permission.canManage;
@@ -166,7 +198,7 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
   readonly isCeo = this.permission.isCeo;
   private readonly destroyRef = inject(DestroyRef);
 
-  // เมนูของปุ่ม Report — แยกไปหน้า Install report เดิม กับ Survey Report ใหม่
+  // เมนูของปุ่ม Report — แยกไปหน้า Install report เดิม กับ Site Survey Report
   // ต้องเป็น field ธรรมดา ไม่ใช่ getter — ถ้าเป็น getter จะสร้าง array ใหม่ทุกรอบ change detection
   // แล้ว [model] ของ p-menu เห็นว่า input เปลี่ยน reference ตลอด ทำให้วน re-process จนหน้าค้าง
   reportMenuItems: MenuItem[] = [];
@@ -199,7 +231,9 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
 
   // list ย่อยโหลดแยกกันและเสร็จไม่พร้อมกัน — ใช้แสดง Loading… แทนข้อความ "No … yet" ที่จะโผล่ผิดจังหวะ
   isLoadingEstimates = true;
-  isLoadingSurveys = true;
+  isLoadingSiteSurveys = true;
+  isLoadingSows = true;
+  isLoadingCallOuts = true;
   isLoadingNotes = true;
   isLoadingTickets = true;
 
@@ -246,18 +280,166 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
     });
   }
 
-  surveys: SurveyHistoryItem[] = [];
-  surveyHistoryErrorMessage = '';
+  // Site Survey Report ของลูกค้ารายนี้ (ยังไม่ถูกลบ) — แสดงใน History timeline
+  siteSurveyReports: SiteSurveyReportSummary[] = [];
+  siteSurveyHistoryErrorMessage = '';
+  deletingSiteSurveyId: string | null = null;
 
-  get surveyHistoryRows(): SurveyHistoryRow[] {
-    return this.surveys.map((s) => ({
-      id: s.id,
-      dateIso: s.updatedAt !== s.createdAt ? s.updatedAt : s.createdAt,
-      author: s.createdBy ?? '—',
-      photoCount: s.photoCount,
-      noteCount: s.noteCount,
-      wasUpdated: s.updatedAt !== s.createdAt,
+  get siteSurveyHistoryRows(): SiteSurveyHistoryRow[] {
+    return this.siteSurveyReports.map((r) => ({
+      id: r.id,
+      // updatedAt รวมการแก้รูปด้วย — ตรงกับที่หน้า report โชว์ว่า "Last edited"
+      dateIso: r.updatedAt,
+      author: r.updatedBy ?? r.createdBy ?? '—',
+      photoCount: r.photoCount,
+      layoutOptionCount: r.layoutOptionCount,
     }));
+  }
+
+  // Call Out Service Report ของลูกค้ารายนี้ (ยังไม่ถูกลบ) — แสดงใน History timeline
+  callOutReports: CallOutServiceReportSummary[] = [];
+  callOutHistoryErrorMessage = '';
+  deletingCallOutId: string | null = null;
+
+  get callOutHistoryRows(): CallOutHistoryRow[] {
+    return this.callOutReports.map((r) => ({
+      id: r.id,
+      // updatedAt รวมการแก้รูปด้วย — ตรงกับที่หน้า report โชว์ว่า "Last edited"
+      dateIso: r.updatedAt,
+      author: r.updatedBy ?? r.createdBy ?? '—',
+      resolutionStatus: r.resolutionStatus,
+      statusLabel: CALL_OUT_STATUS_LABEL[r.resolutionStatus],
+      reportedErrorCode: r.reportedErrorCode,
+      photoCount: r.photoCount,
+    }));
+  }
+
+  // Scope of Work ของลูกค้ารายนี้ (ยังไม่ถูกลบ) — แสดงใน History timeline
+  sows: SowSummary[] = [];
+  sowHistoryErrorMessage = '';
+  deletingSowId: string | null = null;
+
+  get sowHistoryRows(): SowHistoryRow[] {
+    return this.sows.map((s) => ({
+      id: s.id,
+      // updatedAt รวมการแก้รูปด้วย — ตรงกับที่หน้า SOW โชว์ว่า "Last edited"
+      dateIso: s.updatedAt,
+      author: s.updatedBy ?? s.createdBy ?? '—',
+      dayCount: s.dayCount,
+      eodReportCount: s.eodReportCount,
+    }));
+  }
+
+  // input: SOW UUID จากแถวใน History — ถามยืนยันก่อนลบ (soft delete เหมือน site survey)
+  onDeleteSow(id: string): void {
+    if (this.deletingSowId) return;
+    this.confirmationService.confirm({
+      header: 'Confirm Delete',
+      message: 'This scope of work will be removed from the list. Continue?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => this.deleteSow(id),
+    });
+  }
+
+  private deleteSow(id: string): void {
+    this.sowHistoryErrorMessage = '';
+    this.deletingSowId = id;
+
+    this.sowService.delete(id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.deletingSowId = null;
+          this.sows = this.sows.filter((s) => s.id !== id);
+        },
+        error: (err) => {
+          this.deletingSowId = null;
+          // 404 = ถูกลบไปแล้วจากที่อื่น — เอาออกจากลิสต์ให้ตรงกับความจริง ไม่ต้องแจ้ง error
+          if (err?.status === 404) {
+            this.sows = this.sows.filter((s) => s.id !== id);
+            return;
+          }
+          console.error('[API] Failed to delete SOW:', err);
+          this.sowHistoryErrorMessage = 'Failed to delete the scope of work. Please try again';
+        },
+      });
+  }
+
+  // input: report UUID จากแถวใน History — ถามยืนยันก่อนลบ
+  // ลบแบบ soft delete (ข้อมูลและรูปยังอยู่ใน DB) แต่หน้าเว็บไม่มีทางกู้คืน จึงบอกผู้ใช้ตรงๆ
+  onDeleteSiteSurvey(id: string): void {
+    if (this.deletingSiteSurveyId) return;
+    this.confirmationService.confirm({
+      header: 'Confirm Delete',
+      message: 'This site survey report will be removed from the list. Continue?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => this.deleteSiteSurvey(id),
+    });
+  }
+
+  private deleteSiteSurvey(id: string): void {
+    this.siteSurveyHistoryErrorMessage = '';
+    this.deletingSiteSurveyId = id;
+
+    this.siteSurveyReportService.delete(id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.deletingSiteSurveyId = null;
+          this.siteSurveyReports = this.siteSurveyReports.filter((r) => r.id !== id);
+        },
+        error: (err) => {
+          this.deletingSiteSurveyId = null;
+          // 404 = ถูกลบไปแล้วจากที่อื่น — เอาออกจากลิสต์ให้ตรงกับความจริง ไม่ต้องแจ้ง error
+          if (err?.status === 404) {
+            this.siteSurveyReports = this.siteSurveyReports.filter((r) => r.id !== id);
+            return;
+          }
+          console.error('[API] Failed to delete site survey report:', err);
+          this.siteSurveyHistoryErrorMessage = 'Failed to delete the site survey report. Please try again';
+        },
+      });
+  }
+
+  // input: report UUID จากแถวใน History — ถามยืนยันก่อนลบ (soft delete เหมือน site survey)
+  onDeleteCallOut(id: string): void {
+    if (this.deletingCallOutId) return;
+    this.confirmationService.confirm({
+      header: 'Confirm Delete',
+      message: 'This call out service report will be removed from the list. Continue?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => this.deleteCallOut(id),
+    });
+  }
+
+  private deleteCallOut(id: string): void {
+    this.callOutHistoryErrorMessage = '';
+    this.deletingCallOutId = id;
+
+    this.callOutServiceReportService.delete(id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.deletingCallOutId = null;
+          this.callOutReports = this.callOutReports.filter((r) => r.id !== id);
+        },
+        error: (err) => {
+          this.deletingCallOutId = null;
+          // 404 = ถูกลบไปแล้วจากที่อื่น — เอาออกจากลิสต์ให้ตรงกับความจริง ไม่ต้องแจ้ง error
+          if (err?.status === 404) {
+            this.callOutReports = this.callOutReports.filter((r) => r.id !== id);
+            return;
+          }
+          console.error('[API] Failed to delete call out service report:', err);
+          this.callOutHistoryErrorMessage = 'Failed to delete the call out service report. Please try again';
+        },
+      });
   }
 
   // ticket ของลูกค้ารายนี้ — ไม่ได้โหลดเอง แต่รับจาก <app-ticket-board> ผ่าน (ticketsChange)
@@ -294,16 +476,18 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
     this.ticketHistoryErrorMessage = 'Failed to load ticket history';
   }
 
-  // รวม estimate + survey + ticket เป็น timeline เดียว เรียงใหม่→เก่า (in: estimateHistoryRows, surveyHistoryRows, ticketHistoryRows / out: HistoryTimelineRow[])
+  // รวม estimate + site survey + call out + SOW + ticket เป็น timeline เดียว เรียงใหม่→เก่า (in: estimateHistoryRows, siteSurveyHistoryRows, callOutHistoryRows, sowHistoryRows, ticketHistoryRows / out: HistoryTimelineRow[])
   get historyTimelineRows(): HistoryTimelineRow[] {
     const estimateRows = this.estimateHistoryRows.map((row) => ({ kind: 'estimate' as const, ...row }));
-    const surveyRows = this.surveyHistoryRows.map((row) => ({ kind: 'survey' as const, ...row }));
+    const siteSurveyRows = this.siteSurveyHistoryRows.map((row) => ({ kind: 'siteSurvey' as const, ...row }));
+    const callOutRows = this.callOutHistoryRows.map((row) => ({ kind: 'callOut' as const, ...row }));
+    const sowRows = this.sowHistoryRows.map((row) => ({ kind: 'sow' as const, ...row }));
     const ticketRows = this.ticketHistoryRows.map((row) => ({ kind: 'ticket' as const, ...row }));
-    return [...estimateRows, ...surveyRows, ...ticketRows].sort((a, b) => toTimestamp(b.dateIso) - toTimestamp(a.dateIso));
+    return [...estimateRows, ...siteSurveyRows, ...callOutRows, ...sowRows, ...ticketRows].sort((a, b) => toTimestamp(b.dateIso) - toTimestamp(a.dateIso));
   }
 
   get isLoadingHistory(): boolean {
-    return this.isLoadingEstimates || this.isLoadingSurveys || this.isLoadingTickets;
+    return this.isLoadingEstimates || this.isLoadingSiteSurveys || this.isLoadingCallOuts || this.isLoadingSows || this.isLoadingTickets;
   }
 
   contacts: Contact[] = [];
@@ -412,15 +596,24 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
     this.customerLoadError = '';
 
     this.isLoadingEstimates = true;
-    this.isLoadingSurveys = true;
+    this.isLoadingSiteSurveys = true;
+    this.isLoadingSows = true;
+    this.isLoadingCallOuts = true;
     this.isLoadingNotes = true;
     this.isLoadingTickets = true;
     this.estimates = [];
-    this.surveys = [];
+    this.siteSurveyReports = [];
+    this.callOutReports = [];
+    this.sows = [];
     this.tickets = [];
     this.notes = [];
-    this.surveyHistoryErrorMessage = '';
     this.ticketHistoryErrorMessage = '';
+    this.siteSurveyHistoryErrorMessage = '';
+    this.deletingSiteSurveyId = null;
+    this.callOutHistoryErrorMessage = '';
+    this.deletingCallOutId = null;
+    this.sowHistoryErrorMessage = '';
+    this.deletingSowId = null;
     this.noteErrorMessage = '';
 
     this.currentSystem = null;
@@ -470,15 +663,39 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
       },
     });
 
-    this.surveyService.listByCustomer(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (surveys) => {
-        this.surveys = surveys;
-        this.isLoadingSurveys = false;
+    this.siteSurveyReportService.listByCustomer(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (reports) => {
+        this.siteSurveyReports = reports;
+        this.isLoadingSiteSurveys = false;
       },
       error: (err) => {
-        console.error('[API] Failed to load survey history:', err);
-        this.isLoadingSurveys = false;
-        this.surveyHistoryErrorMessage = 'Failed to load survey history';
+        console.error('[API] Failed to load site survey report history:', err);
+        this.isLoadingSiteSurveys = false;
+        this.siteSurveyHistoryErrorMessage = 'Failed to load site survey report history';
+      },
+    });
+
+    this.callOutServiceReportService.listByCustomer(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (reports) => {
+        this.callOutReports = reports;
+        this.isLoadingCallOuts = false;
+      },
+      error: (err) => {
+        console.error('[API] Failed to load call out service report history:', err);
+        this.isLoadingCallOuts = false;
+        this.callOutHistoryErrorMessage = 'Failed to load call out service report history';
+      },
+    });
+
+    this.sowService.listByCustomer(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (sows) => {
+        this.sows = sows;
+        this.isLoadingSows = false;
+      },
+      error: (err) => {
+        console.error('[API] Failed to load SOW history:', err);
+        this.isLoadingSows = false;
+        this.sowHistoryErrorMessage = 'Failed to load scope of work history';
       },
     });
 

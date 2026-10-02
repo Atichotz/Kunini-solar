@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Installation Report - KUNINI SOLAR</title>
+    <style>
+        /* =========================================
+           1. BRAND CSS VARIABLES
+           ========================================= */
+        :root {
+            --kunini-red: #b01d2a;
+            --kunini-black: #000000;
+            --kunini-dark-grey: #414142;
+            --kunini-mid-grey: #a7a9ac;
+            --kunini-light-grey: #dcddde;
+            --accent-blue: #0088c2;
+            --accent-green: #55b1a5;
+
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --radius-lg: 16px;
+            --radius-pill: 999px;
+            --radius-sm: 8px;
+        }
+
+        /* =========================================
+           2. RESET & BASE STYLES
+           ========================================= */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--kunini-dark-grey);
+            line-height: 1.5;
+            padding: 40px 24px;
+            font-size: 14px;
+        }
+
+        h1 {
+            color: var(--kunini-black);
+            font-weight: 700;
+            font-size: 24px;
+            margin: 0;
+        }
+
+        h2,
+        h3 {
+            color: var(--kunini-black);
+            font-weight: 700;
+        }
+
+        .max-w-container {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* =========================================
+           3. LAYOUT UTILITIES
+           ========================================= */
+        .flex {
+            display: flex;
+        }
+
+        .flex-col {
+            flex-direction: column;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .gap-2 {
+            gap: 8px;
+        }
+
+        .gap-4 {
+            gap: 16px;
+        }
+
+        .mt-4 {
+            margin-top: 16px;
+        }
+
+        .mb-2 {
+            margin-bottom: 8px;
+        }
+
+        .mb-4 {
+            margin-bottom: 16px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .grid-cols-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .grid-cols-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .grid-cols-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* =========================================
+           4. COMPONENTS
+           ========================================= */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            border: 1px solid var(--kunini-light-grey);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+            page-break-inside: avoid;
+        }
+
+        .card-header {
+            font-size: 16px;
+            border-bottom: 2px solid var(--bg-color);
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-header h2 {
+            font-size: 16px;
+            margin: 0;
+        }
+
+        /* Inputs & Data Display */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .input-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--kunini-mid-grey);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .data-val {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--kunini-black);
+        }
+
+        input[type="text"],
+        input[type="date"],
+        input[type="number"],
+        select,
+        textarea {
+            padding: 10px 14px;
+            border: 1px solid var(--kunini-mid-grey);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            outline: none;
+            color: var(--kunini-black);
+            font-family: inherit;
+            width: 100%;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--kunini-red);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 24px;
+            border-radius: var(--radius-pill);
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--kunini-red);
+            color: #ffffff;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border-color: var(--kunini-mid-grey);
+            color: var(--kunini-dark-grey);
+        }
+
+        .btn-text {
+            background: none;
+            border: none;
+            color: var(--accent-blue);
+            padding: 0;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* Icon Button */
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--kunini-mid-grey);
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s ease;
+        }
+
+        .icon-btn:hover {
+            color: var(--kunini-red);
+        }
+
+        /* Photo Upload Boxes */
+        .photo-box {
+            border: 2px dashed var(--kunini-mid-grey);
+            border-radius: var(--radius-sm);
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--kunini-mid-grey);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            background: #fafafa;
+            text-align: center;
+            padding: 16px;
+        }
+
+        /* Badges */
+        .status-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            background: #d4edda;
+            color: #155724;
+            border-radius: var(--radius-pill);
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        /* Detailed Component Table */
+        .component-list {
+            margin-top: 12px;
+        }
+
+        .component-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--bg-color);
+        }
+
+        .component-row:last-child {
+            border-bottom: none;
+        }
+
+        .comp-qty {
+            font-weight: 700;
+            color: var(--kunini-red);
+            width: 40px;
+        }
+
+        .comp-name {
+            flex: 1;
+            font-weight: 600;
+            color: var(--kunini-black);
+        }
+
+        .comp-detail {
+            color: var(--kunini-mid-grey);
+            font-size: 13px;
+        }
+
+        /* Measurement Tables (Test Results) */
+        .test-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+
+        .test-table th {
+            background-color: var(--bg-color);
+            color: var(--kunini-dark-grey);
+            font-weight: 700;
+            text-align: left;
+            padding: 10px;
+            border: 1px solid var(--kunini-light-grey);
+        }
+
+        .test-table td {
+            padding: 8px 10px;
+            border: 1px solid var(--kunini-light-grey);
+        }
+
+        .test-table input {
+            border: none;
+            background: transparent;
+            padding: 0;
+            width: 100%;
+            border-radius: 0;
+            font-size: 13px;
+            color: var(--kunini-black);
+        }
+
+        .test-table input:focus {
+            border-bottom: 1px solid var(--kunini-red);
+        }
+
+        /* Checkbox Grid */
+        .checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--kunini-black);
+            cursor: pointer;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--kunini-red);
+            cursor: pointer;
+        }
+
+        /* =========================================
+           5. PDF PRINT STYLES
+           ========================================= */
+        .print-header,
+        .print-footer {
+            display: none;
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 25mm 15mm;
+            }
+
+            body {
+                background-color: #ffffff;
+                padding: 0;
+            }
+
+            .print-header {
+                display: flex;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                justify-content: space-between;
+                align-items: flex-end;
+                padding-bottom: 10px;
+                border-bottom: 2px solid var(--kunini-red);
+            }
+
+            .print-footer {
+                display: block;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                text-align: center;
+                font-size: 10px;
+                color: var(--kunini-mid-grey);
+                padding-top: 10px;
+                border-top: 1px solid var(--kunini-light-grey);
+            }
+
+            .max-w-container {
+                width: 100%;
+                max-width: 100%;
+                gap: 16px;
+                margin-top: 20px;
+            }
+
+            .card {
+                box-shadow: none;
+                border: 1px solid #ddd;
+                padding: 24px;
+                break-inside: avoid;
+                margin-bottom: 20px;
+            }
+
+            .page-break {
+                page-break-before: always;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            input[type="text"],
+            input[type="date"],
+            input[type="number"],
+            select,
+            textarea {
+                border: none;
+                border-bottom: 1px solid #ccc;
+                border-radius: 0;
+                padding: 4px 0;
+                background: transparent;
+                resize: none;
+            }
+
+            .test-table input {
+                border-bottom: none;
+            }
+
+            /* Tables already have borders */
+            .photo-box {
+                border: 1px solid #ddd;
+                background: transparent;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Repeating PDF Header -->
+    <div class="print-header">
+        <div style="font-weight: 700; font-size: 18px; color: var(--kunini-black);">KUNINI <span
+                style="font-weight: 400;">SOLAR</span></div>
+        <div style="font-size: 12px; color: var(--kunini-dark-grey);">Installation Completion Report</div>
+    </div>
+
+    <!-- Repeating PDF Footer -->
+    <div class="print-footer">
+        HUAHIN • PATTAYA • BANGKOK | ELECTRICAL & SOLAR EPC CONTRACTORS | www.kunini.com
+    </div>
+
+    <!-- Page Header (Web Only) -->
+    <div class="max-w-container no-print"
+        style="margin-bottom: 10px; flex-direction: row; justify-content: space-between; align-items: center;">
+        <h1>Installation Report</h1>
+        <button class="btn btn-primary" onclick="window.print()">Export to PDF</button>
+    </div>
+
+    <div class="max-w-container">
+
+        <!-- ================= PAGE 1 ================= -->
+
+        <!-- 1. Customer & Site Information -->
+        <div class="card">
+            <div class="card-header">
+                <h2>1. Client & Site Details</h2>
+                <div class="status-badge no-print">Installation Complete</div>
+            </div>
+            <div class="grid grid-cols-2">
+                <div class="input-group">
+                    <span class="input-label">Customer Name / Company</span>
+                    <input type="text" value="John Doe Residence">
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Date of Service / Completion</span>
+                    <input type="date" value="2026-08-19">
+                </div>
+                <div class="input-group full-width">
+                    <span class="input-label">Installation Address</span>
+                    <input type="text" value="123/45 Sukhumvit Road, Nong Prue, Bang Lamung, Pattaya">
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Solar Engineer / Technician</span>
+                    <input type="text" value="Philippe" placeholder="e.g. Somchai S.">
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Weather Conditions</span>
+                    <input type="text" value="Cloudy" placeholder="e.g. Sunny, Cloudy">
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. System Size & Component Details -->
+        <div class="card">
+            <div class="card-header">
+                <h2>2. System Configuration & Components</h2>
+            </div>
+
+            <!-- General Info Overview -->
+            <div class="grid grid-cols-3"
+                style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--bg-color);">
+                <div class="input-group">
+                    <span class="input-label">System Type</span>
+                    <div class="data-val" style="font-size: 18px;">Hybrid System</div>
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Total DC Capacity</span>
+                    <div class="data-val" style="font-size: 18px; color: var(--kunini-red);">10.5 kWp</div>
+                </div>
+                <div class="input-group">
+                    <span class="input-label">AC Output (Inverter)</span>
+                    <div class="data-val" style="font-size: 18px;">10.0 kW</div>
+                </div>
+            </div>
+
+            <!-- Detailed Breakdowns -->
+            <div class="grid grid-cols-2">
+
+                <!-- Left Col: Panels & Strings -->
+                <div>
+                    <span class="input-label mb-2">Solar Array Details</span>
+                    <div class="component-list">
+                        <div class="component-row">
+                            <span class="comp-qty">28x</span>
+                            <span class="comp-name">Longi LR7-72HGD-620M</span>
+                        </div>
+                        <div class="component-row">
+                            <span class="comp-qty">2</span>
+                            <span class="comp-name">Strings Configured</span>
+                            <span class="comp-detail">(String 1: 14 modules, String 2: 14 modules)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Col: Inverters & Batteries -->
+                <div>
+                    <span class="input-label mb-2">Power & Storage Details</span>
+                    <div class="component-list">
+                        <div class="component-row">
+                            <span class="comp-qty">1x</span>
+                            <span class="comp-name">Solis S6-EH3P15K02-NV-YD-L</span>
+                            <span class="comp-detail">(Hybrid Inverter)</span>
+                        </div>
+                        <div class="component-row">
+                            <span class="comp-qty">1x</span>
+                            <span class="comp-name">Smart Power Sensor</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="mt-4 no-print">
+                <button class="btn-text">+ Add Equipment / Edit Quantities</button>
+            </div>
+        </div>
+
+        <!-- ================= PAGE 2 ================= -->
+        <div class="page-break"></div>
+
+        <!-- 3. Schedule of Test Results & Commissioning -->
+        <div class="card">
+            <div class="card-header">
+                <h2>3. Schedule of Test Results & Commissioning</h2>
+                <span style="font-size: 12px; color: var(--kunini-mid-grey); font-weight: normal;">General Inspection &
+                    Measurement (O&M)</span>
+            </div>
+
+            <!-- DC Measurements -->
+            <div class="mb-4">
+                <span class="input-label mb-2">DC String Measurements (Test Instrument - DC Clamp Meter)</span>
+                <table class="test-table">
+                    <thead>
+                        <tr>
+                            <th>MPPT</th>
+                            <th>String #</th>
+                            <th># PV Panels Per String</th>
+                            <th>VOC Nominal</th>
+                            <th>VDC @ String Reading</th>
+                            <th>AMP Reading</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><input type="text" value="1"></td>
+                            <td><input type="text" value="1"></td>
+                            <td><input type="number" value="14"></td>
+                            <td><input type="text" value="52.77 V"></td>
+                            <td><input type="text" value="586.7 V"></td>
+                            <td><input type="text" value="6 A"></td>
+                            <td><input type="text" value="13:30 p.m."></td>
+                        </tr>
+                        <tr>
+                            <td><input type="text" value="2"></td>
+                            <td><input type="text" value="2"></td>
+                            <td><input type="number" value="14"></td>
+                            <td><input type="text" value="52.77 V"></td>
+                            <td><input type="text" value="592.8 V"></td>
+                            <td><input type="text" value="5.8 A"></td>
+                            <td><input type="text" value="13:30 p.m."></td>
+                        </tr>
+                        <!-- Empty row for potential string 3 -->
+                        <tr>
+                            <td><input type="text"></td>
+                            <td><input type="text"></td>
+                            <td><input type="number"></td>
+                            <td><input type="text"></td>
+                            <td><input type="text"></td>
+                            <td><input type="text"></td>
+                            <td><input type="text"></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="grid grid-cols-4"
+                    style="gap: 12px; background: var(--bg-color); padding: 12px; border-radius: var(--radius-sm);">
+                    <div class="input-group">
+                        <label class="input-label">Total PV Panels</label>
+                        <input type="number" value="28" style="background: white;">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">DC Fuse Specs</label>
+                        <input type="text" value="20A 1000VDC" style="background: white;">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">DC Surge Specs</label>
+                        <input type="text" value="40 kA 1000VDC" style="background: white;">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">DC Input (Watts)</label>
+                        <input type="text" value="6.96 kW"
+                            style="background: white; border-color: var(--kunini-red); font-weight: bold;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="divider" style="height: 1px; background: var(--kunini-light-grey); margin: 24px 0;"></div>
+
+            <!-- AC Measurements -->
+            <div class="mb-4">
+                <span class="input-label mb-2">AC Phase Measurements (Test Instrument - AC Multi Meter)</span>
+                <table class="test-table" style="width: 70%;">
+                    <thead>
+                        <tr>
+                            <th>Phase CB1</th>
+                            <th>AMP Reading</th>
+                            <th>Voltage Reading</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="font-weight: 600;">L1</td>
+                            <td><input type="text" value="9.2 A"></td>
+                            <td><input type="text" value="237.4 V"></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: 600;">L2</td>
+                            <td><input type="text" value="9.1 A"></td>
+                            <td><input type="text" value="241.7 V"></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: 600;">L3</td>
+                            <td><input type="text" value="8.8 A"></td>
+                            <td><input type="text" value="238.9 V"></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="grid grid-cols-2"
+                    style="width: 70%; gap: 12px; background: var(--bg-color); padding: 12px; border-radius: var(--radius-sm);">
+                    <div class="input-group">
+                        <label class="input-label">AC Surge Specs</label>
+                        <input type="text" value="40 kA 420Vac" style="background: white;">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Total Amps</label>
+                        <input type="text" value="11.8 A"
+                            style="background: white; border-color: var(--kunini-red); font-weight: bold;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="divider" style="height: 1px; background: var(--kunini-light-grey); margin: 24px 0;"></div>
+
+            <!-- Commissioning Checklist & Other Notes -->
+            <div class="mb-6">
+                <span class="input-label mb-2">Commissioning Checklist</span>
+                <div class="grid grid-cols-2"
+                    style="gap: 16px; background: #fafafa; padding: 20px; border-radius: var(--radius-sm); border: 1px solid var(--kunini-light-grey);">
+                    <label class="checkbox-label"><input type="checkbox" checked> Visual Inspection of the System and PV
+                        Array</label>
+                    <label class="checkbox-label"><input type="checkbox" checked> Check CT's + All Cables (PV +
+                        Power)</label>
+                    <label class="checkbox-label"><input type="checkbox" checked> Check Phase Sequence</label>
+                    <label class="checkbox-label"><input type="checkbox" checked> Check Grounding</label>
+                    <label class="checkbox-label"><input type="checkbox" checked> Clean Solar Inverter, Combiner Box &
+                        Equipment</label>
+                    <label class="checkbox-label"><input type="checkbox" checked> Clean Solar Panels</label>
+                    <label class="checkbox-label"><input type="checkbox" checked> Test the Solar App + Internet
+                        Connection</label>
+                    <label class="checkbox-label"><input type="checkbox"> Test Backup Loads (Hybrid) - power off utility
+                        10 mins</label>
+                    <label class="checkbox-label full-width"><input type="checkbox"> Test ATS (Hybrid) - shut down solar
+                        inverter</label>
+                </div>
+            </div>
+
+            <div class="input-group mb-6">
+                <span class="input-label mb-2">Other Notes from Solar Technician</span>
+                <textarea style="min-height: 80px; font-size: 13px;"
+                    placeholder="Any additional comments or issues encountered during testing...">good</textarea>
+            </div>
+
+            <div class="divider" style="height: 1px; background: var(--kunini-light-grey); margin: 24px 0;"></div>
+
+            <!-- Equipment Serial Numbers (Dynamic List) -->
+            <div class="mb-4">
+                <span class="input-label mb-2">Equipment Serial Numbers</span>
+                <div class="grid grid-cols-2" style="gap: 32px;">
+
+                    <!-- Inverters -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="input-label mb-0" style="font-size: 11px;">Inverter(s)</span>
+                            <button class="btn-text no-print" style="font-size: 11px;">+ Add SN</button>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <div class="flex items-center gap-2">
+                                <input type="text" placeholder="Scan or enter Inverter SN..."
+                                    style="font-family: monospace; font-size: 13px;">
+                                <button class="icon-btn no-print" title="Remove"><svg width="16" height="16"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path
+                                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                        </path>
+                                    </svg></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Batteries -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="input-label mb-0" style="font-size: 11px;">Batteries</span>
+                            <button class="btn-text no-print" style="font-size: 11px;">+ Add SN</button>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <div class="flex items-center gap-2">
+                                <input type="text" value="GD1ABAL005QSABEB61000102"
+                                    style="font-family: monospace; font-size: 13px;">
+                                <button class="icon-btn no-print" title="Remove"><svg width="16" height="16"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path
+                                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                        </path>
+                                    </svg></button>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="text" value="GD1ABAL00540ABEB51000124"
+                                    style="font-family: monospace; font-size: 13px;">
+                                <button class="icon-btn no-print" title="Remove"><svg width="16" height="16"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path
+                                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                        </path>
+                                    </svg></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Solar Panels -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="input-label mb-0" style="font-size: 11px;">Solar Panels</span>
+                            <button class="btn-text no-print" style="font-size: 11px;">+ Add SN</button>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <div class="flex items-center gap-2">
+                                <input type="text" placeholder="Scan or enter Panel SN..."
+                                    style="font-family: monospace; font-size: 13px;">
+                                <button class="icon-btn no-print" title="Remove"><svg width="16" height="16"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path
+                                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                        </path>
+                                    </svg></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Optimizers -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="input-label mb-0" style="font-size: 11px;">Optimizers / Microinverters</span>
+                            <button class="btn-text no-print" style="font-size: 11px;">+ Add SN</button>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <div class="flex items-center gap-2">
+                                <input type="text" placeholder="Scan or enter Optimizer SN..."
+                                    style="font-family: monospace; font-size: 13px;">
+                                <button class="icon-btn no-print" title="Remove"><svg width="16" height="16"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path
+                                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                        </path>
+                                    </svg></button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ================= PAGE 3 ================= -->
+        <div class="page-break"></div>
+
+        <!-- 4. Layouts & Schematics -->
+        <div class="card">
+            <div class="card-header">
+                <h2>4. System Layout & Schematics</h2>
+                <span class="btn-text no-print">Manage Images</span>
+            </div>
+
+            <div class="grid grid-cols-2" style="gap: 24px;">
+
+                <!-- Single Line Diagram -->
+                <div class="input-group full-width">
+                    <label class="input-label">Single Line Diagram (SLD)</label>
+                    <div class="photo-box no-print" style="height: 250px;">
+                        + Upload SLD Document / Image
+                    </div>
+                </div>
+
+                <!-- Roof Sketchup -->
+                <div class="input-group">
+                    <label class="input-label">Roof Layout (SketchUp/Photo)</label>
+                    <div class="photo-box">
+                        + Upload Roof Layout
+                    </div>
+                </div>
+
+                <!-- Equipment Sketchup -->
+                <div class="input-group">
+                    <label class="input-label">Equipment Layout (Inverter / Combiner)</label>
+                    <div class="photo-box">
+                        + Upload Equipment Layout
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ================= PAGE 4 ================= -->
+        <div class="page-break"></div>
+
+        <!-- 5. Warranty & Maintenance Schedule -->
+        <div class="card">
+            <div class="card-header">
+                <h2>5. Warranty & Maintenance Schedule</h2>
+            </div>
+
+            <div class="grid grid-cols-2">
+
+                <!-- Next Cleaning -->
+                <div
+                    style="background: var(--bg-color); padding: 20px; border-radius: var(--radius-sm); border: 1px solid var(--kunini-light-grey);">
+                    <span class="input-label mb-2">Recommended Next Maintenance</span>
+                    <div class="input-group">
+                        <label style="font-size: 13px;">Scheduled System Cleaning & Inspection</label>
+                        <input type="date" style="background: white;" value="2027-02-19">
+                    </div>
+                    <p style="font-size: 12px; color: var(--kunini-mid-grey); margin-top: 12px; line-height: 1.4;">
+                        We recommend a professional panel cleaning and electrical inspection every 6 to 12 months to
+                        ensure optimal system performance.
+                    </p>
+                </div>
+
+                <!-- Warranty Summary -->
+                <div style="padding: 20px;">
+                    <span class="input-label mb-2">Standard Warranty Terms</span>
+                    <ul
+                        style="list-style-type: disc; margin-left: 20px; font-size: 13px; color: var(--kunini-dark-grey); line-height: 1.8;">
+                        <li><strong>Solar Panels:</strong> 12-Year Product, 25-Year Linear Power</li>
+                        <li><strong>Inverter:</strong> 10-Year Comprehensive</li>
+                        <li><strong>Battery:</strong> 10-Year Performance</li>
+                        <li><strong>Mounting Structure:</strong> 10-Year Product</li>
+                        <li><strong>Kunini Workmanship:</strong> 2-Year Installation Guarantee</li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Bottom Actions (Hidden on Print) -->
+        <div class="no-print"
+            style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; padding-top: 24px; border-top: 1px solid var(--kunini-light-grey);">
+            <button class="btn btn-outline">Save Report</button>
+            <button class="btn btn-primary" onclick="window.print()">Export to PDF</button>
+        </div>
+
+    </div>
+
+</body>
+
+</html>

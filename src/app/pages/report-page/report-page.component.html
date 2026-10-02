@@ -339,10 +339,63 @@
 
     <div class="page-break"></div>
 
-    <!-- 4. System Layout & Schematics -->
+    <!-- 4. Checklist - Permits (for SLD) -->
     <div class="card mb-6">
       <div class="card-header">
-        <h2>4. System Layout &amp; Schematics</h2>
+        <h2>4. Checklist - Permits (for SLD)</h2>
+      </div>
+      <div class="flex flex-col gap-2">
+        @for (item of permitChecklist; track item.id) {
+        <div class="value-check-row">
+          <label class="checkbox-label value-check-label">
+            <input type="checkbox" [(ngModel)]="item.checked"> {{ item.label }}
+          </label>
+          <input type="text" class="value-check-input" [(ngModel)]="item.value" [attr.aria-label]="item.label">
+        </div>
+        }
+      </div>
+    </div>
+
+    <!-- 5. Backup Loads (If Hybrid System) -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h2>5. Backup Loads (If Hybrid System)</h2>
+      </div>
+      <div class="flex flex-col gap-2">
+        @for (item of backupLoadChecklist; track item.id) {
+        <div class="value-check-row">
+          <label class="checkbox-label value-check-label">
+            <input type="checkbox" [(ngModel)]="item.checked"> {{ item.label }}
+          </label>
+          <input type="text" class="value-check-input" [(ngModel)]="item.value" [attr.aria-label]="item.label">
+        </div>
+        }
+      </div>
+    </div>
+
+    <!-- 6. Load -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h2>6. Load</h2>
+      </div>
+      <div class="flex flex-col gap-2">
+        @for (item of loadChecklist; track item.id) {
+        <div class="value-check-row">
+          <label class="checkbox-label value-check-label">
+            <input type="checkbox" [(ngModel)]="item.checked"> {{ item.label }}
+          </label>
+          <input type="text" class="value-check-input" [(ngModel)]="item.value" [attr.aria-label]="item.label">
+        </div>
+        }
+      </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- 7. System Layout & Schematics -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h2>7. System Layout &amp; Schematics</h2>
       </div>
 
       <div class="grid grid-cols-2 gap-6">
@@ -421,10 +474,10 @@
 
     <div class="page-break"></div>
 
-    <!-- 5. Warranty & Maintenance Schedule -->
+    <!-- 8. Warranty & Maintenance Schedule -->
     <div class="card mb-6">
       <div class="card-header">
-        <h2>5. Warranty &amp; Maintenance Schedule</h2>
+        <h2>8. Warranty &amp; Maintenance Schedule</h2>
       </div>
 
       <div class="grid grid-cols-2 gap-6">

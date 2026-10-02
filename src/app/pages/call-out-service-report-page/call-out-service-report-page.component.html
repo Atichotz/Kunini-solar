@@ -1,4 +1,6 @@
-<div class="max-w-container p-[24px]">
+<p-confirmDialog></p-confirmDialog>
+<!-- inert ระหว่าง save: กัน Tab/คีย์บอร์ดเข้าถึงฟอร์มที่อยู่หลัง overlay -->
+<div class="max-w-container p-[24px]" [attr.inert]="isSaving ? '' : null">
 
   <!-- Repeating PDF Header -->
   <div class="print-header">
@@ -15,13 +17,26 @@
   <div class="flex justify-between items-start no-print !mb-2 flex-wrap">
     <div>
       <h1 class="k-header mb-1">Call Out Service Report</h1>
-      @if (!loadErrorMessage) {
-      <div class="item-meta">Draft only — data is not saved to the database yet and will be lost on reload</div>
+      @if (!loadErrorMessage && !isLoadingReport) {
+      @if (reportId && createdAt) {
+      <div class="item-meta">
+        Created {{ createdAt | date:'dd MMM yyyy' }}
+        @if (createdBy) { by <strong>{{ createdBy }}</strong> }
+        · Last edited {{ updatedAt | date:'dd MMM yyyy, HH:mm' }}
+        @if (updatedBy) { by <strong>{{ updatedBy }}</strong> }
+      </div>
+      } @else {
+      <div class="item-meta">New report — not saved yet. Photos you pick are uploaded when you press Save</div>
+      }
       }
     </div>
     <div class="flex gap-2 items-center">
-      @if (hasSavedLocally) {
-      <span class="text-sm" style="color: var(--k-accent-green);">Saved locally</span>
+      @if (saveNotice) {
+      <span class="text-sm" style="color: var(--k-accent-green);">{{ saveNotice }}</span>
+      }
+      <!-- รายงานที่เคยบันทึกแล้ว (มี reportId) → มีปุ่ม Export ด้านบนด้วย; รายงานใหม่ยังไม่โชว์ -->
+      @if (reportId && !loadErrorMessage && !isLoadingReport) {
+      <button type="button" class="k-btn k-btn-outline k-btn-sm k-btn-header no-print" [disabled]="isSaving" (click)="exportToPdf()">Export to PDF</button>
       }
       <p-button [routerLink]="backLink" [rounded]="true" variant="outlined" severity="danger">
         <i class="fa-solid fa-xmark"></i>
@@ -31,7 +46,21 @@
 
   @if (loadErrorMessage) {
   <div class="card" style="color: var(--k-red);">{{ loadErrorMessage }}</div>
+  } @else if (isLoadingReport) {
+  <div class="text-sm p-[24px]" style="color: var(--k-mid-grey);">Loading...</div>
   } @else {
+
+  @if (saveErrorMessage) {
+  <div class="card mb-6 no-print" role="alert" style="color: var(--k-red);">
+    <div>{{ saveErrorMessage }}</div>
+    @if (isConflict) {
+    <button type="button" class="k-btn k-btn-outline mt-2" (click)="confirmReloadLatest()">Reload latest version</button>
+    }
+  </div>
+  }
+  @if (photoErrorMessage) {
+  <div class="card mb-6 no-print" role="alert" style="color: var(--k-red);">{{ photoErrorMessage }}</div>
+  }
 
   <div class="flex-col gap-6">
 
@@ -54,13 +83,13 @@
         </div>
         <div class="input-group">
           <label class="input-label" for="calloutDateTime">Call Out Date &amp; Time</label>
-          <p-datepicker inputId="calloutDateTime" [(ngModel)]="callOutDateTime" appendTo="body" [showIcon]="true"
+          <p-datepicker dateFormat="dd/mm/yy" inputId="calloutDateTime" [(ngModel)]="callOutDateTime" appendTo="body" [showIcon]="true"
             [showTime]="true" [fluid]="true" placeholder="Select date & time" />
         </div>
         <div class="input-group">
           <label class="input-label" for="calloutResolutionDate">Resolution Date</label>
-          <p-datepicker inputId="calloutResolutionDate" [(ngModel)]="resolutionDate" appendTo="body"
-            [showIcon]="true" [fluid]="true" placeholder="Select date" />
+          <p-datepicker dateFormat="dd/mm/yy" inputId="calloutResolutionDate" [(ngModel)]="resolutionDate" appendTo="body" [showIcon]="true"
+            [fluid]="true" placeholder="Select date" />
         </div>
       </div>
 
@@ -89,14 +118,14 @@
       </div>
 
       <div class="flex-col gap-4">
-        <div class="input-group">
+        <div class="input-group mb-3">
           <label class="input-label">Call Out Reason / Issue (Reported by Customer)</label>
           <textarea class="form-textarea" rows="3" [(ngModel)]="callOutReason"
             placeholder="Describe the initial complaint or reason for the call out..."></textarea>
         </div>
 
-        <div class="input-group">
-          <label class="input-label survey-section-label">On-site Inspection Findings (Technician's Assessment)</label>
+        <div class="input-group mb-3">
+          <label class="input-label">On-site Inspection Findings (Technician's Assessment)</label>
           <textarea class="form-textarea" rows="4" [(ngModel)]="inspectionFindings"
             placeholder="Detail what the technician found upon arriving at the site..."></textarea>
         </div>
@@ -104,42 +133,42 @@
         <div class="grid grid-cols-2 gap-4">
           <div class="input-group no-print">
             <label class="input-label">Pre-Work Photo (Issue)</label>
-            @if (photosBySlot.preWork1.length > 0) {
-            <div class="survey-photo-grid">
+            <div class="survey-photo-grid" [class.survey-photo-grid--empty]="photosBySlot.preWork1.length === 0">
               @for (photo of photosBySlot.preWork1; track photo.id) {
-              <div class="survey-photo-item">
-                <img [src]="photo.previewUrl" [alt]="photo.file.name">
-                <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+              <div class="survey-photo-item" [class.survey-photo-item--pending]="!!photo.file">
+                <p-image [src]="photo.previewUrl" [alt]="photo.name" [preview]="true" appendTo="body"
+                  styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+                @if (photo.file) { <span class="survey-photo-pending-badge no-print">Pending</span> }
+                <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo" [disabled]="isPhotoRemoving(photo)"
                   (click)="removePhoto('preWork1', photo)">
                   <i class="fa-solid fa-times"></i>
                 </button>
               </div>
               }
+              <div class="photo-box" [class.survey-photo-add]="photosBySlot.preWork1.length > 0" (dragover)="$event.preventDefault()"
+                (drop)="onPhotoDrop('preWork1', $event)" (click)="preWork1PhotoInput.click()">+ Upload Photo</div>
             </div>
-            }
-            <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('preWork1', $event)"
-              (click)="preWork1PhotoInput.click()">+ Upload Photo</div>
             <input #preWork1PhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
               (change)="onPhotoFilesSelected('preWork1', $event)">
           </div>
 
           <div class="input-group no-print">
             <label class="input-label">Pre-Work Photo (Issue)</label>
-            @if (photosBySlot.preWork2.length > 0) {
-            <div class="survey-photo-grid">
+            <div class="survey-photo-grid" [class.survey-photo-grid--empty]="photosBySlot.preWork2.length === 0">
               @for (photo of photosBySlot.preWork2; track photo.id) {
-              <div class="survey-photo-item">
-                <img [src]="photo.previewUrl" [alt]="photo.file.name">
-                <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+              <div class="survey-photo-item" [class.survey-photo-item--pending]="!!photo.file">
+                <p-image [src]="photo.previewUrl" [alt]="photo.name" [preview]="true" appendTo="body"
+                  styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+                @if (photo.file) { <span class="survey-photo-pending-badge no-print">Pending</span> }
+                <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo" [disabled]="isPhotoRemoving(photo)"
                   (click)="removePhoto('preWork2', photo)">
                   <i class="fa-solid fa-times"></i>
                 </button>
               </div>
               }
+              <div class="photo-box" [class.survey-photo-add]="photosBySlot.preWork2.length > 0" (dragover)="$event.preventDefault()"
+                (drop)="onPhotoDrop('preWork2', $event)" (click)="preWork2PhotoInput.click()">+ Upload Photo</div>
             </div>
-            }
-            <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('preWork2', $event)"
-              (click)="preWork2PhotoInput.click()">+ Upload Photo</div>
             <input #preWork2PhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
               (change)="onPhotoFilesSelected('preWork2', $event)">
           </div>
@@ -156,19 +185,19 @@
       </div>
 
       <div class="flex-col gap-6">
-        <div class="input-group">
+        <div class="input-group mb-3">
           <label class="input-label">Actions Taken</label>
           <textarea class="form-textarea" rows="4" [(ngModel)]="actionsTaken"
             placeholder="Describe the repairs, reconfigurations, or replacements performed..."></textarea>
         </div>
 
-        <div class="input-group">
+        <div class="input-group mb-3">
           <label class="input-label">Materials / Parts Used (If applicable)</label>
           <input type="text" [(ngModel)]="materialsUsed"
             placeholder="e.g. Replaced 1x 20A DC Fuse, Re-crimped 2x MC4 Connectors">
         </div>
 
-        <div class="input-group">
+        <div class="input-group mb-3">
           <label class="input-label survey-note-label-green">Result / Current System Status</label>
           <textarea class="form-textarea" rows="3" [(ngModel)]="resultStatusNote"
             placeholder="Describe the final state of the system before leaving site..."></textarea>
@@ -192,42 +221,42 @@
         <div class="grid grid-cols-2 gap-4">
           <div class="input-group no-print">
             <label class="input-label">Post-Work Photo (Resolution)</label>
-            @if (photosBySlot.postWork1.length > 0) {
-            <div class="survey-photo-grid">
+            <div class="survey-photo-grid" [class.survey-photo-grid--empty]="photosBySlot.postWork1.length === 0">
               @for (photo of photosBySlot.postWork1; track photo.id) {
-              <div class="survey-photo-item">
-                <img [src]="photo.previewUrl" [alt]="photo.file.name">
-                <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+              <div class="survey-photo-item" [class.survey-photo-item--pending]="!!photo.file">
+                <p-image [src]="photo.previewUrl" [alt]="photo.name" [preview]="true" appendTo="body"
+                  styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+                @if (photo.file) { <span class="survey-photo-pending-badge no-print">Pending</span> }
+                <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo" [disabled]="isPhotoRemoving(photo)"
                   (click)="removePhoto('postWork1', photo)">
                   <i class="fa-solid fa-times"></i>
                 </button>
               </div>
               }
+              <div class="photo-box" [class.survey-photo-add]="photosBySlot.postWork1.length > 0" (dragover)="$event.preventDefault()"
+                (drop)="onPhotoDrop('postWork1', $event)" (click)="postWork1PhotoInput.click()">+ Upload Photo</div>
             </div>
-            }
-            <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('postWork1', $event)"
-              (click)="postWork1PhotoInput.click()">+ Upload Photo</div>
             <input #postWork1PhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
               (change)="onPhotoFilesSelected('postWork1', $event)">
           </div>
 
           <div class="input-group no-print">
             <label class="input-label">Post-Work Photo (Resolution)</label>
-            @if (photosBySlot.postWork2.length > 0) {
-            <div class="survey-photo-grid">
+            <div class="survey-photo-grid" [class.survey-photo-grid--empty]="photosBySlot.postWork2.length === 0">
               @for (photo of photosBySlot.postWork2; track photo.id) {
-              <div class="survey-photo-item">
-                <img [src]="photo.previewUrl" [alt]="photo.file.name">
-                <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo"
+              <div class="survey-photo-item" [class.survey-photo-item--pending]="!!photo.file">
+                <p-image [src]="photo.previewUrl" [alt]="photo.name" [preview]="true" appendTo="body"
+                  styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+                @if (photo.file) { <span class="survey-photo-pending-badge no-print">Pending</span> }
+                <button type="button" class="icon-btn no-print survey-photo-remove" title="Remove photo" [disabled]="isPhotoRemoving(photo)"
                   (click)="removePhoto('postWork2', photo)">
                   <i class="fa-solid fa-times"></i>
                 </button>
               </div>
               }
+              <div class="photo-box" [class.survey-photo-add]="photosBySlot.postWork2.length > 0" (dragover)="$event.preventDefault()"
+                (drop)="onPhotoDrop('postWork2', $event)" (click)="postWork2PhotoInput.click()">+ Upload Photo</div>
             </div>
-            }
-            <div class="photo-box" (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('postWork2', $event)"
-              (click)="postWork2PhotoInput.click()">+ Upload Photo</div>
             <input #postWork2PhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
               (change)="onPhotoFilesSelected('postWork2', $event)">
           </div>
@@ -257,7 +286,7 @@
             </div>
             <div class="input-group">
               <label class="input-label">Date</label>
-              <p-datepicker [(ngModel)]="engineerSignDate" appendTo="body" [showIcon]="true" [fluid]="true" />
+              <p-datepicker dateFormat="dd/mm/yy" [ngModel]="engineerSignDate" (ngModelChange)="onEngineerSignDateChange($event)" appendTo="body" [showIcon]="true" [fluid]="true" />
             </div>
           </div>
         </div>
@@ -274,7 +303,7 @@
             </div>
             <div class="input-group">
               <label class="input-label">Date</label>
-              <p-datepicker [(ngModel)]="customerSignDate" appendTo="body" [showIcon]="true" [fluid]="true" />
+              <p-datepicker dateFormat="dd/mm/yy" [(ngModel)]="customerSignDate" appendTo="body" [showIcon]="true" [fluid]="true" />
             </div>
           </div>
         </div>
@@ -284,10 +313,20 @@
 
     <!-- Bottom Actions -->
     <div class="flex justify-end gap-2 no-print survey-bottom-actions">
-      <button type="button" class="k-btn k-btn-outline" (click)="saveDraft()">Save Report (local only)</button>
-      <button type="button" class="k-btn k-btn-primary" (click)="exportToPdf()">Export to PDF</button>
+      <button type="button" class="k-btn k-btn-primary" [disabled]="isSaving" (click)="saveReport()">
+        @if (isSaving) { <i class="fas fa-spinner fa-spin"></i> Saving… } @else { Save Report }
+      </button>
+      <button type="button" class="k-btn k-btn-outline" (click)="exportToPdf()">Export to PDF</button>
     </div>
 
   </div>
   }
 </div>
+
+<!-- Saving: บล็อกทั้งหน้าด้วย k-loading ระหว่าง save (ฟอร์ม + อัปโหลดรูป) กัน user แก้/ออกกลางทาง
+     ซ้อนทับฟอร์มแทนการสลับ @if เพื่อไม่ทำให้ DOM ฟอร์มถูกสร้างใหม่ (scroll position จะได้ไม่เด้งขึ้นบน) -->
+@if (isSaving) {
+<div class="survey-saving-overlay no-print" role="alert" aria-busy="true" aria-live="assertive">
+  <app-k-loading></app-k-loading>
+</div>
+}

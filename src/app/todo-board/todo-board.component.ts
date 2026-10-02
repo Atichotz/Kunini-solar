@@ -717,6 +717,20 @@ export class TodoBoardComponent implements OnInit, OnDestroy {
     this.applyTodoUpdate(todo, { days_allotted: days });
   }
 
+  // input: todo — ถามยืนยันก่อนลบ task ทุกครั้ง (ลบแล้วกู้คืนไม่ได้) กัน misclick ที่ปุ่มถังขยะ
+  confirmDeleteTask(todo: TodoCard): void {
+    if (this.isTodoPending(todo.id)) return;
+
+    this.confirmationService.confirm({
+      header: 'Confirm Delete',
+      message: `Delete task "${todo.title}"?`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => this.deleteTask(todo.id)
+    });
+  }
+
   deleteTask(id: string): void {
     if (this.isTodoPending(id)) return;
 

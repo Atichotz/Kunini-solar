@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Out Service Report - KUNINI SOLAR</title>
+    <style>
+        /* =========================================
+           1. BRAND CSS VARIABLES
+           ========================================= */
+        :root {
+            --kunini-red: #b01d2a;
+            --kunini-black: #000000;
+            --kunini-dark-grey: #414142;
+            --kunini-mid-grey: #a7a9ac;
+            --kunini-light-grey: #dcddde;
+            --accent-blue: #0088c2;
+            --accent-green: #55b1a5;
+
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --radius-lg: 16px;
+            --radius-pill: 999px;
+            --radius-sm: 8px;
+        }
+
+        /* =========================================
+           2. RESET & BASE STYLES
+           ========================================= */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--kunini-dark-grey);
+            line-height: 1.5;
+            padding: 40px 24px;
+            font-size: 14px;
+        }
+
+        h1 {
+            color: var(--kunini-black);
+            font-weight: 700;
+            font-size: 24px;
+            margin: 0;
+        }
+
+        h2,
+        h3 {
+            color: var(--kunini-black);
+            font-weight: 700;
+        }
+
+        .max-w-container {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* =========================================
+           3. LAYOUT UTILITIES
+           ========================================= */
+        .flex {
+            display: flex;
+        }
+
+        .flex-col {
+            flex-direction: column;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .gap-2 {
+            gap: 8px;
+        }
+
+        .gap-4 {
+            gap: 16px;
+        }
+
+        .gap-6 {
+            gap: 24px;
+        }
+
+        .mb-2 {
+            margin-bottom: 8px;
+        }
+
+        .mb-4 {
+            margin-bottom: 16px;
+        }
+
+        .mt-4 {
+            margin-top: 16px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .grid-cols-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .grid-cols-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* =========================================
+           4. COMPONENTS
+           ========================================= */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            border: 1px solid var(--kunini-light-grey);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+            page-break-inside: avoid;
+        }
+
+        .card-header {
+            font-size: 16px;
+            border-bottom: 2px solid var(--bg-color);
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-header h2 {
+            font-size: 16px;
+            margin: 0;
+        }
+
+        /* Inputs & Data Display */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .input-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--kunini-mid-grey);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input[type="text"],
+        input[type="date"],
+        input[type="time"],
+        select,
+        textarea {
+            padding: 10px 14px;
+            border: 1px solid var(--kunini-mid-grey);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            outline: none;
+            color: var(--kunini-black);
+            font-family: inherit;
+            width: 100%;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--kunini-red);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 24px;
+            border-radius: var(--radius-pill);
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--kunini-red);
+            color: #ffffff;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border-color: var(--kunini-mid-grey);
+            color: var(--kunini-dark-grey);
+        }
+
+        .btn-text {
+            background: none;
+            border: none;
+            color: var(--accent-blue);
+            padding: 0;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* Photo Upload Boxes */
+        .photo-box {
+            border: 2px dashed var(--kunini-mid-grey);
+            border-radius: var(--radius-sm);
+            height: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--kunini-mid-grey);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            background: #fafafa;
+            text-align: center;
+            padding: 16px;
+        }
+
+        /* Status Toggles */
+        .radio-group {
+            display: flex;
+            gap: 16px;
+            margin-top: 4px;
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--kunini-black);
+            cursor: pointer;
+        }
+
+        .radio-label input[type="radio"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--kunini-red);
+        }
+
+        /* Signature Block */
+        .signature-box {
+            border: 1px solid var(--kunini-light-grey);
+            border-radius: var(--radius-sm);
+            padding: 24px;
+            background: #fafafa;
+        }
+
+        .sig-line {
+            border-bottom: 2px dashed var(--kunini-mid-grey);
+            height: 80px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-end;
+            color: var(--kunini-light-grey);
+            font-size: 12px;
+            padding-bottom: 4px;
+        }
+
+        /* =========================================
+           5. PDF PRINT STYLES
+           ========================================= */
+        .print-header,
+        .print-footer {
+            display: none;
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 25mm 15mm;
+            }
+
+            body {
+                background-color: #ffffff;
+                padding: 0;
+            }
+
+            .print-header {
+                display: flex;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                justify-content: space-between;
+                align-items: flex-end;
+                padding-bottom: 10px;
+                border-bottom: 2px solid var(--kunini-red);
+            }
+
+            .print-footer {
+                display: block;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                text-align: center;
+                font-size: 10px;
+                color: var(--kunini-mid-grey);
+                padding-top: 10px;
+                border-top: 1px solid var(--kunini-light-grey);
+            }
+
+            .max-w-container {
+                width: 100%;
+                max-width: 100%;
+                gap: 16px;
+                margin-top: 20px;
+            }
+
+            .card {
+                box-shadow: none;
+                border: 1px solid #ddd;
+                padding: 24px;
+                break-inside: avoid;
+                margin-bottom: 20px;
+            }
+
+            .page-break {
+                page-break-before: always;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            input[type="text"],
+            input[type="date"],
+            input[type="time"],
+            select,
+            textarea {
+                border: none;
+                border-bottom: 1px solid #ccc;
+                border-radius: 0;
+                padding: 4px 0;
+                background: transparent;
+                resize: none;
+            }
+
+            .photo-box {
+                border: 1px solid #ddd;
+                background: transparent;
+            }
+
+            .signature-box {
+                border-color: #ddd;
+                background: transparent;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Repeating PDF Header -->
+    <div class="print-header">
+        <div style="font-weight: 700; font-size: 18px; color: var(--kunini-black);">KUNINI <span
+                style="font-weight: 400;">SOLAR</span></div>
+        <div style="font-size: 12px; color: var(--kunini-dark-grey);">Call Out Service Report</div>
+    </div>
+
+    <!-- Repeating PDF Footer -->
+    <div class="print-footer">
+        HUAHIN • PATTAYA • BANGKOK | ELECTRICAL & SOLAR EPC CONTRACTORS | www.kunini.com
+    </div>
+
+    <!-- Page Header (Web Only) -->
+    <div class="max-w-container no-print"
+        style="margin-bottom: 10px; flex-direction: row; justify-content: space-between; align-items: center;">
+        <h1>Service Call Out Report</h1>
+        <div class="flex gap-2">
+            <button class="btn btn-outline">Save Draft</button>
+            <button class="btn btn-primary" onclick="window.print()">Export to PDF</button>
+        </div>
+    </div>
+
+    <div class="max-w-container">
+
+        <!-- ================= PAGE 1 ================= -->
+
+        <!-- 1. General Info & Dates -->
+        <div class="card">
+            <div class="card-header">
+                <h2>1. Customer & Service Details</h2>
+            </div>
+
+            <div class="grid grid-cols-2 mb-4">
+                <div class="input-group">
+                    <span class="input-label">Customer Name</span>
+                    <input type="text" value="John Doe Residence">
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Location / Site Address</span>
+                    <input type="text" value="123/45 Sukhumvit Road, Pattaya">
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Call Out Date & Time</span>
+                    <div class="flex gap-2">
+                        <input type="date" value="2026-10-15" style="flex: 2;">
+                        <input type="time" value="09:00" style="flex: 1;">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Resolution Date</span>
+                    <input type="date" value="2026-10-15">
+                </div>
+            </div>
+
+            <!-- Necessary Additional Info for Solar Techs -->
+            <div class="grid grid-cols-3 pt-4" style="border-top: 1px solid var(--bg-color);">
+                <div class="input-group">
+                    <span class="input-label">System Size / Type</span>
+                    <input type="text" placeholder="e.g. 10kW Hybrid">
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Inverter Model</span>
+                    <input type="text" placeholder="e.g. Solis S6 10k">
+                </div>
+                <div class="input-group">
+                    <span class="input-label" style="color: var(--kunini-red);">Reported Error Code (If any)</span>
+                    <input type="text" placeholder="e.g. ALM001 / No Grid">
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Inspection Findings -->
+        <div class="card">
+            <div class="card-header">
+                <h2>2. Issue & On-Site Inspection</h2>
+            </div>
+
+            <div class="flex-col gap-4">
+                <div class="input-group">
+                    <span class="input-label">Call Out Reason / Issue (Reported by Customer)</span>
+                    <textarea style="min-height: 60px;"
+                        placeholder="Describe the initial complaint or reason for the call out..."></textarea>
+                </div>
+
+                <div class="input-group">
+                    <span class="input-label" style="color: var(--accent-blue);">On-site Inspection Findings
+                        (Technician's Assessment)</span>
+                    <textarea style="min-height: 80px;"
+                        placeholder="Detail what the technician found upon arriving at the site..."></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 mt-2">
+                    <div class="input-group">
+                        <span class="input-label">Pre-Work Photo (Issue)</span>
+                        <div class="photo-box no-print">+ Upload Photo</div>
+                    </div>
+                    <div class="input-group">
+                        <span class="input-label">Pre-Work Photo (Issue)</span>
+                        <div class="photo-box no-print">+ Upload Photo</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PAGE 2 ================= -->
+        <div class="page-break"></div>
+
+        <!-- 3. Resolution -->
+        <div class="card">
+            <div class="card-header">
+                <h2>3. Action Taken & Result</h2>
+            </div>
+
+            <div class="flex-col gap-6">
+                <div class="input-group">
+                    <span class="input-label">Actions Taken</span>
+                    <textarea style="min-height: 100px;"
+                        placeholder="Describe the repairs, reconfigurations, or replacements performed..."></textarea>
+                </div>
+
+                <div class="input-group">
+                    <span class="input-label">Materials / Parts Used (If applicable)</span>
+                    <input type="text" placeholder="e.g. Replaced 1x 20A DC Fuse, Re-crimped 2x MC4 Connectors">
+                </div>
+
+                <div class="input-group">
+                    <span class="input-label" style="color: var(--accent-green);">Result / Current System Status</span>
+                    <textarea style="min-height: 60px;"
+                        placeholder="Describe the final state of the system before leaving site..."></textarea>
+
+                    <div class="radio-group mt-2">
+                        <label class="radio-label"><input type="radio" name="status" checked> Resolved (Fully
+                            Operational)</label>
+                        <label class="radio-label"><input type="radio" name="status"> Monitoring (Requires
+                            Observation)</label>
+                        <label class="radio-label"><input type="radio" name="status"> Unresolved (Requires Return
+                            Visit)</label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 mt-2">
+                    <div class="input-group">
+                        <span class="input-label">Post-Work Photo (Resolution)</span>
+                        <div class="photo-box no-print">+ Upload Photo</div>
+                    </div>
+                    <div class="input-group">
+                        <span class="input-label">Post-Work Photo (Resolution)</span>
+                        <div class="photo-box no-print">+ Upload Photo</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Signatures -->
+        <div class="card">
+            <div class="card-header">
+                <h2>4. Sign-Off & Approvals</h2>
+            </div>
+
+            <div class="grid grid-cols-2 gap-6">
+
+                <!-- Engineer Signature -->
+                <div class="signature-box">
+                    <span class="input-label mb-4" style="display: block;">Engineer / Technician</span>
+                    <div class="sig-line no-print">[ Digital Signature Area ]</div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="input-group">
+                            <span class="input-label">Name</span>
+                            <input type="text" placeholder="Print Name">
+                        </div>
+                        <div class="input-group">
+                            <span class="input-label">Date</span>
+                            <input type="date">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Customer Signature -->
+                <div class="signature-box">
+                    <span class="input-label mb-4" style="display: block;">Customer Acceptance</span>
+                    <div class="sig-line no-print">[ Digital Signature Area ]</div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="input-group">
+                            <span class="input-label">Name</span>
+                            <input type="text" placeholder="Print Name">
+                        </div>
+                        <div class="input-group">
+                            <span class="input-label">Date</span>
+                            <input type="date">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Bottom Actions (Hidden on Print) -->
+        <div class="no-print"
+            style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; padding-top: 24px; border-top: 1px solid var(--kunini-light-grey);">
+            <button class="btn btn-outline">Save Report</button>
+            <button class="btn btn-primary" onclick="window.print()">Export to PDF</button>
+        </div>
+
+    </div>
+
+</body>
+
+</html>

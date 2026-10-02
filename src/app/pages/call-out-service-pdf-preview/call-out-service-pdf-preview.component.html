@@ -1,0 +1,108 @@
+<!-- แถวรูป: $implicit = แถวรูป (จัดกลุ่มไว้แล้วใน ts) — 1 แถว = 1 pg-block เพื่อให้ตัดหน้าระหว่างแถวได้
+     ไม่มีรูป = ไม่ render อะไรเลย -->
+<ng-template #photoGrid let-rows>
+  @for (row of rows; track $index) {
+    <div class="s-photo-row pg-block">
+      @for (photo of row; track $index) {
+        <figure class="s-photo">
+          <img [src]="photo.url" [alt]="photo.caption" />
+          <figcaption>{{ photo.caption }}</figcaption>
+        </figure>
+      }
+    </div>
+  }
+</ng-template>
+
+<div class="preview-shell">
+  <!-- Toolbar — ไม่พิมพ์ -->
+  <div class="preview-toolbar no-print">
+    <p-button [routerLink]="backLink()" [queryParams]="backQueryParams()" [rounded]="true" variant="outlined" severity="danger">
+      <i class="fa-solid fa-xmark"></i>
+    </p-button>
+    <button class="k-btn k-btn-primary" type="button" (click)="print()" [disabled]="!report() || !isPaginated() || isPreparingPrint()">
+      <i class="fa-solid fa-print"></i>&nbsp; {{ isPreparingPrint() ? 'Preparing…' : 'Print / Save as PDF' }}
+    </button>
+  </div>
+
+  @if (report(); as r) {
+    <!-- เนื้อหาเรียงเป็น .pg-block ต่อกันเป็นเส้นเดียว ไม่แบ่งหน้าด้วย element — ts วัดความสูงแต่ละก้อนแล้วจัดลงแผ่น A4
+         (ดู paginate()): .pg-new = ต้องขึ้นหน้าใหม่เสมอ (จุดเริ่มกลุ่ม), .pg-keep = ห้ามค้างท้ายหน้าโดยก้อนถัดไปไปอยู่หน้าอื่น -->
+    <div class="callout-doc" [class.callout-doc--pending]="!isPaginated()" [style.height.mm]="docHeightMm()">
+
+      <!-- ===== กลุ่ม 1: Customer & Issue (S1 + S2) ===== -->
+      <div class="pg-block pg-new">
+        <header class="q-header">
+          <img class="q-logo" src="assets/icons/logoKunini.webp" alt="Kunini logo" />
+          <div class="q-company">
+            <div class="q-company-name">{{ hc.company.name }}</div>
+            <div>{{ hc.company.address }}</div>
+            <div>Web : {{ hc.company.web }} &nbsp; Facebook : {{ hc.company.facebook }}</div>
+            <div>Office {{ hc.company.office }}</div>
+          </div>
+        </header>
+        <h1 class="q-title">Call Out Service Report</h1>
+      </div>
+
+      <div class="s-title pg-block pg-keep">1. Customer &amp; Service Details</div>
+      <div class="s-grid s-grid--2 pg-block">
+        <div class="s-cell"><span class="s-label">Customer Name</span><span class="s-value">{{ r.customerName || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Call Out Date &amp; Time</span><span class="s-value">{{ r.callOutDateTime ? (r.callOutDateTime | date: 'dd/MM/yyyy HH:mm') : '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Location / Site Address</span><span class="s-value">{{ r.siteAddress || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Resolution Date</span><span class="s-value">{{ r.resolutionDate ? (r.resolutionDate | date: 'dd/MM/yyyy') : '—' }}</span></div>
+      </div>
+      <div class="s-grid s-grid--3 s-grid--stacked pg-block">
+        <div class="s-cell"><span class="s-label">System Size / Type</span><span class="s-value">{{ r.systemSizeType || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Inverter Model</span><span class="s-value">{{ r.inverterModel || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Reported Error Code</span><span class="s-value">{{ r.reportedErrorCode || '—' }}</span></div>
+      </div>
+
+      <div class="s-title pg-block pg-keep">2. Issue &amp; On-Site Inspection</div>
+      <div class="s-grid s-grid--1 pg-block">
+        <div class="s-cell"><span class="s-label">Call Out Reason / Issue (Reported by Customer)</span><span class="s-value s-value--text">{{ r.callOutReason || '—' }}</span></div>
+      </div>
+      <div class="s-grid s-grid--1 s-grid--stacked pg-block">
+        <div class="s-cell"><span class="s-label">On-site Inspection Findings (Technician's Assessment)</span><span class="s-value s-value--text">{{ r.inspectionFindings || '—' }}</span></div>
+      </div>
+      <ng-container [ngTemplateOutlet]="photoGrid" [ngTemplateOutletContext]="{ $implicit: preWorkPhotoRows() }" />
+
+      <!-- ===== กลุ่ม 2: Action & Sign-Off (S3 + S4) ===== -->
+      <div class="s-title pg-block pg-new pg-keep">3. Action Taken &amp; Result</div>
+      <div class="s-grid s-grid--1 pg-block">
+        <div class="s-cell"><span class="s-label">Actions Taken</span><span class="s-value s-value--text">{{ r.actionsTaken || '—' }}</span></div>
+      </div>
+      <div class="s-grid s-grid--1 s-grid--stacked pg-block">
+        <div class="s-cell"><span class="s-label">Materials / Parts Used</span><span class="s-value s-value--text">{{ r.materialsUsed || '—' }}</span></div>
+      </div>
+      <div class="s-grid s-grid--1 s-grid--stacked pg-block">
+        <div class="s-cell"><span class="s-label">Result / Current System Status</span><span class="s-value s-value--text">{{ r.resultStatusNote || '—' }}</span></div>
+        <div class="s-cell"><span class="s-label">Status</span><span class="s-value">{{ resolutionStatusLabel() }}</span></div>
+      </div>
+      <ng-container [ngTemplateOutlet]="photoGrid" [ngTemplateOutletContext]="{ $implicit: postWorkPhotoRows() }" />
+
+      <div class="s-title pg-block pg-keep">4. Sign-Off &amp; Approvals</div>
+      <!-- เส้นลายเซ็นเว้นว่างไว้เซ็นมือหลังพิมพ์ (ระบบยังไม่เก็บลายเซ็นดิจิทัล) — ชื่อ/วันที่ที่พิมพ์ไว้แสดงใต้เส้น -->
+      <div class="q-signatures pg-block">
+        <div class="q-sign">
+          <div class="q-sign-line"></div>
+          <div class="q-sign-label">Engineer / Technician</div>
+          <div class="q-sign-info"><span class="s-label">Name</span><span class="s-value">{{ r.engineerName || '—' }}</span></div>
+          <div class="q-sign-info"><span class="s-label">Date</span><span class="s-value">{{ r.engineerSignDate ? (r.engineerSignDate | date: 'dd/MM/yyyy') : '—' }}</span></div>
+        </div>
+        <div class="q-sign">
+          <div class="q-sign-line"></div>
+          <div class="q-sign-label">Customer Acceptance</div>
+          <div class="q-sign-info"><span class="s-label">Name</span><span class="s-value">{{ r.customerSignName || '—' }}</span></div>
+          <div class="q-sign-info"><span class="s-label">Date</span><span class="s-value">{{ r.customerSignDate ? (r.customerSignDate | date: 'dd/MM/yyyy') : '—' }}</span></div>
+        </div>
+      </div>
+
+    </div>
+  } @else if (isLoading()) {
+    <div class="q-empty no-print"><p>Loading...</p></div>
+  } @else {
+    <div class="q-empty no-print">
+      <p>{{ errorMessage() }}</p>
+      <a class="k-btn k-btn-outline" routerLink="/dashboard">Back to Dashboard</a>
+    </div>
+  }
+</div>

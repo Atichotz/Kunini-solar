@@ -70,8 +70,6 @@
             <button class="k-btn-sm k-btn-primary" [routerLink]="'/estimate'"
                 [queryParams]="{customerId: customer.id}">Quotation</button>
             }
-            <button class="k-btn-sm k-btn-primary" [routerLink]="'/survey'"
-                [queryParams]="{customerId: customer.id}">Survey</button>
             <button class="k-btn-sm k-btn-primary" [routerLink]="'/sow'" [queryParams]="{customerId: customer.id}">Scope
                 Of Work</button>
 
@@ -296,14 +294,20 @@
 
             </div>
 
-            <!-- History Card — estimate + survey + ticket รวมเป็น timeline เดียว เรียงใหม่→เก่า -->
+            <!-- History Card — estimate + site survey + call out + ticket รวมเป็น timeline เดียว เรียงใหม่→เก่า -->
             <div class="card mb-[1.5rem]">
                 <div class="card-header">
                     <h2>History</h2>
                 </div>
 
-                @if (surveyHistoryErrorMessage) {
-                <div class="text-sm mb-2" style="color: var(--k-red);">{{ surveyHistoryErrorMessage }}</div>
+                @if (sowHistoryErrorMessage) {
+                <div class="text-sm mb-2" style="color: var(--k-red);">{{ sowHistoryErrorMessage }}</div>
+                }
+                @if (siteSurveyHistoryErrorMessage) {
+                <div class="text-sm mb-2" style="color: var(--k-red);">{{ siteSurveyHistoryErrorMessage }}</div>
+                }
+                @if (callOutHistoryErrorMessage) {
+                <div class="text-sm mb-2" style="color: var(--k-red);">{{ callOutHistoryErrorMessage }}</div>
                 }
                 @if (estimateActionErrorMessage) {
                 <div class="text-sm mb-2" style="color: var(--k-red);">{{ estimateActionErrorMessage }}</div>
@@ -375,14 +379,55 @@
                             → <strong>{{ row.assigneeNames }}</strong>
                             • <i class="fa-regular fa-comment"></i> {{ row.commentCount }}
                         </div>
-                        } @else {
-                        <a [routerLink]="'/survey'" [queryParams]="{customerId: customer.id, surveyId: row.id}"
+                        } @else if (row.kind === 'sow') {
+                        <a [routerLink]="'/sow'" [queryParams]="{ customerId: customer.id, sowId: row.id }"
                             class="doc-item-title">
-                            <i class="fa-solid fa-people-roof"></i> Site Survey
-                            <span class="badge">{{ row.photoCount }} photos • {{ row.noteCount }} notes</span>
+                            <i class="fa-solid fa-helmet-safety"></i> Scope of Work
+                            <span class="badge">{{ row.dayCount }} days • {{ row.eodReportCount }} EOD reports</span>
                         </a>
                         <div class="item-meta" style="text-align: right;">
                             {{ row.dateIso | date:'dd MMM yyyy' }} • by <strong>{{ row.author }}</strong>
+                            <button type="button" class="k-btn-sm k-btn-outline"
+                                style="margin-left: 8px; color: var(--k-red); border-color: var(--k-red);"
+                                [disabled]="deletingSowId === row.id" (click)="onDeleteSow(row.id)"
+                                title="Remove this scope of work from the list">
+                                @if (deletingSowId === row.id) { <i class="fas fa-spinner fa-spin"></i> } @else {
+                                Delete }
+                            </button>
+                        </div>
+                        } @else if (row.kind === 'siteSurvey') {
+                        <a [routerLink]="'/survey-report'" [queryParams]="{ customerId: customer.id, reportId: row.id }"
+                            class="doc-item-title">
+                            <i class="fa-solid fa-people-roof"></i> Site Survey Report
+                            <span class="badge">{{ row.photoCount }} photos • {{ row.layoutOptionCount }} layouts</span>
+                        </a>
+                        <div class="item-meta" style="text-align: right;">
+                            {{ row.dateIso | date:'dd MMM yyyy' }} • by <strong>{{ row.author }}</strong>
+                            <button type="button" class="k-btn-sm k-btn-outline"
+                                style="margin-left: 8px; color: var(--k-red); border-color: var(--k-red);"
+                                [disabled]="deletingSiteSurveyId === row.id" (click)="onDeleteSiteSurvey(row.id)"
+                                title="Remove this report from the list">
+                                @if (deletingSiteSurveyId === row.id) { <i class="fas fa-spinner fa-spin"></i> } @else {
+                                Delete }
+                            </button>
+                        </div>
+                        } @else {
+                        <a [routerLink]="'/call-out-service-report'" [queryParams]="{ customerId: customer.id, reportId: row.id }"
+                            class="doc-item-title">
+                            <i class="fa-solid fa-truck-fast"></i> Call Out Service Report
+                            <span class="badge" [class.badge-final]="row.resolutionStatus === 'resolved'">{{ row.statusLabel }}</span>
+                        </a>
+                        <div class="item-meta" style="text-align: right;">
+                            {{ row.dateIso | date:'dd MMM yyyy' }} • by <strong>{{ row.author }}</strong>
+                            @if (row.reportedErrorCode) { • {{ row.reportedErrorCode }} }
+                            • {{ row.photoCount }} photos
+                            <button type="button" class="k-btn-sm k-btn-outline"
+                                style="margin-left: 8px; color: var(--k-red); border-color: var(--k-red);"
+                                [disabled]="deletingCallOutId === row.id" (click)="onDeleteCallOut(row.id)"
+                                title="Remove this report from the list">
+                                @if (deletingCallOutId === row.id) { <i class="fas fa-spinner fa-spin"></i> } @else {
+                                Delete }
+                            </button>
                         </div>
                         }
                     </div>

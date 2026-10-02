@@ -28,13 +28,18 @@
     <div class="container-content">
       <div class="flex !mb-2 !flex-row justify-between flex-wrap">
         <h1 class="k-header">Quotation History</h1>
-        <p-button [routerLink]="backLink" [rounded]="true" variant="outlined" severity="danger">
-          <i class="fa-solid fa-xmark"></i>
-        </p-button>
+        <div class="flex items-center gap-2">
+          @if (detail?.status === 'final') {
+          <button class="k-btn k-btn-outline k-btn-sm k-btn-header no-print" [disabled]="exporting" (click)="onExportPdf()">Export to PDF</button>
+          }
+          <p-button [routerLink]="backLink" [rounded]="true" variant="outlined" severity="danger">
+            <i class="fa-solid fa-xmark"></i>
+          </p-button>
+        </div>
       </div>
 
       @if (loading) {
-      <div class="card">Loading...</div>
+      <app-k-loading></app-k-loading>
       }
 
       @if (notFound) {
@@ -96,6 +101,10 @@
             <span class="input-label">Remarks หมายเหตุ</span>
             <div style="font-size: 14px; white-space: pre-wrap;">{{ detail.pdfRemarks ?? '—' }}</div>
           </div>
+          <div class="input-group full-width">
+            <span class="input-label">Validity (days, shown on PDF)</span>
+            <div style="font-size: 14px;">{{ detail.validityDays }}</div>
+          </div>
         </div>
       </div>
 
@@ -125,7 +134,7 @@
                 <th>W</th>
                 <th>Cost Price</th>
                 <th>Sale Price</th>
-                <th pTooltip="Profit = Sale Price − Cost Price" tooltipPosition="top">Profit</th>
+                <th pTooltip="Profit = Price Markup (Sale Price) − Cost Price" tooltipPosition="top">Profit</th>
                 <th class="col-qty">Quantity</th>
                 <th>Total</th>
                 <th>Total kW</th>
@@ -275,7 +284,7 @@
                 <th>Description</th>
                 <th>Cost Price</th>
                 <th>Sale Price</th>
-                <th pTooltip="Profit = Sale Price − Cost Price" tooltipPosition="top">Profit</th>
+                <th pTooltip="Profit = Price Markup (Sale Price) − Cost Price" tooltipPosition="top">Profit</th>
                 <th class="col-qty">Quantity</th>
                 <th>Total</th>
                 <th>Total kW</th>
@@ -425,7 +434,7 @@
                 <th>kW</th>
                 <th>Cost Price</th>
                 <th>Sale Price</th>
-                <th pTooltip="Profit = Sale Price − Cost Price" tooltipPosition="top">Profit</th>
+                <th pTooltip="Profit = Price Markup (Sale Price) − Cost Price" tooltipPosition="top">Profit</th>
                 <th class="col-qty">Quantity</th>
                 <th>Total</th>
                 <th>Total kW</th>
@@ -556,7 +565,15 @@
           <h2 class="font-bold">4. Solar Racking</h2>
         </div>
         <div class="table-scroll-wrap">
-          <table class="config-table">
+          <table class="config-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-brand">
+              <col class="col-brand">
+              <col class="col-bos-desc">
+              <col class="col-price">
+              <col class="col-qty">
+              <col class="col-total">
+            </colgroup>
             <thead>
               <tr>
                 <th>Roof Type</th>
@@ -643,7 +660,16 @@
           <h2 class="font-bold">5. Solar BOS</h2>
         </div>
         <div class="table-scroll-wrap">
-          <table class="config-table">
+          <table class="config-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-brand">
+              <col class="col-bos-desc">
+              <col class="col-size">
+              <col class="col-bos-price">
+              <col class="col-bos-price">
+              <col class="col-qty col-qty--solarbos">
+              <col class="col-total--solar-bos">
+            </colgroup>
             <thead>
               <tr>
                 <th>Category</th>
@@ -736,11 +762,21 @@
         <h3 class="k-subsection-title" [class.!mt-4]="categoryIndex > 0">6.{{ categoryIndex + 1 }} {{
           labourCategoryLabel(category) }}</h3>
         <div class="table-scroll-wrap">
-          <table class="config-table">
+          <table class="config-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-bos-desc">
+              <col class="col-unit-rate">
+              <col class="col-price">
+              <col class="col-price">
+              <col class="col-units">
+              <col class="col-total">
+            </colgroup>
             <thead>
               <tr>
                 <th>Description</th>
                 <th>Unit Rate</th>
+                <th>Cost Price</th>
+                <th>Sale Price</th>
                 <th class="col-qty">Units</th>
                 <th>Total</th>
               </tr>
@@ -750,6 +786,8 @@
               <tr>
                 <td>{{ row.description }}</td>
                 <td class="cell-auto">{{ row.unitRate | number:'1.2-2' }}</td>
+                <td class="cell-auto">{{ row.costPrice | number:'1.2-2' }}</td>
+                <td class="cell-auto">{{ row.salePrice | number:'1.2-2' }}</td>
                 <td class="col-qty cell-auto">{{ row.units }}</td>
                 <td class="cell-auto">{{ row.total | number:'1.2-2' }}</td>
               </tr>
@@ -757,7 +795,7 @@
             </tbody>
             <tfoot>
               <tr class="config-total-row">
-                <td colspan="2"></td>
+                <td colspan="4"></td>
                 <td>Total</td>
                 <td class="total-val">{{ labourCategoryTotal(category) | number:'1.2-2' }}</td>
               </tr>
@@ -767,8 +805,7 @@
         }
         }
 
-        <!-- Sale Price = Cost ไม่มี markup -->
-        <div class="installation-card-foot"></div>
+                <div class="installation-card-foot"></div>
         <h3 class="k-subsection-title !mt-4">Installation Summary</h3>
         <div class="table-scroll-wrap">
           <table class="config-table config-table--fixed-cols">
@@ -826,7 +863,13 @@
           <h2 class="font-bold">7. Documentation</h2>
         </div>
         <div class="table-scroll-wrap">
-          <table class="config-table">
+          <table class="config-table config-table--fixed-cols">
+            <colgroup>
+              <col class="col-summary-desc">
+              <col class="col-unit-rate">
+              <col class="col-qty">
+              <col class="col-total">
+            </colgroup>
             <thead>
               <tr>
                 <th>Type</th>

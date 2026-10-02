@@ -7,6 +7,7 @@
   min-height: 100vh;
   background: var(--bg-color);
   padding: 24px 16px 64px;
+  overflow-x: auto; // แผ่นกว้าง 210mm ตายตัว (ต้องเท่ากับตอนพิมพ์ ไม่งั้นการตัดหน้าเพี้ยน) จอแคบกว่านี้ให้เลื่อนซ้าย-ขวา
 }
 
 .preview-toolbar {
@@ -18,17 +19,57 @@
   gap: 12px;
 }
 
-/* ===== กระดาษ A4 ===== */
+/* ===== กระดาษ A4 =====
+   เนื้อหาเป็น .pg-block ต่อกันเป็นเส้นเดียว; component ts (paginate) ดันก้อนแรกของแต่ละหน้าลงไปอยู่ในแผ่นถัดไป
+   พื้นหลังวาดแผ่นสีขาวซ้ำทุก (297mm + ช่องไฟ 12mm) จึงเห็นเป็นหลายแผ่นแยกกัน */
 .quote-doc {
+  box-sizing: border-box;
   width: 210mm;
-  max-width: 100%;
   margin: 0 auto;
-  background: var(--k-white);
+  // padding ขวาเกิน 0.5mm = ช่องเว้นขอบขวาที่ตอนพิมพ์ก็ใช้ (ดู @media print) เพื่อให้ความกว้างเนื้อหาเท่ากันทั้งสองโหมด
+  padding: 12mm calc(12mm + 0.5mm) 12mm 12mm;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--k-white) 0,
+    var(--k-white) 297mm,
+    transparent 297mm,
+    transparent 309mm
+  );
+  // เงารอบแผ่น (filter ตามรูปทรงพื้นหลังที่วาด ไม่ใช่กล่องสี่เหลี่ยมก้อนเดียว)
+  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--k-black) 14%, transparent));
   color: var(--k-black);
-  box-shadow: var(--k-shadow);
-  padding: 14mm 12mm;
   font-size: 11px;
   line-height: 1.45;
+}
+
+// ระหว่างรอจัดหน้า: ซ่อนแต่ยังคิด layout อยู่ (วัดความสูงได้) กันภาพกระโดด
+.quote-doc--pending {
+  visibility: hidden;
+}
+
+// บนจอ: ก้อนแรกของแต่ละหน้าถูกดันลงด้วยระยะที่ ts คำนวณไว้ (ทับ margin เดิมของก้อนนั้น)
+.pg-block {
+  break-inside: avoid;
+}
+
+.pg-block.pg-start {
+  margin-top: var(--pg-skip, 0);
+}
+
+/* ---- ก้อนที่เป็นส่วนของกรอบตาราง Items/Remarks ----
+   ถูกตัดหน้าได้ระหว่างก้อน → ปิดเส้นกรอบตรงรอยตัดด้วย inset shadow (ไม่กินความสูง จึงไม่ทำให้ที่วัดไว้เพี้ยน) */
+.q-boxed.pg-start {
+  box-shadow: inset 0 1px 0 var(--k-black);
+}
+
+.q-boxed.pg-end {
+  box-shadow: inset 0 -1px 0 var(--k-black);
+}
+
+.q-boxed.pg-start.pg-end {
+  box-shadow:
+    inset 0 1px 0 var(--k-black),
+    inset 0 -1px 0 var(--k-black);
 }
 
 /* ---- Header ---- */
@@ -81,6 +122,13 @@
   margin-bottom: 14px;
 }
 
+// ตารางที่มีเส้น: ความสูงบรรทัดเป็นพิกเซลเต็ม (1.45×11px = 15.95 ทำให้เศษสะสมแล้วเส้นบางแถวหนา/บางไม่เท่ากันตอน render)
+.q-customer,
+.q-items,
+.q-summary {
+  line-height: 16px;
+}
+
 .q-customer .q-cell {
   border: 1px solid var(--k-black);
   padding: 6px 8px;
@@ -89,10 +137,18 @@
 }
 
 /* ---- ตารางรายการ ---- */
+/* กรอบนอกของ Items: ซ้าย/ขวามาจากเส้นของ cell, บนอยู่ที่ก้อนหัวตาราง, ล่างอยู่ที่ก้อนสรุป (แต่ละก้อนเป็น <table> แยก) */
 .q-items {
   margin-bottom: 0;
-  border: 1px solid var(--k-black);
-  table-layout: fixed; // ให้ browser ใช้ % ที่กำหนดตรงๆ ไม่ขยับตามความยาวเนื้อหา
+  table-layout: fixed; // ให้ browser ใช้ % ที่กำหนดตรงๆ ไม่ขยับตามความยาวเนื้อหา — ทุกก้อนจึงมีคอลัมน์ตรงกัน
+}
+
+.q-boxed--head {
+  border-top: 1px solid var(--k-black);
+}
+
+.q-boxed--foot {
+  border-bottom: 1px solid var(--k-black);
 }
 
 .q-items th,
@@ -144,18 +200,28 @@
   text-decoration: underline;
 }
 
-/* ---- Remarks + Summary ---- */
+/* ---- Remarks + Summary ----
+   ตาราง fixed 2 คอลัมน์ เส้นนอก/เส้นแบ่งเป็นเส้นของ cell (collapse) แบบเดียวกับตาราง Items → เส้นแบ่งตรงกับเส้นคอลัมน์ Unit
+   เส้นบนไม่มี (ใช้เส้นล่างของก้อน TOTAL COST ร่วมกัน) */
 .q-remarks-block {
-  display: flex;
-  align-items: stretch;
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.q-remarks {
+  width: 66.667%; // = item 15% + desc 51.667% ของ .q-items
+  padding: 8px;
+  vertical-align: top;
   border: 1px solid var(--k-black);
   border-top: none;
 }
 
-.q-remarks {
-  flex: 1 1 auto;
-  padding: 8px;
-  border-right: 1px solid var(--k-black);
+.q-summary-cell {
+  padding: 0;
+  vertical-align: top;
+  border: 1px solid var(--k-black);
+  border-top: none;
 }
 
 .q-remarks-head {
@@ -172,12 +238,18 @@
 }
 
 .q-summary {
-  flex: 0 0 33.2%;
+  width: 100%;
+  border-collapse: collapse;
 }
 
 .q-summary td {
   border-bottom: 1px solid var(--k-black);
   padding: 6px 8px;
+}
+
+// แถวสุดท้ายไม่ต้องมีเส้นล่าง: เส้นล่างของกรอบเป็นของ cell แม่แล้ว (ไม่งั้นเป็นเส้นซ้อนสองชั้น)
+.q-summary tr:last-child td {
+  border-bottom: none;
 }
 
 .q-summary-lbl {
@@ -244,9 +316,9 @@
   white-space: nowrap;
 }
 
-/* ---- Warranty ---- */
+/* ---- Warranty ---- (แถวละ <table> เพื่อตัดหน้าระหว่างแถวได้ → fixed layout ให้คอลัมน์ตรงกันทุกแถว) */
 .q-warranty {
-  margin-bottom: 14px;
+  table-layout: fixed;
 }
 
 .q-warranty td {
@@ -257,7 +329,6 @@
 .q-warranty-item {
   width: 28%;
   font-weight: 600;
-  white-space: nowrap;
 }
 
 .q-disclaimer {
@@ -265,7 +336,7 @@
   font-style: italic;
   color: var(--k-dark-grey);
   line-height: 1.4;
-  margin: 0;
+  margin: 14px 0 0;
 }
 
 /* ---- Empty state ---- */
@@ -297,16 +368,26 @@
   }
 
   .preview-shell {
-    background: #ffffff;
+    background: var(--k-white);
     padding: 0;
     min-height: 0;
+    overflow: visible;
   }
 
   .quote-doc {
     width: auto;
-    max-width: none;
+    height: auto !important; // ทับ [style.height.mm] ที่ใช้วาดแผ่นบนจอ
     margin: 0;
-    padding: 0;
-    box-shadow: none;
+    padding: 0 0.5mm 0 0; // เว้นขอบขวาเล็กน้อย: เส้นขอบขวา 1px ของตารางชิดขอบพื้นที่พิมพ์พอดี Chrome ตัดไปครึ่งเส้น
+    background: none;
+    filter: none;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact; // ให้เส้น inset ปิดกรอบตรงรอยตัดหน้า/สีตัวอักษรเทาออกตามจอ
+  }
+
+  // ก้อนแรกของแต่ละหน้าที่ ts คำนวณไว้ → ขึ้นหน้าใหม่ตรงจุดเดียวกับที่เห็นบนจอ (margin ทิ้ง ไม่ให้เลื่อนซ้ำ)
+  .pg-block.pg-start {
+    margin-top: 0;
+    break-before: page;
   }
 }
