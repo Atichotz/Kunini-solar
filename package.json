@@ -4,28 +4,25 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "node scripts/gen-version.js && ng build",
+    "build": "echo",
+    "build:hostinger": "node scripts/gen-version.js && ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test",
-    "serve:ssr:kunini-solar": "node dist/kunini-solar/server/server.mjs"
+    "test": "ng test"
   },
   "private": true,
   "dependencies": {
-    "@angular/animations": "^19.2.21",
+    "@angular/animations": "^19.2.25",
     "@angular/cdk": "^19.2.19",
-    "@angular/common": "^19.2.21",
-    "@angular/compiler": "^19.2.21",
-    "@angular/core": "^19.2.21",
-    "@angular/forms": "^19.2.21",
-    "@angular/platform-browser": "^19.2.21",
-    "@angular/platform-browser-dynamic": "^19.2.21",
-    "@angular/platform-server": "^19.2.0",
-    "@angular/router": "^19.2.21",
-    "@angular/ssr": "^19.2.19",
+    "@angular/common": "^19.2.25",
+    "@angular/compiler": "^19.2.25",
+    "@angular/core": "^19.2.25",
+    "@angular/forms": "^19.2.25",
+    "@angular/platform-browser": "^19.2.25",
+    "@angular/platform-browser-dynamic": "^19.2.25",
+    "@angular/router": "^19.2.25",
     "@primeng/themes": "^19.1.4",
     "@primeuix/themes": "^2.0.3",
     "@supabase/supabase-js": "^2.105.3",
-    "express": "^4.18.2",
     "primeicons": "^7.0.0",
     "primeng": "^19.1.4",
     "rxjs": "~7.8.0",
@@ -36,8 +33,7 @@
     "@angular-devkit/build-angular": "^19.2.19",
     "@angular/build": "^19.2.25",
     "@angular/cli": "^19.2.25",
-    "@angular/compiler-cli": "^19.2.21",
-    "@types/express": "^4.17.17",
+    "@angular/compiler-cli": "^19.2.25",
     "@types/jasmine": "~5.1.0",
     "@types/node": "^18.18.0",
     "autoprefixer": "^10.5.0",
@@ -47,8 +43,22 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
-    "postcss": "^8.5.12",
+    "postcss": "^8.5.29",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.7.2"
+  },
+  "overrides": {
+    "piscina": "^4.9.4",
+    "webpack-dev-middleware": "^7.4.6",
+    "postcss": "$postcss",
+    "tar": "^7.5.22",
+    "vite": "^6.4.4",
+    "webpack-dev-server": "^5.2.6",
+    "@angular-devkit/build-angular": {
+      "http-proxy-middleware": "3.0.7"
+    },
+    "express": {
+      "qs": "6.16.0"
+    }
   }
 }
