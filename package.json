@@ -47,17 +47,6 @@
     "typescript": "~5.9.3"
   },
   "overrides": {
-    "piscina": "^4.9.4",
-    "webpack-dev-middleware": "^7.4.6",
-    "postcss": "$postcss",
-    "tar": "^7.5.22",
-    "vite": "^6.4.4",
-    "webpack-dev-server": "^5.2.6",
-    "@angular-devkit/build-angular": {
-      "http-proxy-middleware": "3.0.7"
-    },
-    "express": {
-      "qs": "6.16.0"
-    }
+    "webpack-dev-middleware": "^7.4.6"
   }
 }
