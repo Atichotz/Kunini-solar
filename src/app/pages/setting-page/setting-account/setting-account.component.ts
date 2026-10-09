@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
@@ -27,7 +27,7 @@ interface CreateForm {
 
 @Component({
   selector: 'app-setting-account',
-  imports: [CommonModule, FormsModule, DialogModule, SelectModule, TooltipModule],
+  imports: [FormsModule, DialogModule, SelectModule, TooltipModule],
   templateUrl: './setting-account.component.html',
   styleUrl: './setting-account.component.scss',
 })

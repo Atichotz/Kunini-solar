@@ -6,7 +6,7 @@ import { SelectButtonModule } from 'primeng/selectbutton';
 import { ActivatedRoute, Router } from "@angular/router";
 import { ButtonModule } from 'primeng/button';
 import { ScrollSpy } from '../../scroll-spy.util';
-import { DecimalPipe, NgClass, NgFor, NgIf } from '@angular/common';
+import { DecimalPipe, NgClass } from '@angular/common';
 import { Tooltip } from 'primeng/tooltip';
 import { AccordionModule } from 'primeng/accordion';
 import { ToastModule } from 'primeng/toast';
@@ -90,7 +90,7 @@ interface CatalogBundle {
 
 @Component({
   selector: 'app-estimate-page',
-  imports: [FormsModule, SelectModule, SelectButtonModule, ButtonModule, NgClass, NgFor, NgIf, DecimalPipe, Tooltip, AccordionModule, ToastModule, ConfirmDialogModule, SolarBOSDialogComponent, KLoadingComponent, ScrollToTopComponent],
+  imports: [FormsModule, SelectModule, SelectButtonModule, ButtonModule, NgClass, DecimalPipe, Tooltip, AccordionModule, ToastModule, ConfirmDialogModule, SolarBOSDialogComponent, KLoadingComponent, ScrollToTopComponent],
   templateUrl: './estimate-page.component.html',
   styleUrl: './estimate-page.component.scss',
   providers: [MessageService, ConfirmationService]
