@@ -1,6 +1,6 @@
 <p-confirmDialog></p-confirmDialog>
 <!-- inert ระหว่าง save: กัน Tab/คีย์บอร์ดเข้าถึงฟอร์มที่อยู่หลัง overlay -->
-<div class="max-w-container p-[24px]" [attr.inert]="isSaving ? '' : null">
+<div class="max-w-container p-[24px]" [class.doc-readonly]="!canEditDocuments()" [attr.inert]="isSaving ? '' : null">
 
   <!-- Repeating PDF Header -->
   <div class="print-header">

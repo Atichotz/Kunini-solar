@@ -8,7 +8,7 @@ import { environment } from '../../environments/environment';
 
 export interface UserProfile {
   userId: string;
-  role: 'ceo' | 'purchasing' | 'admin' | 'technician';
+  role: 'ceo' | 'purchasing' | 'admin' | 'engineer' | 'technician' | 'sales';
   email: string;
   displayName: string | null;
   avatarUrl: string | null;

@@ -19,10 +19,12 @@
     <span class="user-divider" aria-hidden="true"></span>
     }
     <nav class="brand-nav-links">
+      @if (!isTechnician()) {
       <a class="solar-guide-link" [routerLink]="'/dashboard'">
         Dashboard
       </a>
       <span class="user-divider" aria-hidden="true"></span>
+      }
 
       <a class="solar-guide-link" [routerLink]="'/workflow'">
         Workflow
@@ -30,11 +32,13 @@
       <button type="button" class="solar-guide-link" (click)="customerListDrawer.open()">
         Customer List
       </button>
+      @if (canSeeTodoBoard()) {
       <span class="user-divider" aria-hidden="true"></span>
 
       <button type="button" class="solar-guide-link" (click)="addTaskDialog.open()">
-        Task & Ticket
+        {{ taskMenuLabel() }}
       </button>
+      }
     </nav>
     <button type="button" class="menu-toggle-btn" (click)="mobileMenu.toggle($event)" aria-haspopup="true"
       aria-label="เปิดเมนู">
@@ -43,10 +47,12 @@
     <!-- <a class="solar-guide-link">
       <i class="pi pi-bell"></i>
     </a> -->
+    @if (canUseSettings()) {
     <span class="user-divider" aria-hidden="true"></span>
     <a class="solar-guide-link" [routerLink]="'/setting'">
       <i class="pi pi-cog"></i>
     </a>
+    }
     <a class="solar-guide-link cursor-pointer" tooltipPosition="bottom" [pTooltip]="'Logout'" (click)="logout()"
       [class.opacity-50]="isLoggingOut" [attr.aria-disabled]="isLoggingOut">
       <i class="fa-solid fa-right-from-bracket"></i>
@@ -56,10 +62,12 @@
 
 <p-popover #mobileMenu styleClass="mobile-nav-popover">
   <nav class="mobile-nav-links">
+    @if (!isTechnician()) {
     <a class="mobile-nav-link" [routerLink]="'/dashboard'" routerLinkActive="active" (click)="mobileMenu.hide()">
       <span class="mobile-nav-icon"><i class="pi pi-th-large"></i></span>
       Dashboard
     </a>
+    }
     <a class="mobile-nav-link" [routerLink]="'/workflow'" routerLinkActive="active" (click)="mobileMenu.hide()">
       <span class="mobile-nav-icon"><i class="pi pi-sitemap"></i></span>
       Workflow
@@ -68,10 +76,12 @@
       <span class="mobile-nav-icon"><i class="pi pi-users"></i></span>
       Customer List
     </button>
+    @if (canSeeTodoBoard()) {
     <button type="button" class="mobile-nav-link" (click)="mobileMenu.hide(); addTaskDialog.open()">
       <span class="mobile-nav-icon"><i class="pi pi-plus"></i></span>
-      Add Task
+      {{ taskMenuLabel() }}
     </button>
+    }
   </nav>
 </p-popover>
 

@@ -2,7 +2,7 @@
 <p-confirmDialog></p-confirmDialog>
 @if (me()) {
 <!-- ฟอร์มเพิ่มงานอยู่บนสุดนอก card เสมอ ไม่ว่าจะยุบ/ขยายการ์ดไหนอยู่ — ใช้ร่วมกันทุกการ์ด (มีแค่ข้อมูล newCustomerId ฯลฯ ชุดเดียวต่อ component) -->
-<div class="add-todo-form">
+<div class="add-todo-form" [hidden]="!showAddForm">
   <div class="add-todo-heading">Add task</div>
   <input #titleInput type="text" class="add-todo-input mb-2" placeholder="Title"
     (keyup.enter)="addTask(titleInput, descInput)">
@@ -53,7 +53,7 @@
   <div class="card">
     <div class="card-header" style="cursor: pointer;" (click)="toggleCollapsed(card.key)">
       <div class="flex items-center gap-2">
-        <i class="fa-regular fa-file-lines text-[18px]" style="color: var(--k-red);"></i>
+        <i class="fa-solid fa-list-check text-[18px]" style="color: var(--k-red);"></i>
         <h2>{{ card.title }}</h2>
         <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
           style="background: #fde8ea; color: var(--k-red);">
@@ -516,7 +516,7 @@
   <div class="task-drawer-comments">
     <h3 class="task-drawer-comments-heading">Comments</h3>
     <app-todo-comments [todoId]="todo.id" [me]="me()" [mentionOptions]="commentMentionOptions(todo)"
-      (commentsChanged)="onCommentsChanged()" />
+      [readOnly]="!canComment(todo)" (commentsChanged)="onCommentsChanged()" />
   </div>
   }
 </p-dialog>

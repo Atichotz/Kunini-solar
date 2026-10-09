@@ -4,7 +4,7 @@
 } @else if (!customer) {
 <div class="max-w-container">
     <div class="flex flex-col items-center gap-3 p-8" role="alert">
-        <p class="text-sm" style="color: var(--k-red);">{{ customerLoadError }}</p>
+        <p class="k-inline-error"><i class="fa-solid fa-circle-exclamation"></i>{{ customerLoadError }}</p>
         <a class="k-btn k-btn-outline" routerLink="/workflow">Back to Workflow</a>
     </div>
 </div>
@@ -27,9 +27,10 @@
                             (click)="cancelEditName()">Cancel</button>
                         } @else {
                         <div class="client-name">{{ customer.displayName }}</div>
-                        @if (canManage()) {
-                        <button class="k-btn-sm k-btn-outline" [disabled]="!customer" (click)="startEditName()">
-                            <i class="fa-solid fa-pen"></i> Edit
+                        @if (canManageCustomers()) {
+                        <button type="button" class="btn-icon btn-edit" [disabled]="!customer"
+                            title="Edit customer name" aria-label="Edit customer name" (click)="startEditName()">
+                            <i class="fa-solid fa-pen"></i>
                         </button>
                         }
                         }
@@ -48,21 +49,26 @@
                             (click)="cancelEditCustomerNumber()">Cancel</button>
                         } @else {
                         <span class="customer-number-label">Customer #: {{ customer.customerNumber ?? '—' }}</span>
-                        @if (canManage()) {
-                        <button class="k-btn-sm k-btn-outline" (click)="startEditCustomerNumber()">
-                            <i class="fa-solid fa-pen"></i> Edit
+                        @if (canManageCustomers()) {
+                        <button type="button" class="btn-icon btn-edit" title="Edit customer number"
+                            aria-label="Edit customer number" (click)="startEditCustomerNumber()">
+                            <i class="fa-solid fa-pen"></i>
                         </button>
                         }
                         }
                     </div>
                 </div>
                 @if (isEditingName && nameErrorMessage) {
-                <div class="text-sm" style="color: var(--k-red);">{{ nameErrorMessage }}</div>
+                <div class="k-inline-error" role="alert"><i class="fa-solid fa-circle-exclamation"></i>{{
+                    nameErrorMessage }}</div>
                 }
                 @if (isEditingCustomerNumber && customerNumberErrorMessage) {
-                <div class="text-sm" style="color: var(--k-red);">{{ customerNumberErrorMessage }}</div>
+                <div class="k-inline-error" role="alert"><i class="fa-solid fa-circle-exclamation"></i>{{
+                    customerNumberErrorMessage }}</div>
                 }
-                <div class="client-status"><span class="dot-green"></span> {{ currentStatusName }}</div>
+                @if (currentStatusName) {
+                <div class="client-status"><span class="status-dot"></span> {{ currentStatusName }}</div>
+                }
             </div>
         </div>
         <div class="flex gap-2 header-buttons">
@@ -70,13 +76,17 @@
             <button class="k-btn-sm k-btn-primary" [routerLink]="'/estimate'"
                 [queryParams]="{customerId: customer.id}">Quotation</button>
             }
-            <button class="k-btn-sm k-btn-primary" [routerLink]="'/sow'" [queryParams]="{customerId: customer.id}">Scope
-                Of Work</button>
+            @if (canEditDocuments()) {
+                <button class="k-btn-sm k-btn-outline" [routerLink]="'/sow'" [queryParams]="{customerId: customer.id}">
+                    <i class="fa-solid fa-helmet-safety"></i>&nbsp;Scope Of Work
+                </button>
 
-            <button class="k-btn-sm k-btn-primary" (click)="setReportMenuItems(); reportMenu.toggle($event)">
-                Report <i class="fa-solid fa-caret-down"></i>
-            </button>
-            <p-menu #reportMenu [popup]="true" [model]="reportMenuItems" appendTo="body"></p-menu>
+                <button class="k-btn-sm k-btn-outline" aria-haspopup="menu"
+                    (click)="setReportMenuItems(); reportMenu.toggle($event)">
+                    <i class="fa-solid fa-file-lines"></i>&nbsp;Report&nbsp;<i class="fa-solid fa-caret-down"></i>
+                </button>
+                <p-menu #reportMenu [popup]="true" [model]="reportMenuItems" appendTo="body"></p-menu>
+            }
         </div>
     </div>
 
@@ -86,6 +96,11 @@
             <div class="card max-w-[100vw] overflow-x-auto mb-6">
                 <div class="card-header">
                     <h2>Client Information</h2>
+                    @if (canManageCustomers() && !isEditingInfo) {
+                    <button type="button" class="k-btn-sm k-btn-outline" (click)="startEditInfo()">
+                        <i class="fa-solid fa-pen"></i>&nbsp;Edit details
+                    </button>
+                    }
                 </div>
                 <table class="contact-table">
                     <thead>
@@ -120,18 +135,18 @@
                                 </select>
                             </td>
                             <td class="action-cell">
-                                <button class="btn-icon btn-save" [disabled]="contact.isSaving"
-                                    (click)="saveContact(contact)" title="Save">
+                                <button type="button" class="btn-icon btn-save" [disabled]="contact.isSaving"
+                                    (click)="saveContact(contact)" title="Save" aria-label="Save contact">
                                     <i class="fas" [ngClass]="contact.isSaving ? 'fa-spinner fa-spin' : 'fa-check'"></i>
                                 </button>
                                 @if (contact.id.startsWith('new-')) {
-                                <button class="btn-icon btn-remove" [disabled]="contact.isSaving"
-                                    (click)="removeContact(contact.id)" title="Remove"><i
-                                        class="fa-solid fa-trash"></i></button>
+                                <button type="button" class="btn-icon btn-remove" [disabled]="contact.isSaving"
+                                    (click)="removeContact(contact.id)" title="Remove"
+                                    aria-label="Remove new contact"><i class="fa-solid fa-trash"></i></button>
                                 } @else {
-                                <button class="btn-icon btn-remove" [disabled]="contact.isSaving"
-                                    (click)="cancelEditContact(contact)" title="Cancel"><i
-                                        class="fa-solid fa-xmark"></i></button>
+                                <button type="button" class="btn-icon btn-remove" [disabled]="contact.isSaving"
+                                    (click)="cancelEditContact(contact)" title="Cancel"
+                                    aria-label="Cancel editing contact"><i class="fa-solid fa-xmark"></i></button>
                                 }
                             </td>
                             } @else {
@@ -141,22 +156,26 @@
                             <td><span class="contact-type-badge" [class]="'type-' + contact.type.toLowerCase()">{{
                                     contact.type }}</span></td>
                             <td class="action-cell">
-                                @if (canManage()) {
+                                @if (canManageCustomers()) {
                                 @if (contact.type !== 'Primary') {
-                                <button class="btn-icon btn-set-primary" [disabled]="contact.isSaving"
-                                    (click)="setPrimaryContact(contact)" title="Set as Primary">
+                                <button type="button" class="btn-icon btn-set-primary" [disabled]="contact.isSaving"
+                                    (click)="setPrimaryContact(contact)" title="Set as Primary"
+                                    aria-label="Set as Primary contact">
                                     <i class="fas" [ngClass]="contact.isSaving ? 'fa-spinner fa-spin' : 'fa-star'"></i>
                                 </button>
                                 } @else {
-                                <button class="btn-icon btn-edit" [disabled]="contact.isSaving"
-                                    (click)="startEditContact(contact)" title="Edit">
+                                <button type="button" class="btn-icon btn-edit" [disabled]="contact.isSaving"
+                                    (click)="startEditContact(contact)" title="Edit" aria-label="Edit contact">
                                     <i class="fa-solid fa-pen"></i>
                                 </button>
                                 }
-                                <button class="btn-icon btn-remove"
+                                <button type="button" class="btn-icon btn-remove"
                                     [disabled]="contact.isDeleting || contact.type === 'Primary'"
                                     [title]="contact.type === 'Primary' ? 'Cannot remove the Primary contact' : 'Remove'"
-                                    (click)="removeContact(contact.id)">{{ contact.isDeleting ? '…' : '✕' }}</button>
+                                    aria-label="Remove contact" (click)="removeContact(contact.id)">
+                                    <i class="fa-solid"
+                                        [ngClass]="contact.isDeleting ? 'fa-spinner fa-spin' : 'fa-trash'"></i>
+                                </button>
                                 }
                             </td>
                             }
@@ -166,12 +185,15 @@
                 </table>
 
                 @if (contactErrorMessage) {
-                <div class="text-sm mt-2" style="color: var(--k-red);">{{ contactErrorMessage }}</div>
+                <div class="k-inline-error mt-2" role="alert"><i class="fa-solid fa-circle-exclamation"></i>{{
+                    contactErrorMessage }}</div>
                 }
 
-                @if (canManage()) {
+                @if (canManageCustomers()) {
                 <div class="mt-4">
-                    <button class="k-btn btn-text" (click)="addContact()">+ Add Another Contact</button>
+                    <button type="button" class="k-btn-text" (click)="addContact()">
+                        <i class="fa-solid fa-plus"></i> Add Another Contact
+                    </button>
                 </div>
                 }
 
@@ -226,7 +248,8 @@
                 </div>
 
                 @if (infoErrorMessage) {
-                <div class="text-sm mb-2" style="color: var(--k-red);" role="alert">{{ infoErrorMessage }}</div>
+                <div class="k-inline-error mb-2" role="alert"><i class="fa-solid fa-circle-exclamation"></i>{{
+                    infoErrorMessage }}</div>
                 }
 
                 <div class="flex gap-2">
@@ -237,21 +260,12 @@
                         (click)="cancelEditInfo()">Cancel</button>
                 </div>
                 } @else {
-                @if (canManage()) {
-                <div class="flex justify-end mb-2">
-                    <button type="button" class="k-btn-sm k-btn-outline" (click)="startEditInfo()">
-                        <i class="fa-solid fa-pen"></i> Edit
-                    </button>
-                </div>
-                }
-
                 <div class="info-group">
                     <span class="info-label">Address</span>
                     <div class="info-value">
                         {{ customer.fullAddress ?? '—' }}
                         @if (customer.googleMapsLink) {
-                        <a [href]="customer.googleMapsLink" target="_blank" rel="noopener" class="k-btn-text"
-                            style="margin-left: 8px;">
+                        <a [href]="customer.googleMapsLink" target="_blank" rel="noopener" class="k-btn-text ml-2">
                             <i class="fa-solid fa-location-dot"></i> View on Map
                         </a>
                         }
@@ -261,33 +275,30 @@
                 <div class="info-group">
                     <span class="info-label">Location</span>
                     <div class="tag-group">
-                        <span class="tag-item"
-                            [class.active]="customer.projectLocationName === 'Pattaya'">Pattaya</span>
-                        <span class="tag-item" [class.active]="customer.projectLocationName === 'Huahin'">Huahin</span>
-                        <span class="tag-item"
-                            [class.active]="customer.projectLocationName === 'Bangkok'">Bangkok</span>
-                        <span class="tag-item" [class.active]="customer.projectLocationName === 'Up Country'">Up
-                            Country</span>
+                        @for (option of locationOptions; track option) {
+                        <span class="tag-item tag-static" [class.active]="customer.projectLocationName === option">{{
+                            option }}</span>
+                        }
                     </div>
                 </div>
 
                 <div class="info-group">
                     <span class="info-label">Project Type</span>
                     <div class="tag-group">
-                        <span class="tag-item"
-                            [class.active]="customer.typeOfCustomerName === 'Residential'">Residential</span>
-                        <span class="tag-item"
-                            [class.active]="customer.typeOfCustomerName === 'Commercial'">Commercial</span>
-                        <span class="tag-item" [class.active]="customer.typeOfCustomerName === 'Upgrade'">Upgrade</span>
+                        @for (option of projectTypeOptions; track option) {
+                        <span class="tag-item tag-static" [class.active]="customer.typeOfCustomerName === option">{{
+                            option }}</span>
+                        }
                     </div>
                 </div>
 
                 <div class="info-group">
                     <span class="info-label">Type of System</span>
                     <div class="tag-group">
-                        <span class="tag-item" [class.active]="customer.typeOfSystemName === 'On-Grid'">On-Grid</span>
-                        <span class="tag-item" [class.active]="customer.typeOfSystemName === 'Off-Grid'">Off-Grid</span>
-                        <span class="tag-item" [class.active]="customer.typeOfSystemName === 'Hybrid'">Hybrid</span>
+                        @for (option of systemTypeOptions; track option) {
+                        <span class="tag-item tag-static" [class.active]="customer.typeOfSystemName === option">{{
+                            option }}</span>
+                        }
                     </div>
                 </div>
                 }
@@ -300,144 +311,234 @@
                     <h2>History</h2>
                 </div>
 
-                @if (sowHistoryErrorMessage) {
-                <div class="text-sm mb-2" style="color: var(--k-red);">{{ sowHistoryErrorMessage }}</div>
+                @for (message of [sowHistoryErrorMessage, siteSurveyHistoryErrorMessage, callOutHistoryErrorMessage,
+                installationHistoryErrorMessage,
+                estimateActionErrorMessage, ticketHistoryErrorMessage]; track $index) {
+                @if (message) {
+                <div class="k-inline-error mb-2" role="alert"><i class="fa-solid fa-circle-exclamation"></i>{{ message
+                    }}</div>
                 }
-                @if (siteSurveyHistoryErrorMessage) {
-                <div class="text-sm mb-2" style="color: var(--k-red);">{{ siteSurveyHistoryErrorMessage }}</div>
-                }
-                @if (callOutHistoryErrorMessage) {
-                <div class="text-sm mb-2" style="color: var(--k-red);">{{ callOutHistoryErrorMessage }}</div>
-                }
-                @if (estimateActionErrorMessage) {
-                <div class="text-sm mb-2" style="color: var(--k-red);">{{ estimateActionErrorMessage }}</div>
-                }
-                @if (ticketHistoryErrorMessage) {
-                <div class="text-sm mb-2" style="color: var(--k-red);">{{ ticketHistoryErrorMessage }}</div>
                 }
 
+                @let allHistoryRows = historyTimelineRows;
+                @let historyView = getHistoryView(allHistoryRows);
                 <div class="doc-list">
-                    @for (row of historyTimelineRows; track row.kind + row.id) {
+                    @for (row of historyView.visibleRows; track row.kind + row.id) {
                     <div class="doc-item">
                         @if (row.kind === 'estimate') {
+                        <!-- draft เปิดผ่านหน้า /estimate ซึ่งเป็นหน้าแก้ไข — sales แก้ไม่ได้จึงไม่ทำเป็นลิงก์ (ใบ final เปิดดูได้ปกติ) -->
+                        @if (row.isDraft && isSales()) {
+                        <span class="doc-item-title">
+                            <span class="doc-item-icon"><i class="fa-solid fa-file-lines"></i></span> {{ row.title }}
+                            <span class="badge">{{ row.badgeLabel }}</span>
+                        </span>
+                        } @else {
                         <a [routerLink]="row.isDraft ? ['/estimate'] : ['/detail', customer.id, 'estimate', row.id]"
                             [queryParams]="row.isDraft ? { customerId: customer.id, estimateId: row.id } : null"
                             class="doc-item-title">
-                            <i class="fa-solid fa-file-lines"></i> {{ row.title }}
+                            <span class="doc-item-icon"><i class="fa-solid fa-file-lines"></i></span> {{ row.title }}
                             <span class="badge" [class.badge-final]="!row.isDraft">{{ row.badgeLabel }}</span>
                         </a>
-                        <div class="item-meta" style="text-align: right;">
-                            {{ row.dateIso | date:'dd MMM yyyy' }} • by <strong>{{ row.author }}</strong>
-                            @if (canSeePrice() && row.grandTotal !== null) {
-                            • ฿{{ row.grandTotal | number:'1.0-0' }}
-                            }
-                            @if (row.isDraft && canCreateQuotation()) {
-                            <button type="button" class="k-btn-sm k-btn-outline" style="margin-left: 8px;"
-                                [disabled]="finalizingEstimateId === row.id" (click)="onFinalizeEstimate(row.id)">
-                                @if (finalizingEstimateId === row.id) { <i class="fas fa-spinner fa-spin"></i> } @else {
-                                Final }
-                            </button>
-                            }
-                            @if (row.isDraft && canCreateQuotation()) {
-                            <button type="button" class="k-btn-sm k-btn-outline"
-                                style="margin-left: 8px; color: var(--k-red); border-color: var(--k-red);"
-                                [disabled]="deletingEstimateId === row.id" (click)="onDeleteEstimate(row.id)"
-                                title="Delete this draft permanently">
-                                @if (deletingEstimateId === row.id) { <i class="fas fa-spinner fa-spin"></i> } @else {
-                                Delete }
-                            </button>
-                            }
-                            @if (!row.isDraft && !row.isSuperseded && !row.hasOpenRevision && isCeo()) {
-                            <button type="button" class="k-btn-sm k-btn-outline" style="margin-left: 8px;"
-                                [disabled]="finalizingEstimateId === row.id" (click)="onUnfinalizeEstimate(row.id)"
-                                title="Revert to draft">
-                                @if (finalizingEstimateId === row.id) { <i class="fas fa-spinner fa-spin"></i> } @else {
-                                Cancel Final }
-                            </button>
-                            }
-                            @if (!row.isDraft && !row.isSuperseded && row.hasOpenRevision && isCeo()) {
-                            <span class="badge" style="margin-left: 8px;"
-                                title="This quotation has a pending draft revision — finalize or delete it first to revert this one to draft">
-                                Has Revision
-                            </span>
-                            }
-                            @if (row.canCreateRevision && canCreateQuotation()) {
-                            <a class="k-btn-sm k-btn-outline" style="margin-left: 8px;" [routerLink]="'/estimate'"
-                                [queryParams]="{ customerId: customer.id, reviseFrom: row.id }"
-                                title="Create a new draft from this quotation, keeping the original untouched">
-                                Create Revision
-                            </a>
-                            }
+                        }
+                        <div class="doc-item-side">
+                            <div class="item-meta">
+                                <span class="history-date" [title]="row.dateTooltip ?? ''"><span
+                                        class="history-date-label" [class.is-updated]="row.dateLabel !== 'Created'">{{
+                                        row.dateLabel }}</span> {{ row.dateIso | date:'dd MMM yyyy' }}</span> • {{
+                                row.byPrefix }} <strong>{{ row.author }}</strong>
+                                @if (canSeePrice() && row.grandTotal !== null) {
+                                • ฿{{ row.grandTotal | number:'1.0-0' }}
+                                }
+                            </div>
+                            <div class="doc-item-actions">
+                                @if (row.isDraft && canCreateQuotation()) {
+                                <button type="button" class="k-btn-sm k-btn-outline"
+                                    [disabled]="finalizingEstimateId === row.id" (click)="onFinalizeEstimate(row.id)">
+                                    @if (finalizingEstimateId === row.id) { <i class="fas fa-spinner fa-spin"></i> }
+                                    @else {
+                                    Final }
+                                </button>
+                                <button type="button" class="k-btn-sm k-btn-outline k-btn-danger"
+                                    [disabled]="deletingEstimateId === row.id" (click)="onDeleteEstimate(row.id)"
+                                    title="Delete this draft permanently">
+                                    @if (deletingEstimateId === row.id) { <i class="fas fa-spinner fa-spin"></i> } @else
+                                    {
+                                    Delete }
+                                </button>
+                                }
+                                @if (!row.isDraft && !row.isSuperseded && !row.hasOpenRevision && isCeo()) {
+                                <button type="button" class="k-btn-sm k-btn-outline"
+                                    [disabled]="finalizingEstimateId === row.id" (click)="onUnfinalizeEstimate(row.id)"
+                                    title="Revert to draft">
+                                    @if (finalizingEstimateId === row.id) { <i class="fas fa-spinner fa-spin"></i> }
+                                    @else {
+                                    Cancel Final }
+                                </button>
+                                }
+                                @if (!row.isDraft && !row.isSuperseded && row.hasOpenRevision && isCeo()) {
+                                <span class="badge"
+                                    title="This quotation has a pending draft revision — finalize or delete it first to revert this one to draft">
+                                    Has Revision
+                                </span>
+                                }
+                                @if (row.canCreateRevision && canCreateQuotation()) {
+                                <a class="k-btn-sm k-btn-outline" [routerLink]="'/estimate'"
+                                    [queryParams]="{ customerId: customer.id, reviseFrom: row.id }"
+                                    title="Create a new draft from this quotation, keeping the original untouched">
+                                    Create Revision
+                                </a>
+                                }
+                            </div>
                         </div>
                         } @else if (row.kind === 'ticket') {
-                        <button type="button" class="doc-item-title" (click)="ticketBoard.openTaskDrawer(row.ticket)">
-                            <i class="fa-solid fa-ticket"></i> {{ row.title }}
+                        <button type="button" class="doc-item-title" (click)="openTicketDrawer(row.ticket)">
+                            <span class="doc-item-icon"><i class="fa-solid fa-ticket"></i></span> {{ row.title }}
                             <span class="badge" [class.badge-final]="row.isDone">{{ row.statusLabel }}</span>
                         </button>
-                        <div class="item-meta" style="text-align: right;">
-                            {{ row.dateIso | date:'dd MMM yyyy' }} • by <strong>{{ row.createdByName }}</strong>
-                            → <strong>{{ row.assigneeNames }}</strong>
-                            • <i class="fa-regular fa-comment"></i> {{ row.commentCount }}
+                        <div class="doc-item-side">
+                            <div class="item-meta">
+                                <span class="history-date" [title]="row.dateTooltip ?? ''"><span
+                                        class="history-date-label" [class.is-updated]="row.dateLabel !== 'Created'">{{
+                                        row.dateLabel }}</span> {{ row.dateIso | date:'dd MMM yyyy' }}</span> • {{
+                                row.byPrefix }} <strong>{{ row.author }}</strong>
+                                → <strong>{{ row.assigneeNames }}</strong>
+                                • <i class="fa-regular fa-comment"></i> {{ row.commentCount }}
+                            </div>
                         </div>
                         } @else if (row.kind === 'sow') {
                         <a [routerLink]="'/sow'" [queryParams]="{ customerId: customer.id, sowId: row.id }"
                             class="doc-item-title">
-                            <i class="fa-solid fa-helmet-safety"></i> Scope of Work
+                            <span class="doc-item-icon"><i class="fa-solid fa-helmet-safety"></i></span> Scope of Work
                             <span class="badge">{{ row.dayCount }} days • {{ row.eodReportCount }} EOD reports</span>
                         </a>
-                        <div class="item-meta" style="text-align: right;">
-                            {{ row.dateIso | date:'dd MMM yyyy' }} • by <strong>{{ row.author }}</strong>
-                            <button type="button" class="k-btn-sm k-btn-outline"
-                                style="margin-left: 8px; color: var(--k-red); border-color: var(--k-red);"
-                                [disabled]="deletingSowId === row.id" (click)="onDeleteSow(row.id)"
-                                title="Remove this scope of work from the list">
-                                @if (deletingSowId === row.id) { <i class="fas fa-spinner fa-spin"></i> } @else {
-                                Delete }
-                            </button>
+                        <div class="doc-item-side">
+                            <div class="item-meta">
+                                <span class="history-date" [title]="row.dateTooltip ?? ''"><span
+                                        class="history-date-label" [class.is-updated]="row.dateLabel !== 'Created'">{{
+                                        row.dateLabel }}</span> {{ row.dateIso | date:'dd MMM yyyy' }}</span> • {{
+                                row.byPrefix }} <strong>{{ row.author }}</strong>
+                            </div>
+                            @if (canDeleteDocument(row.createdByUserId)) {
+                            <div class="doc-item-actions">
+                                <button type="button" class="k-btn-sm k-btn-outline k-btn-danger"
+                                    [disabled]="deletingSowId === row.id" (click)="onDeleteSow(row.id)"
+                                    title="Remove this scope of work from the list">
+                                    @if (deletingSowId === row.id) { <i class="fas fa-spinner fa-spin"></i> } @else {
+                                    Delete }
+                                </button>
+                            </div>
+                            }
                         </div>
                         } @else if (row.kind === 'siteSurvey') {
                         <a [routerLink]="'/survey-report'" [queryParams]="{ customerId: customer.id, reportId: row.id }"
                             class="doc-item-title">
-                            <i class="fa-solid fa-people-roof"></i> Site Survey Report
+                            <span class="doc-item-icon"><i class="fa-solid fa-people-roof"></i></span> Site Survey
+                            Report
                             <span class="badge">{{ row.photoCount }} photos • {{ row.layoutOptionCount }} layouts</span>
                         </a>
-                        <div class="item-meta" style="text-align: right;">
-                            {{ row.dateIso | date:'dd MMM yyyy' }} • by <strong>{{ row.author }}</strong>
-                            <button type="button" class="k-btn-sm k-btn-outline"
-                                style="margin-left: 8px; color: var(--k-red); border-color: var(--k-red);"
-                                [disabled]="deletingSiteSurveyId === row.id" (click)="onDeleteSiteSurvey(row.id)"
-                                title="Remove this report from the list">
-                                @if (deletingSiteSurveyId === row.id) { <i class="fas fa-spinner fa-spin"></i> } @else {
-                                Delete }
-                            </button>
+                        <div class="doc-item-side">
+                            <div class="item-meta">
+                                <span class="history-date" [title]="row.dateTooltip ?? ''"><span
+                                        class="history-date-label" [class.is-updated]="row.dateLabel !== 'Created'">{{
+                                        row.dateLabel }}</span> {{ row.dateIso | date:'dd MMM yyyy' }}</span> • {{
+                                row.byPrefix }} <strong>{{ row.author }}</strong>
+                            </div>
+                            @if (canDeleteDocument(row.createdByUserId)) {
+                            <div class="doc-item-actions">
+                                <button type="button" class="k-btn-sm k-btn-outline k-btn-danger"
+                                    [disabled]="deletingSiteSurveyId === row.id" (click)="onDeleteSiteSurvey(row.id)"
+                                    title="Remove this report from the list">
+                                    @if (deletingSiteSurveyId === row.id) { <i class="fas fa-spinner fa-spin"></i> }
+                                    @else {
+                                    Delete }
+                                </button>
+                            </div>
+                            }
+                        </div>
+                        } @else if (row.kind === 'callOut') {
+                        <a [routerLink]="'/call-out-service-report'"
+                            [queryParams]="{ customerId: customer.id, reportId: row.id }" class="doc-item-title">
+                            <span class="doc-item-icon"><i class="fa-solid fa-truck-fast"></i></span> Call Out Service
+                            Report
+                            <span class="badge" [class.badge-final]="row.resolutionStatus === 'resolved'">{{
+                                row.statusLabel }}</span>
+                        </a>
+                        <div class="doc-item-side">
+                            <div class="item-meta">
+                                <span class="history-date" [title]="row.dateTooltip ?? ''"><span
+                                        class="history-date-label" [class.is-updated]="row.dateLabel !== 'Created'">{{
+                                        row.dateLabel }}</span> {{ row.dateIso | date:'dd MMM yyyy' }}</span> • {{
+                                row.byPrefix }} <strong>{{ row.author }}</strong>
+                                @if (row.reportedErrorCode) { • {{ row.reportedErrorCode }} }
+                                • {{ row.photoCount }} photos
+                            </div>
+                            @if (canDeleteDocument(row.createdByUserId)) {
+                            <div class="doc-item-actions">
+                                <button type="button" class="k-btn-sm k-btn-outline k-btn-danger"
+                                    [disabled]="deletingCallOutId === row.id" (click)="onDeleteCallOut(row.id)"
+                                    title="Remove this report from the list">
+                                    @if (deletingCallOutId === row.id) { <i class="fas fa-spinner fa-spin"></i> } @else
+                                    {
+                                    Delete }
+                                </button>
+                            </div>
+                            }
                         </div>
                         } @else {
-                        <a [routerLink]="'/call-out-service-report'" [queryParams]="{ customerId: customer.id, reportId: row.id }"
+                        <a [routerLink]="'/report'" [queryParams]="{ customerId: customer.id, reportId: row.id }"
                             class="doc-item-title">
-                            <i class="fa-solid fa-truck-fast"></i> Call Out Service Report
-                            <span class="badge" [class.badge-final]="row.resolutionStatus === 'resolved'">{{ row.statusLabel }}</span>
+                            <span class="doc-item-icon"><i class="fa-solid fa-file-lines"></i></span> Installation
+                            Report
                         </a>
-                        <div class="item-meta" style="text-align: right;">
-                            {{ row.dateIso | date:'dd MMM yyyy' }} • by <strong>{{ row.author }}</strong>
-                            @if (row.reportedErrorCode) { • {{ row.reportedErrorCode }} }
-                            • {{ row.photoCount }} photos
-                            <button type="button" class="k-btn-sm k-btn-outline"
-                                style="margin-left: 8px; color: var(--k-red); border-color: var(--k-red);"
-                                [disabled]="deletingCallOutId === row.id" (click)="onDeleteCallOut(row.id)"
-                                title="Remove this report from the list">
-                                @if (deletingCallOutId === row.id) { <i class="fas fa-spinner fa-spin"></i> } @else {
-                                Delete }
-                            </button>
+                        <div class="doc-item-side">
+                            <div class="item-meta">
+                                <span class="history-date" [title]="row.dateTooltip ?? ''"><span
+                                        class="history-date-label" [class.is-updated]="row.dateLabel !== 'Created'">{{
+                                        row.dateLabel }}</span> {{ row.dateIso | date:'dd MMM yyyy' }}</span> • {{
+                                row.byPrefix }} <strong>{{ row.author }}</strong>
+                                • {{ row.photoCount }} photos
+                            </div>
+                            @if (canDeleteDocument(row.createdByUserId)) {
+                            <div class="doc-item-actions">
+                                <button type="button" class="k-btn-sm k-btn-outline k-btn-danger"
+                                    [disabled]="deletingInstallationId === row.id" (click)="onDeleteInstallation(row.id)"
+                                    title="Remove this report from the list">
+                                    @if (deletingInstallationId === row.id) { <i class="fas fa-spinner fa-spin"></i> }
+                                    @else {
+                                    Delete }
+                                </button>
+                            </div>
+                            }
                         </div>
                         }
                     </div>
                     }
                     @if (isLoadingHistory) {
                     <div class="note-empty">Loading…</div>
-                    } @else if (historyTimelineRows.length === 0) {
+                    } @else if (allHistoryRows.length === 0) {
                     <div class="note-empty">No history yet.</div>
                     }
                 </div>
+                @if (allHistoryRows.length > historyPageSizeOptions[0]) {
+                <div class="k-pager mt-3">
+                    <div class="k-pager-size">
+                        <span class="k-pager-label">Show</span>
+                        @for (size of historyPageSizeOptions; track size) {
+                        <button type="button" class="k-pager-btn" [class.active]="historyPageSize === size"
+                            (click)="setHistoryPageSize(size)">{{ size }}</button>
+                        }
+                    </div>
+                    <div class="k-pager-nav">
+                        <button type="button" class="k-pager-btn" title="Previous page"
+                            [disabled]="historyView.currentPage <= 1"
+                            (click)="setHistoryPage(historyView.currentPage - 1)">‹</button>
+                        <span class="k-pager-label">{{ historyView.currentPage }} / {{ historyView.totalPages }}</span>
+                        <button type="button" class="k-pager-btn" title="Next page"
+                            [disabled]="historyView.currentPage >= historyView.totalPages"
+                            (click)="setHistoryPage(historyView.currentPage + 1)">›</button>
+                    </div>
+                </div>
+                }
             </div>
 
         </div>
@@ -448,130 +549,134 @@
                     <h2>Status</h2>
                     <p-select [options]="statusList" class="status-select" [(ngModel)]="statusSelected"
                         optionLabel="status_name" optionValue="id" placeholder="Select a status"
-                        [disabled]="!customer || isSavingStatus || !canManage()" [loading]="isSavingStatus"
+                        [disabled]="!customer || isSavingStatus || !canManageCustomers()" [loading]="isSavingStatus"
                         (onChange)="onStatusChange($event.value)">
                     </p-select>
                 </div>
                 @if (statusErrorMessage) {
-                <div class="text-sm mt-2" style="color: var(--k-red);">{{ statusErrorMessage }}</div>
+                <div class="k-inline-error mt-2" role="alert"><i class="fa-solid fa-circle-exclamation"></i>{{
+                    statusErrorMessage }}</div>
                 }
             </div>
 
-            <div class="card mb-6">
-                <div class="card-header">
-                    <h2><i class="fa-solid fa-solar-panel" style="color: var(--k-red);"></i> System Details</h2>
-                    @if (currentSystem) {
-                    <span class="badge" style="background-color: var(--k-accent-green); color: white;">Current</span>
+            @if (canUseStaffTools()) {
+                <div class="card mb-6">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-solar-panel icon-accent"></i> System Details</h2>
+                        @if (currentSystem) {
+                        <span class="badge badge-current">Current</span>
+                        }
+                    </div>
+
+                    @if (isLoadingSystem) {
+                    <div class="note-empty">Loading...</div>
+                    } @else if (systemErrorMessage) {
+                    <div class="k-inline-error" role="alert"><i class="fa-solid fa-circle-exclamation"></i>{{
+                        systemErrorMessage }}</div>
+                    } @else if (!currentSystem && !pendingSystem) {
+                    <div class="note-empty">No finalized estimates yet</div>
+                    } @else {
+
+                    @if (finalizedEstimateCount > 1) {
+                    <div class="text-sm mb-2 text-muted">Combined from {{ finalizedEstimateCount }}
+                        estimate(s)</div>
                     }
-                </div>
 
-                @if (isLoadingSystem) {
-                <div class="text-sm" style="color: var(--k-mid-grey);">Loading...</div>
-                } @else if (systemErrorMessage) {
-                <div class="text-sm" style="color: var(--k-red);">{{ systemErrorMessage }}</div>
-                } @else if (!currentSystem && !pendingSystem) {
-                <div class="text-sm" style="color: var(--k-mid-grey);">No finalized estimates yet</div>
-                } @else {
-
-                @if (finalizedEstimateCount > 1) {
-                <div class="text-sm mb-2" style="color: var(--k-mid-grey);">Combined from {{ finalizedEstimateCount }}
-                    estimate(s)</div>
-                }
-
-                <div class="flex-col gap-4">
-                    <div class="flex justify-between items-center border-bottom pb-2">
-                        <span class="info-label mb-0"><i class="fa-solid fa-sun"></i> Total Installed PV</span>
-                        <span class="info-value">
-                            <strong>
-                                @if (currentSystem?.kwp) { {{ currentSystem?.kwp | number:'1.0-2' }} kWp } @else { — }
-                            </strong>
-                            @if (pendingSystem?.kwp) {
-                            <span class="system-pending">({{ pendingSystem?.kwp | number:'1.0-2' }} kWp)</span>
-                            }
-                        </span>
-                    </div>
-                    <div class="divider" style="margin: 8px 0;"></div>
-                    <div class="flex justify-between items-center border-bottom pb-2">
-                        <span class="info-label mb-0"><i class="fa-solid fa-bolt"></i> Inverter Size</span>
-                        <span class="info-value">
-                            <strong>
-                                @if (currentSystem?.inverterKw) {
-                                {{ currentSystem?.inverterKw | number:'1.0-2' }} kW
-                                @if (currentSystem?.typeOfSystemName) { · {{ currentSystem?.typeOfSystemName }} }
-                                } @else { — }
-                            </strong>
-                            @if (pendingSystem?.inverterKw) {
-                            <span class="system-pending">({{ pendingSystem?.inverterKw | number:'1.0-2' }} kW)</span>
-                            }
-                        </span>
-                    </div>
-                    <div class="divider" style="margin: 8px 0;"></div>
-
-                    <div class="flex justify-between items-center border-bottom pb-2">
-                        <span class="info-label mb-0"><i class="fa-solid fa-battery-full"></i> Battery Size</span>
-                        <span class="info-value">
-                            <strong>
-                                @if (currentSystem?.batteryKwh) { {{ currentSystem?.batteryKwh | number:'1.0-2' }} kWh }
-                                @else { — }
-                            </strong>
-                            @if (pendingSystem?.batteryKwh) {
-                            <span class="system-pending">({{ pendingSystem?.batteryKwh | number:'1.0-2' }} kWh)</span>
-                            }
-                        </span>
-                    </div>
-                    @if (canSeePrice()) {
-                    <div class="divider" style="margin: 8px 0;"></div>
-
-                    <div class="flex justify-between items-center">
-                        <span class="info-label mb-0"><i class="fa-solid fa-tag"></i> System Price</span>
-                        <span class="info-value">
-                            <span style="color: var(--k-red); font-weight: 700;">
-                                @if (currentSystem?.systemPrice) { ฿{{ currentSystem?.systemPrice | number:'1.2-2' }} }
-                                @else { — }
+                    <div class="system-rows">
+                        <div class="system-row">
+                            <span class="info-label mb-0"><i class="fa-solid fa-sun"></i> Total Installed PV</span>
+                            <span class="info-value">
+                                <strong>
+                                    @if (currentSystem?.kwp) { {{ currentSystem?.kwp | number:'1.0-2' }} kWp } @else { — }
+                                </strong>
+                                @if (pendingSystem?.kwp) {
+                                <span class="system-pending" title="Draft — not finalized yet">({{ pendingSystem?.kwp |
+                                    number:'1.0-2' }} kWp)</span>
+                                }
                             </span>
-                            @if (pendingSystem?.systemPrice) {
-                            <span class="system-pending">(฿{{ pendingSystem?.systemPrice | number:'1.2-2' }})</span>
-                            }
-                        </span>
+                        </div>
+                        <div class="system-row">
+                            <span class="info-label mb-0"><i class="fa-solid fa-bolt"></i> Inverter Size</span>
+                            <span class="info-value">
+                                <strong>
+                                    @if (currentSystem?.inverterKw) {
+                                    {{ currentSystem?.inverterKw | number:'1.0-2' }} kW
+                                    @if (currentSystem?.typeOfSystemName) { · {{ currentSystem?.typeOfSystemName }} }
+                                    } @else { — }
+                                </strong>
+                                @if (pendingSystem?.inverterKw) {
+                                <span class="system-pending" title="Draft — not finalized yet">({{ pendingSystem?.inverterKw
+                                    | number:'1.0-2' }} kW)</span>
+                                }
+                            </span>
+                        </div>
+                        <div class="system-row">
+                            <span class="info-label mb-0"><i class="fa-solid fa-battery-full"></i> Battery Size</span>
+                            <span class="info-value">
+                                <strong>
+                                    @if (currentSystem?.batteryKwh) { {{ currentSystem?.batteryKwh | number:'1.0-2' }} kWh }
+                                    @else { — }
+                                </strong>
+                                @if (pendingSystem?.batteryKwh) {
+                                <span class="system-pending" title="Draft — not finalized yet">({{ pendingSystem?.batteryKwh
+                                    | number:'1.0-2' }} kWh)</span>
+                                }
+                            </span>
+                        </div>
+                        @if (canSeePrice()) {
+                        <div class="system-row">
+                            <span class="info-label mb-0"><i class="fa-solid fa-tag"></i> System Price</span>
+                            <span class="info-value">
+                                <span class="system-price">
+                                    @if (currentSystem?.systemPrice) { ฿{{ currentSystem?.systemPrice | number:'1.2-2' }} }
+                                    @else { — }
+                                </span>
+                                @if (pendingSystem?.systemPrice) {
+                                <span class="system-pending" title="Draft — not finalized yet">(฿{{
+                                    pendingSystem?.systemPrice | number:'1.2-2' }})</span>
+                                }
+                            </span>
+                        </div>
+                        }
                     </div>
                     }
                 </div>
-                }
-            </div>
+            }
 
             <div class="card mb-6">
                 <div class="card-header">
                     <h2>Electric Bill Details</h2>
-                    @if (!isEditingBill) {
+                    @if (!isEditingBill && !isTechnician()) {
                     <button type="button" class="k-btn-sm k-btn-outline" (click)="enableBillEdit()">
                         <i class="fa-solid fa-pen"></i> Edit
                     </button>
                     }
                 </div>
-                <div class="grid grid-cols-3">
+                <div class="grid bill-grid" [class.is-viewing]="!isEditingBill">
                     <div class="input-group">
-                        <label class="input-label">Electric Bill Name</label>
-                        <input type="text" name="billName" placeholder="Name on bill" [disabled]="!isEditingBill"
-                            [(ngModel)]="electricBillForm.billName">
+                        <label class="input-label" for="billName">Electric Bill Name</label>
+                        <input id="billName" type="text" name="billName" placeholder="Name on bill"
+                            [disabled]="!isEditingBill" [(ngModel)]="electricBillForm.billName">
                     </div>
                     <div class="input-group">
-                        <label class="input-label">Electric Bill Amount (฿)</label>
-                        <input type="number" name="billAmount" min="0" placeholder="e.g. 5500"
+                        <label class="input-label" for="billAmount">Electric Bill Amount (฿)</label>
+                        <input id="billAmount" type="number" name="billAmount" min="0" placeholder="e.g. 5500"
                             [disabled]="!isEditingBill" [(ngModel)]="electricBillForm.billAmount">
                     </div>
                     <div class="input-group">
-                        <label class="input-label">CA / Ref No. 1</label>
-                        <input type="text" name="caRefNo" placeholder="Account Ref" [disabled]="!isEditingBill"
-                            [(ngModel)]="electricBillForm.caRefNo">
+                        <label class="input-label" for="caRefNo">CA / Ref No. 1</label>
+                        <input id="caRefNo" type="text" name="caRefNo" placeholder="Account Ref"
+                            [disabled]="!isEditingBill" [(ngModel)]="electricBillForm.caRefNo">
                     </div>
                     <div class="input-group">
-                        <label class="input-label">Installation No.</label>
-                        <input type="text" name="installationNo" placeholder="Installation ID"
+                        <label class="input-label" for="installationNo">Installation No.</label>
+                        <input id="installationNo" type="text" name="installationNo" placeholder="Installation ID"
                             [disabled]="!isEditingBill" [(ngModel)]="electricBillForm.installationNo">
                     </div>
                     <div class="input-group">
-                        <label class="input-label">Electricity Usage Type</label>
+                        <label class="input-label" id="electricityUsageTypeLabel">Electricity Usage Type</label>
                         <p-select [options]="electricityOptions" appendTo="body"
+                            ariaLabelledBy="electricityUsageTypeLabel"
                             [(ngModel)]="electricBillForm.electricityUsageType" name="electricityUsageType"
                             optionLabel="label" optionValue="value" [filter]="true" [disabled]="!isEditingBill"
                             filterBy="label,value" [showClear]="true" placeholder="Select Electricity Usage Type"
@@ -579,18 +684,18 @@
                         </p-select>
                     </div>
                     <div class="input-group">
-                        <label class="input-label">KWH Consumption / Month</label>
-                        <input type="number" name="kwhPerMonth" min="0" placeholder="e.g. 1200"
+                        <label class="input-label" for="kwhPerMonth">KWH Consumption / Month</label>
+                        <input id="kwhPerMonth" type="number" name="kwhPerMonth" min="0" placeholder="e.g. 1200"
                             [disabled]="!isEditingBill" [(ngModel)]="electricBillForm.kwhPerMonth">
                     </div>
 
                     <div class="input-group full-width mt-4">
-                        <label class="input-label">Attach File</label>
+                        <span class="input-label">Attach File</span>
 
                         @if (electricBillFile) {
                         <div class="bill-file-row">
                             <a [href]="electricBillFile.url" target="_blank" rel="noopener" class="bill-file-link">
-                                📎 {{ electricBillFile.name }}
+                                <i class="fa-solid fa-paperclip"></i> {{ electricBillFile.name }}
                             </a>
                             @if (isEditingBill) {
                             <div class="bill-file-actions">
@@ -598,29 +703,35 @@
                                     (click)="billFileInput.click()">{{ isUploadingBill ? 'Uploading...' : 'Replace'
                                     }}</button>
                                 <button type="button" class="btn-icon btn-remove" title="Remove file"
-                                    [disabled]="isUploadingBill" (click)="removeBillFile()">✕</button>
+                                    aria-label="Remove attached file" [disabled]="isUploadingBill"
+                                    (click)="removeBillFile()"><i class="fa-solid fa-trash"></i></button>
                             </div>
                             }
                         </div>
                         } @else if (isEditingBill) {
-                        <div class="upload-area" [class.is-dragover]="isBillDragOver"
+                        <div class="upload-area" role="button" tabindex="0" [class.is-dragover]="isBillDragOver"
                             (dragover)="onBillDragOver($event)" (dragleave)="onBillDragLeave($event)"
-                            (drop)="onBillDrop($event)" (click)="billFileInput.click()">
+                            (drop)="onBillDrop($event)" (click)="billFileInput.click()"
+                            (keydown.enter)="billFileInput.click()"
+                            (keydown.space)="billFileInput.click(); $event.preventDefault()">
                             @if (isUploadingBill) {
-                            Uploading...
+                            <i class="fas fa-spinner fa-spin"></i> Uploading...
                             } @else {
-                            + Drag & Drop Electric Bill PDF/Image here
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Drag & Drop Electric Bill PDF/Image here
                             }
                         </div>
                         } @else {
-                        <div class="text-sm" style="color: var(--k-mid-grey);">No attachments</div>
+                        <div class="text-sm text-muted">No attachments</div>
                         }
                         <input #billFileInput type="file" hidden accept="application/pdf,image/jpeg,image/png"
                             [disabled]="!isEditingBill" (change)="onBillFileInputChange($event)">
                     </div>
 
                     @if (billErrorMessage) {
-                    <div class="input-group full-width bill-error">{{ billErrorMessage }}</div>
+                    <div class="input-group full-width">
+                        <div class="k-inline-error" role="alert"><i class="fa-solid fa-circle-exclamation"></i>{{
+                            billErrorMessage }}</div>
+                    </div>
                     }
 
                     @if (isEditingBill) {
@@ -641,148 +752,134 @@
     </div>
     <div class="flex flex-col gap-6">
 
-        <!-- Notes Section (Full Width) -->
-        <div class="card">
-            <div class="card-header">
-                <h2>Internal Notes</h2>
-                <button class="k-btn-sm k-btn-outline" (click)="toggleNoteForm()">
-                    {{ showNoteForm ? '✕ Cancel' : '+ Add Note' }}
-                </button>
-            </div>
-
-            @if (showNoteForm) {
-            <div class="note-form">
-                <textarea class="form-textarea" [(ngModel)]="newNoteText" placeholder="Write your note here..." rows="4"
-                    [maxlength]="noteMaxLength" [disabled]="isSavingNote" autofocus></textarea>
-                <div class="note-form-actions">
-                    <button class="k-btn k-btn-primary" (click)="saveNote()"
-                        [disabled]="!newNoteText.trim() || isSavingNote">
-                        {{ isSavingNote ? 'Saving...' : 'Save Note' }}</button>
-                    <button class="k-btn k-btn-outline" [disabled]="isSavingNote"
-                        (click)="toggleNoteForm()">Cancel</button>
-                </div>
-            </div>
-            }
-
-            @if (noteErrorMessage) {
-            <div class="text-sm mb-2" style="color: var(--k-red);">{{ noteErrorMessage }}</div>
-            }
-
-            @for (note of notes; track note.id) {
-            <div class="note-item">
-                <div class="note-item-body">
-                    <div class="text-sm mb-2 w-full note-text" [innerHTML]="note.text | linkify"></div>
-                    <div class="item-meta">{{ note.createdAt | date:'dd MMM yyyy' }} • by <strong>{{ note.createdBy
-                            }}</strong>
-                    </div>
-
-                    <button type="button" class="note-comment-toggle" (click)="toggleNoteComments(note.id)">
-                        <i class="fa-regular fa-comment"></i> {{ note.commentCount }}
+        @if (canUseStaffTools()) {
+            <!-- Notes Section (Full Width) -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Internal Notes</h2>
+                    <button type="button" class="k-btn-sm k-btn-outline" [attr.aria-expanded]="showNoteForm"
+                        (click)="toggleNoteForm()">
+                        <i class="fa-solid" [ngClass]="showNoteForm ? 'fa-xmark' : 'fa-plus'"></i>&nbsp;{{ showNoteForm ?
+                        'Cancel' : 'Add Note' }}
                     </button>
+                </div>
 
-                    @if (expandedNoteCommentIds.has(note.id)) {
-                    <div class="note-comments">
-                        @if (isLoadingCommentsForNoteId[note.id]) {
-                        <div class="note-empty">Loading…</div>
-                        } @else {
-                        @for (comment of commentsByNoteId[note.id] ?? []; track comment.id) {
-                        <div class="note-comment-item">
-                            <div class="note-comment-body">
-                                @if (comment.text) {
-                                <div class="text-sm note-text" [innerHTML]="comment.text | linkify"></div>
-                                }
-                                @if (comment.images.length > 0) {
-                                <div class="note-comment-images">
-                                    @for (image of comment.images; track image.id) {
-                                    <a [href]="image.url" target="_blank" rel="noopener"
-                                        class="note-comment-image-thumb" [title]="image.name">
-                                        <img [src]="image.url" [alt]="image.name" loading="lazy" />
-                                    </a>
-                                    }
-                                </div>
-                                }
-                                <div class="item-meta">{{ comment.createdAt | date:'dd MMM yyyy, HH:mm' }} • by
-                                    <strong>{{ comment.createdBy }}</strong>
-                                </div>
-                            </div>
-                            @if (comment.canDelete) {
-                            <button class="btn-icon btn-remove note-comment-delete-btn"
-                                [disabled]="deletingCommentId === comment.id"
-                                (click)="removeNoteComment(note.id, comment.id)" title="Remove comment">{{
-                                deletingCommentId === comment.id ? '…' : '✕' }}</button>
-                            }
+                @if (showNoteForm) {
+                <div class="note-composer-wrap">
+                    <app-note-composer #noteComposer [showTitle]="true" [showCancel]="true" [autoFocus]="true"
+                        [textMaxLength]="noteMaxLength" [mentionableUsers]="mentionableUsers"
+                        [isSaving]="isSavingNote" (submitted)="saveNote($event, noteComposer)"
+                        (cancelled)="toggleNoteForm()" />
+                </div>
+                }
+
+                @if (noteErrorMessage) {
+                <div class="k-inline-error mb-2" role="alert"><i class="fa-solid fa-circle-exclamation"></i>{{
+                    noteErrorMessage }}</div>
+                }
+
+                @for (note of notes; track note.id) {
+                <div class="note-item">
+                    <div class="note-item-body">
+                        @if (note.title) {
+                        <div class="note-title">{{ note.title }}</div>
+                        }
+                        @if (note.text) {
+                        <div class="text-sm mb-2 w-full note-text" [innerHTML]="note.text | noteText: note.mentions">
                         </div>
                         }
-                        @if ((commentsByNoteId[note.id] ?? []).length === 0) {
-                        <div class="note-empty">No comments yet.</div>
+                        @if (note.attachments.length > 0) {
+                        <app-note-attachment-list class="mb-2" [attachments]="note.attachments" />
                         }
-                        }
+                        <div class="item-meta">{{ note.createdAt | date:'dd MMM yyyy' }} • by <strong>{{ note.createdBy
+                                }}</strong>
+                        </div>
 
-                        @if (commentErrorByNoteId[note.id]) {
-                        <div class="text-sm" style="color: var(--k-red);">{{ commentErrorByNoteId[note.id] }}</div>
-                        }
+                        <button type="button" class="note-comment-toggle"
+                            [attr.aria-expanded]="expandedNoteCommentIds.has(note.id)" aria-label="Toggle comments"
+                            (click)="toggleNoteComments(note.id)">
+                            <i class="fa-regular fa-comment"></i> {{ note.commentCount }}
+                        </button>
 
-                        <div class="note-comment-form">
-                            <textarea class="form-textarea" rows="2" placeholder="Write a comment..."
-                                [maxlength]="noteCommentMaxLength" [ngModel]="commentDraftByNoteId[note.id]"
-                                (ngModelChange)="commentDraftByNoteId[note.id] = $event"
-                                [disabled]="!!isSavingCommentForNoteId[note.id]"></textarea>
-
-                            @if ((commentImageDraftByNoteId[note.id] ?? []).length > 0) {
-                            <div class="note-comment-images">
-                                @for (draft of commentImageDraftByNoteId[note.id] ?? []; track draft.previewUrl; let i =
-                                $index) {
-                                <div class="note-comment-image-thumb note-comment-image-draft">
-                                    <img [src]="draft.previewUrl" [alt]="draft.file.name" />
-                                    <button type="button" class="note-comment-image-remove"
-                                        [disabled]="!!isSavingCommentForNoteId[note.id]"
-                                        (click)="removeCommentImageDraft(note.id, i)" title="Remove image">✕</button>
+                        <!-- ไม่ใช้ @if: composer ข้างในเก็บ draft (ข้อความ/ไฟล์ที่เลือกไว้) ถ้าพับแล้วถูกทำลายจะหายหมด -->
+                        <div class="note-comments" [hidden]="!expandedNoteCommentIds.has(note.id)">
+                            @if (isLoadingCommentsForNoteId[note.id]) {
+                            <div class="note-empty">Loading…</div>
+                            } @else {
+                            @for (comment of commentsByNoteId[note.id] ?? []; track comment.id) {
+                            <div class="note-comment-item">
+                                <div class="note-comment-body">
+                                    @if (comment.text) {
+                                    <div class="text-sm note-text" [innerHTML]="comment.text | noteText: comment.mentions">
+                                    </div>
+                                    }
+                                    @if (comment.attachments.length > 0) {
+                                    <app-note-attachment-list class="mb-1" [attachments]="comment.attachments" />
+                                    }
+                                    <div class="item-meta">{{ comment.createdAt | date:'dd MMM yyyy, HH:mm' }} • by
+                                        <strong>{{ comment.createdBy }}</strong>
+                                    </div>
                                 </div>
+                                @if (comment.canDelete) {
+                                <button type="button" class="btn-icon btn-remove note-comment-delete-btn"
+                                    [disabled]="deletingCommentId === comment.id"
+                                    (click)="removeNoteComment(note.id, comment.id)" title="Remove comment"
+                                    aria-label="Remove comment">
+                                    <i class="fa-solid"
+                                        [ngClass]="deletingCommentId === comment.id ? 'fa-spinner fa-spin' : 'fa-trash'"></i>
+                                </button>
                                 }
                             </div>
                             }
+                            @if ((commentsByNoteId[note.id] ?? []).length === 0) {
+                            <div class="note-empty">No comments yet.</div>
+                            }
+                            }
 
-                            <div class="note-comment-form-actions">
-                                <label class="icon-btn note-comment-attach-btn"
-                                    [class.note-comment-attach-btn-disabled]="!!isSavingCommentForNoteId[note.id] || (commentImageDraftByNoteId[note.id] ?? []).length >= noteCommentMaxImages"
-                                    title="Attach images">
-                                    <i class="fa-solid fa-paperclip"></i>
-                                    <input type="file" hidden multiple accept="image/jpeg,image/png,image/webp"
-                                        [disabled]="!!isSavingCommentForNoteId[note.id] || (commentImageDraftByNoteId[note.id] ?? []).length >= noteCommentMaxImages"
-                                        (change)="onCommentImagesSelected(note.id, $event)">
-                                </label>
-                                <button type="button" class="k-btn-sm k-btn-primary"
-                                    [disabled]="(!(commentDraftByNoteId[note.id] ?? '').trim() && (commentImageDraftByNoteId[note.id] ?? []).length === 0) || !!isSavingCommentForNoteId[note.id]"
-                                    (click)="saveNoteComment(note.id)">
-                                    {{ isSavingCommentForNoteId[note.id] ? 'Saving...' : 'Reply' }}
-                                </button>
+                            @if (commentErrorByNoteId[note.id]) {
+                            <div class="k-inline-error" role="alert"><i class="fa-solid fa-circle-exclamation"></i>{{
+                                commentErrorByNoteId[note.id] }}</div>
+                            }
+
+                            <div class="note-comment-form">
+                                <app-note-composer #commentComposer [compact]="true" submitLabel="Reply"
+                                    placeholder="Write a comment..." [textMaxLength]="noteCommentMaxLength"
+                                    [mentionableUsers]="mentionableUsers"
+                                    [isSaving]="!!isSavingCommentForNoteId[note.id]"
+                                    (submitted)="saveNoteComment(note.id, $event, commentComposer)" />
                             </div>
                         </div>
                     </div>
+                    @if (note.canDelete) {
+                    <button type="button" class="btn-icon btn-remove note-delete-btn"
+                        [disabled]="deletingNoteId === note.id" (click)="removeNote(note.id)" title="Remove note"
+                        aria-label="Remove note">
+                        <i class="fa-solid" [ngClass]="deletingNoteId === note.id ? 'fa-spinner fa-spin' : 'fa-trash'"></i>
+                    </button>
                     }
                 </div>
-                @if (note.canDelete) {
-                <button class="btn-icon btn-remove note-delete-btn" [disabled]="deletingNoteId === note.id"
-                    (click)="removeNote(note.id)" title="Remove note">{{ deletingNoteId === note.id ? '…' : '✕'
-                    }}</button>
+                }
+
+                @if (isLoadingNotes) {
+                <div class="note-empty">Loading…</div>
+                } @else if (notes.length === 0) {
+                <div class="note-empty">No notes yet. Click "+ Add Note" to get started.</div>
                 }
             </div>
-            }
+        }
 
-            @if (isLoadingNotes) {
-            <div class="note-empty">Loading…</div>
-            } @else if (notes.length === 0) {
-            <div class="note-empty">No notes yet. Click "+ Add Note" to get started.</div>
-            }
-        </div>
-
+        <!-- รอ profile ก่อน render บอร์ด: ไม่งั้นเรียก API ก่อนรู้ role (technician โดน 403 แวบหนึ่ง) -->
+        @if (isProfileLoaded()) {
+        @if (canSeeTodoBoard()) {
         <div class="card">
-            <!-- แท็บ Task/Ticket — สิทธิ์การ์ดเดียวกับ dashboard เป๊ะๆ (ผ่าน TodoBoardComponent/TicketBoardComponent) แต่ล็อกเฉพาะของลูกค้ารายนี้ -->
-            <div class="card k-tabs mb-2" style="overflow-y: hidden; padding: 0 24px; display: flex; flex-direction: row;">
-                <button type="button" class="k-tab" [class.active]="activeTaskTab() === 'task'"
-                    (click)="activeTaskTab.set('task')">
+            <!-- แท็บ Task/Ticket — สิทธิ์การ์ดเดียวกับ dashboard (ผ่าน TodoBoardComponent/TicketBoardComponent) แต่ล็อกเฉพาะของลูกค้ารายนี้; technician เห็นเฉพาะของตัวเอง ดู/comment ได้อย่างเดียว (readOnly)
+                 sales เห็นแท็บ Task อย่างเดียว (แก้ได้เท่า engineer) — Ticket ของ sales ดูผ่าน History card -->
+            <div class="flex items-center justify-between gap-2 mb-2">
+            <div class="k-tabs task-tabs" role="tablist">
+                <button type="button" class="k-tab" role="tab" [attr.aria-selected]="activeTaskTab() === 'task'"
+                    [class.active]="activeTaskTab() === 'task'" (click)="activeTaskTab.set('task')">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
                         <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -791,29 +888,45 @@
                     <span>Task</span>
                     <span class="k-tab-badge">{{ todoBoardRef.totalCount() }}</span>
                 </button>
-                <button type="button" class="k-tab" [class.active]="activeTaskTab() === 'ticket'"
-                    (click)="activeTaskTab.set('ticket')">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                    </svg>
+                @if (canSeeTicketBoard()) {
+                <button type="button" class="k-tab" role="tab" [attr.aria-selected]="activeTaskTab() === 'ticket'"
+                    [class.active]="activeTaskTab() === 'ticket'" (click)="activeTaskTab.set('ticket')">
+                    <i class="fa-solid fa-ticket" aria-hidden="true"></i>
                     <span>Ticket</span>
-                    <span class="k-tab-badge">{{ ticketBoard.totalCount() }}</span>
+                    <span class="k-tab-badge">{{ ticketBoardRef()?.totalCount() }}</span>
                 </button>
+                }
+            </div>
+            @if (canAddOnActiveTab()) {
+            @let isAddFormOpen = activeTaskTab() === 'task' ? showTaskForm() : showTicketForm();
+            <button type="button" class="k-btn-sm k-btn-outline" [attr.aria-expanded]="isAddFormOpen"
+                (click)="toggleAddForm()">
+                <i class="fa-solid" [ngClass]="isAddFormOpen ? 'fa-xmark' : 'fa-plus'"></i>&nbsp;{{ isAddFormOpen ?
+                'Cancel' : (activeTaskTab() === 'task' ? 'Add Task' : 'Add Ticket') }}
+            </button>
+            }
             </div>
 
-            <!-- ทั้งสอง board render ตลอด (ไม่ใช้ @if) เพื่อให้ totalCount() อ่านได้ตลอดสำหรับ badge บนแท็บ แม้ไม่ได้เปิดดูอยู่ -->
+            <!-- board render ตลอด (ไม่ใช้ @if สลับแท็บ) เพื่อให้ totalCount() อ่านได้ตลอดสำหรับ badge บนแท็บ แม้ไม่ได้เปิดดูอยู่ -->
             <div [hidden]="activeTaskTab() !== 'task'">
-                <app-todo-board #todoBoardRef class="mb-10" [customerId]="customer.id" />
+                <app-todo-board #todoBoardRef class="mb-10" [customerId]="customer.id"
+                    [showAddForm]="showTaskForm()" [readOnly]="!canEditTodos()" />
             </div>
+            @if (canSeeTicketBoard()) {
             <div [hidden]="activeTaskTab() !== 'ticket'">
-                <app-ticket-board #ticketBoard [customerId]="customer.id" (ticketsChange)="onTicketsChange($event)"
+                <app-ticket-board [customerId]="customer.id" [showAddForm]="showTicketForm()"
+                    [readOnly]="!canEditTickets()" (ticketsChange)="onTicketsChange($event)"
                     (loadFailed)="onTicketsLoadFailed()" />
             </div>
+            }
         </div>
+        }
+        @if (!canSeeTicketBoard()) {
+        <!-- sales ไม่เห็นบอร์ด Ticket — render เฉพาะ dialog รายละเอียด (dialogOnly) เพื่อให้แถว Ticket ใน History card กดเปิดดูได้ (อ่านอย่างเดียว) -->
+        <app-ticket-board [dialogOnly]="true" [readOnly]="true" [customerId]="customer.id"
+            (ticketsChange)="onTicketsChange($event)" (loadFailed)="onTicketsLoadFailed()" />
+        }
+        }
 
     </div>
 </div>

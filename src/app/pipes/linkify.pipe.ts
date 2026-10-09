@@ -12,8 +12,16 @@ const HTML_ESCAPE_MAP: Record<string, string> = {
 
 const URL_PATTERN = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
 
-function escapeHtml(text: string): string {
+export function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (char) => HTML_ESCAPE_MAP[char]);
+}
+
+// input: ข้อความที่ escape HTML แล้ว — output: HTML ที่แปลง URL เป็น <a> (ต้อง escape ก่อนเสมอ ไม่งั้น URL pattern จะหลุด tag เข้ามา)
+export function linkifyEscapedHtml(escaped: string): string {
+  return escaped.replace(URL_PATTERN, (match) => {
+    const href = match.startsWith('www.') ? `https://${match}` : match;
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+  });
 }
 
 @Pipe({
@@ -28,11 +36,7 @@ export class LinkifyPipe implements PipeTransform {
       return '';
     }
 
-    const escaped = escapeHtml(text);
-    const linked = escaped.replace(URL_PATTERN, (match) => {
-      const href = match.startsWith('www.') ? `https://${match}` : match;
-      return `<a href="${href}" target="_blank" rel="noopener noreferrer">${match}</a>`;
-    });
+    const linked = linkifyEscapedHtml(escapeHtml(text));
 
     return this.sanitizer.bypassSecurityTrustHtml(linked);
   }

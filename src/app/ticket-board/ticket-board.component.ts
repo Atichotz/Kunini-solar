@@ -1,4 +1,6 @@
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, EventEmitter, Input, OnDestroy, OnInit, Output, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -12,6 +14,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { TicketService } from '../services/ticket.service';
+import { BoardRefreshService } from '../services/board-refresh.service';
 import { TicketCommentsComponent } from './ticket-comments/ticket-comments.component';
 import { ATTACHMENT_ACCEPT, FilePreviewCache, mergeAttachmentFiles } from '../attachment-files.util';
 import type { Customer } from '../services/workflow.service';
@@ -49,8 +52,10 @@ interface TicketBoardView {
 const ROLE_LABELS: Record<TicketRole, string> = {
   ceo: 'CEO',
   admin: 'Admin',
+  engineer: 'Engineer',
   technician: 'Technician',
-  purchasing: 'Purchasing'
+  purchasing: 'Purchasing',
+  sales: 'Sales'
 };
 
 // สีจุดหน้า Status dropdown ตาม reference (Notion) — ชุดเดียวกับ Todo
@@ -66,13 +71,15 @@ const COLUMN_COUNT = 10;
 
 @Component({
   selector: 'app-ticket-board',
-  imports: [RouterLink, FormsModule, SelectModule, MultiSelectModule, DatePickerModule, ProgressSpinnerModule, DialogModule, ImageModule, ConfirmDialogModule, ToastModule, TicketCommentsComponent],
+  imports: [DatePipe, RouterLink, FormsModule, SelectModule, MultiSelectModule, DatePickerModule, ProgressSpinnerModule, DialogModule, ImageModule, ConfirmDialogModule, ToastModule, TicketCommentsComponent],
   templateUrl: './ticket-board.component.html',
   styleUrl: './ticket-board.component.scss',
   providers: [ConfirmationService, MessageService]
 })
 export class TicketBoardComponent implements OnInit, OnDestroy {
   private readonly ticketService = inject(TicketService);
+  private readonly boardRefresh = inject(BoardRefreshService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
 
@@ -88,6 +95,11 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
   @Input() customerId: string | null = null;
   // true = ไม่ render ตาราง/ฟอร์ม Add เหลือแค่ dialog รายละเอียด — ให้หน้าอื่น (เช่น customer detail) เปิดดู ticket ผ่าน openTaskDrawer() ได้โดยไม่ต้องวางบอร์ดเต็ม
   @Input() dialogOnly = false;
+  // false = ซ่อนฟอร์ม Add (ใช้ [hidden] ไม่ใช่ @if เพื่อไม่ให้ title/description ที่พิมพ์ค้างไว้หาย) — default true ให้ dashboard เห็นฟอร์มตลอดเหมือนเดิม
+  @Input() showAddForm = true;
+  // true = ผู้ใช้ดูได้อย่างเดียว (technician): ปิดทุกการแก้ไข แต่ยัง comment ได้ใน ticket ที่ตัวเองเป็น assignee
+  // parent ส่ง !canEditTickets() มา (fail-closed ระหว่างรอ profile) ส่วน role จาก me() เป็นชั้นสำรอง ไม่ต้องรอ parent
+  @Input() readOnly = false;
   // emit list (หลังกรอง customerId แล้ว) ทุกครั้งที่โหลดสำเร็จ รวมถึง reload หลังเพิ่ม/ลบ comment — ให้หน้าที่ฝังบอร์ดไว้เลี้ยง UI ของตัวเองโดยไม่ยิง getAll() ซ้ำ
   @Output() ticketsChange = new EventEmitter<TicketCard[]>();
   // emit เมื่อโหลด me/ticket ไม่สำเร็จ — กันหน้าที่ฝังบอร์ดค้างที่ "Loading…" เพราะไม่มี ticketsChange มาเลย
@@ -104,6 +116,8 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
   ticketsLoading = signal(true);
   // จำนวน ticket ทั้งหมด (ไม่ผ่าน filter) — ใช้แสดง badge บน tab ของ dashboard
   readonly totalCount = computed<number>(() => this.tickets().length);
+  // จำนวนที่ยังไม่เสร็จ (isDone = false) จากรายการเดียวกับ totalCount — ใช้แสดง KPI card บน dashboard
+  readonly pendingCount = computed<number>(() => this.tickets().filter(item => !item.isDone).length);
   // id ticket ที่กำลัง toggle/ลบอยู่ — กันกดซ้ำระหว่างรอ request + refetch
   private readonly pendingTicketIds = signal<ReadonlySet<string>>(new Set());
   // field ที่กำลังแก้ไขอยู่ (แยกอิสระต่อ field ไม่ใช่ทั้งแถว) — แก้ได้ทีละ field ทั้งระบบ, null = ไม่มี field ไหนกำลังแก้
@@ -203,6 +217,10 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadMe();
+    // ยังไม่มี me() = loadMe() ยังวิ่งอยู่/พัง และจะโหลด list เองอยู่แล้ว ไม่ต้องยิงซ้ำ
+    this.boardRefresh.refresh$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      if (this.me()) this.loadTickets();
+    });
   }
 
   private loadMe(): void {
@@ -210,7 +228,8 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
       next: me => {
         this.me.set(me);
         this.loadTickets();
-        this.loadAssignees();
+        // technician/sales เรียก GET /tickets/assignees ไม่ได้ (403) และมอบงานไม่ได้อยู่แล้ว
+        if (me.role !== 'technician' && me.role !== 'sales') this.loadAssignees();
       },
       error: err => {
         this.notifyError('Load Failed', this.errorMessage(err, 'Unable to load your Ticket profile'));
@@ -423,9 +442,14 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
     return name.trim().charAt(0).toUpperCase() || '?';
   }
 
+  private isReadOnlyMode(): boolean {
+    return this.readOnly || this.me()?.role === 'technician' || this.me()?.role === 'sales';
+  }
+
   // สมาชิกทีมเห็น ticket เพื่อนร่วมทีมได้แต่แก้ไม่ได้ — backend บังคับเช่นเดียวกัน ตรงนี้แค่ซ่อนปุ่มไม่ให้กดแล้วเจอ 403
   canModify(ticket: TicketCard): boolean {
     const me = this.me();
+    if (this.isReadOnlyMode()) return false;
     return this.isManager() || (!!me && ticket.assignees.some(assignee => assignee.id === me.id));
   }
 
@@ -589,6 +613,10 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
   canComment(ticket: TicketCard): boolean {
     const me = this.me();
     if (!me) return false;
+    // sales ดู ticket ผ่าน History card ได้อย่างเดียว — backend ปฏิเสธ POST comment อยู่แล้ว (@ReadOnlyRoles('sales'))
+    if (me.role === 'sales') return false;
+    // read-only (technician) comment ได้เฉพาะ ticket ที่ตัวเองเป็น assignee — ไม่ใช้กฎ role เดียวกัน (backend assertCanView เช็ค id)
+    if (this.isReadOnlyMode()) return ticket.assignees.some(assignee => assignee.id === me.id);
     return this.isManager() || ticket.assignees.some(assignee => assignee.role === me.role);
   }
 

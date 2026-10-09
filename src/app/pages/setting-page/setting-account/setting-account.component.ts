@@ -66,7 +66,7 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
   // --- Change Role Dialog ---
   showRoleDialog = false;
   roleTarget: UserListItem | null = null;
-  selectedRole: UserListItem['role'] = 'technician';
+  selectedRole: UserListItem['role'] = 'engineer';
   roleLoading = false;
   roleError = '';
 
@@ -78,7 +78,7 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
 
   // --- Create User Dialog ---
   showCreateDialog = false;
-  createForm: CreateForm = { loginType: 'username', name: '', email: '', username: '', password: '', confirm: '', role: 'technician' };
+  createForm: CreateForm = { loginType: 'username', name: '', email: '', username: '', password: '', confirm: '', role: 'engineer' };
   createLoading = false;
   createError = '';
 
@@ -94,14 +94,18 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
     { label: 'CEO', value: 'ceo' },
     { label: 'Admin', value: 'admin' },
     { label: 'Purchasing', value: 'purchasing' },
+    { label: 'Engineer', value: 'engineer' },
     { label: 'Technician', value: 'technician' },
+    { label: 'Sales', value: 'sales' },
   ];
 
   readonly roleLabels: Record<string, string> = {
     ceo: 'CEO',
     admin: 'Admin',
     purchasing: 'Purchasing',
+    engineer: 'Engineer',
     technician: 'Technician',
+    sales: 'Sales',
   };
 
   ngOnInit(): void {
@@ -308,7 +312,7 @@ export class SettingAccountComponent implements OnInit, OnDestroy {
   // ===== Create User =====
 
   openCreateDialog(): void {
-    this.createForm = { loginType: 'username', name: '', email: '', username: '', password: '', confirm: '', role: 'technician' };
+    this.createForm = { loginType: 'username', name: '', email: '', username: '', password: '', confirm: '', role: 'engineer' };
     this.createError = '';
     this.showCreateDialog = true;
   }

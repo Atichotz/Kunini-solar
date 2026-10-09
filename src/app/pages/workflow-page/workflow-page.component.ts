@@ -107,11 +107,13 @@ export class WorkflowPageComponent implements OnInit, OnDestroy {
   private messageService = inject(MessageService);
   private ngZone = inject(NgZone);
   private readonly permission = inject(PermissionService);
+  // technician ดูบอร์ดได้อย่างเดียว: ซ่อนปุ่มเพิ่มลูกค้าและปิดการลาก (backend ปฏิเสธ POST/PATCH ของ technician อยู่แล้ว)
+  readonly isTechnician = this.permission.isTechnician;
 
-  // ย้ายการ์ดข้าม column = เปลี่ยน status ซึ่งเฉพาะ ceo/admin (backend ตอบ 403 อยู่แล้ว) — role อื่นยังจัดลำดับใน column เดิมได้
+  // ย้ายการ์ดข้าม column = เปลี่ยน status ซึ่งเฉพาะ ceo/admin/sales (backend ตอบ 403 อยู่แล้ว) — role อื่นยังจัดลำดับใน column เดิมได้
   // arrow function เพราะ CDK เรียก predicate โดยไม่ bind this
   readonly canEnterColumn = (drag: CdkDrag, drop: CdkDropList): boolean =>
-    this.permission.canManage() || drag.dropContainer === drop;
+    this.permission.canManageCustomers() || drag.dropContainer === drop;
 
   private sourceColumns = signal<WorkflowColumn[]>(
     COLUMN_DEFS.map(def => ({ ...def, cards: [] }))
@@ -141,6 +143,46 @@ export class WorkflowPageComponent implements OnInit, OnDestroy {
       ),
     }));
   });
+
+  // KPI นับจาก sourceColumns (ไม่ผ่าน tag filter) — อัปเดตตาม realtime และการลากการ์ดข้าม column โดยไม่ยิง API เพิ่ม
+  private readonly allCustomers = computed<Customer[]>(() =>
+    this.sourceColumns().flatMap(col => col.cards)
+  );
+
+  readonly needAnalysisCount = computed<number>(() =>
+    this.allCustomers().filter(customer => customer.statusId === WORKFLOW_STATUS.NEED_ANALYSIS).length
+  );
+
+  readonly waitingInstallCount = computed<number>(() =>
+    this.allCustomers().filter(customer => customer.statusId === WORKFLOW_STATUS.TO_BE_INSTALLED).length
+  );
+
+  // นับเฉพาะที่ Installed และ installedAt อยู่ในปีปัจจุบัน (เวลาไทย) — installedAt เป็น null (ข้อมูลเก่า) จะไม่ถูกนับ
+  readonly installedThisYearCount = computed<number>(() => {
+    const currentYear = this.yearInBangkok(new Date());
+    return this.allCustomers().filter(customer =>
+      customer.statusId === WORKFLOW_STATUS.INSTALLED &&
+      customer.installedAt !== null &&
+      this.yearInBangkok(new Date(customer.installedAt)) === currentYear
+    ).length;
+  });
+
+  // ผลรวม estimate final ทุกใบ (รวมรอบติดตั้งที่ 2+) ของลูกค้าที่ไม่ใช่ Rejected — price เป็น null เมื่อ role ไม่ใช่ ceo/admin
+  // output: ยอดแบบย่อ เช่น "฿ 651K", "฿ 1.2M", "฿ 0"
+  readonly totalEstRevenueLabel = computed<string>(() => {
+    const total = this.allCustomers()
+      .filter(customer => customer.statusId !== WORKFLOW_STATUS.REJECTED)
+      .reduce((sum, customer) => sum + (customer.price ?? 0), 0);
+    return '฿ ' + new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(total);
+  });
+
+  // ceo/admin เท่านั้นที่เห็น Revenue card (fail-closed: profile ยังไม่โหลด = ซ่อน) — ราคาจริงบังคับที่ backend อยู่แล้ว
+  readonly canViewRevenue = this.permission.canManage;
+
+  // input: Date — output: ปี ค.ศ. ตามเวลา Asia/Bangkok (กันเพี้ยนช่วงข้ามปีที่ browser อยู่คนละ timezone)
+  private yearInBangkok(date: Date): number {
+    return Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Bangkok', year: 'numeric' }).format(date));
+  }
 
   isLoading = signal(true);
   loadError = signal<string | null>(null);

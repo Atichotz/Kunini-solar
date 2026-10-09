@@ -1,0 +1,107 @@
+<div class="composer" [class.is-dragover]="isDragOver()" [class.is-compact]="compact()" (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
+
+    @if (showTitle()) {
+    <input #titleInput class="composer-title" type="text" placeholder="Title (optional)" aria-label="Title"
+        [value]="title()" [attr.maxlength]="titleMaxLength" [disabled]="isSaving()" (input)="onTitleInput($event)"
+        (keydown.enter)="onTitleEnter($event)" />
+    }
+
+    <div class="composer-body">
+        <textarea #textarea class="composer-text" [rows]="compact() ? 2 : 4" [placeholder]="placeholder()"
+            aria-label="Message" [value]="text()" [attr.maxlength]="textMaxLength()" [disabled]="isSaving()"
+            [attr.aria-expanded]="mentionOptions().length > 0" aria-haspopup="listbox" (input)="onTextInput($event)"
+            (keydown)="onTextKeydown($event)" (click)="onCaretMoved($event)" (keyup.arrowleft)="onCaretMoved($event)"
+            (keyup.arrowright)="onCaretMoved($event)" (keyup.home)="onCaretMoved($event)"
+            (keyup.end)="onCaretMoved($event)" (blur)="closeMentionList()" (paste)="onPaste($event)"></textarea>
+
+        @if (mentionOptions().length > 0) {
+        <!-- mousedown preventDefault: ไม่ให้ textarea เสีย focus (และ blur ปิดรายการ) ก่อน click เลือก -->
+        <ul class="mention-list" role="listbox" aria-label="Tag someone" (mousedown)="$event.preventDefault()">
+            @for (user of mentionOptions(); track user.id; let i = $index) {
+            <li class="mention-option" role="option" [class.is-active]="i === activeOptionIndex()"
+                [attr.aria-selected]="i === activeOptionIndex()" (mouseenter)="setActiveOption(i)"
+                (click)="selectMention(user)">
+                <span class="mention-option-at">&#64;</span>{{ user.name }}
+            </li>
+            }
+        </ul>
+        }
+    </div>
+
+    @if (files().length > 0) {
+    <div class="composer-attachments">
+        @for (file of files(); track file) {
+        @let previewUrl = previews.urlFor(file);
+        <div class="composer-file" [class.is-image]="!!previewUrl">
+            @if (previewUrl) {
+            <img [src]="previewUrl" [alt]="file.name" [title]="file.name" />
+            } @else {
+            <i class="fa-solid composer-file-icon" [class]="iconFor(file)" aria-hidden="true"></i>
+            <span class="composer-file-name" [title]="file.name">{{ file.name }}</span>
+            <span class="composer-file-size">{{ sizeOf(file) }}</span>
+            }
+            <button type="button" class="composer-file-remove" [disabled]="isSaving()"
+                [attr.aria-label]="'Remove ' + file.name" title="Remove" (click)="removeFile(file)">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+        </div>
+        }
+    </div>
+    }
+
+    @if (activeTags().length > 0) {
+    <div class="composer-tags">
+        <i class="fa-solid fa-tag composer-tags-icon" aria-hidden="true" title="Tagged people"></i>
+        @for (user of activeTags(); track user.id) {
+        <span class="composer-tag">
+            &#64;{{ user.name }}
+            <button type="button" class="composer-tag-remove" [disabled]="isSaving()"
+                [attr.aria-label]="'Remove tag ' + user.name" (click)="removeTag(user)">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+        </span>
+        }
+    </div>
+    }
+
+    @if (displayError(); as error) {
+    <div class="k-inline-error composer-error" role="alert"><i class="fa-solid fa-circle-exclamation"></i>{{ error }}
+    </div>
+    }
+
+    <div class="composer-toolbar">
+        <div class="composer-tools">
+            <button type="button" class="icon-btn" title="Attach images or files" aria-label="Attach images or files"
+                [disabled]="isSaving() || files().length >= maxFiles" (click)="fileInput.click()">
+                <i class="fa-solid fa-paperclip"></i>
+            </button>
+            @if (mentionableUsers().length > 0) {
+            <button type="button" class="icon-btn" title="Tag someone" aria-label="Tag someone"
+                [disabled]="isSaving()" (click)="insertAtSign()">
+                <i class="fa-solid fa-at"></i>
+            </button>
+            }
+            <span class="composer-count" [class.is-near-limit]="text().length > textMaxLength() * 0.9">
+                {{ text().length }}/{{ textMaxLength() }}
+            </span>
+        </div>
+        <div class="composer-actions">
+            @if (showCancel()) {
+            <button type="button" class="k-btn-sm k-btn-outline" [disabled]="isSaving()"
+                (click)="cancelled.emit()">Cancel</button>
+            }
+            <button type="button" class="k-btn-sm k-btn-primary" [disabled]="!canSubmit()" (click)="submit()"
+                title="Ctrl + Enter">
+                <i class="fa-solid" [class]="isSaving() ? 'fa-spinner fa-spin' : 'fa-paper-plane'"
+                    aria-hidden="true"></i>&nbsp;{{ isSaving() ? 'Saving...' : submitLabel() }}
+            </button>
+        </div>
+    </div>
+
+    <input #fileInput type="file" hidden multiple [accept]="accept" (change)="onFilesSelected($event)" />
+
+    @if (isDragOver()) {
+    <div class="composer-dropzone" aria-hidden="true">Drop files to attach</div>
+    }
+</div>

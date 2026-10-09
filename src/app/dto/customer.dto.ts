@@ -32,24 +32,54 @@ export interface UpsertContactPayload {
   isPrimary?: boolean;
 }
 
+export interface NoteAttachmentDetail {
+  id: string;
+  // signed URL อายุ 1 ชั่วโมง — เปิดหน้าทิ้งไว้นานกว่านั้นต้อง reload ถึงจะเปิดไฟล์ได้
+  url: string;
+  name: string;
+  mimeType: string | null;
+  // null ได้สำหรับรูปเก่าของ comment ที่ไม่เคยเก็บขนาดไว้
+  sizeBytes: number | null;
+  kind: 'image' | 'file';
+}
+
+// userId = allowed_users.id ของคนที่ถูกแท็ก
+export interface NoteMention {
+  userId: string;
+  name: string;
+}
+
+// คนที่แท็กได้ใน composer (backend ตัดตัวเอง/technician/ผู้ใช้ที่ถูกลบออกให้แล้ว)
+export interface MentionableUser {
+  id: string;
+  name: string;
+}
+
 export interface NoteDetail {
   id: string;
+  title: string | null;
   text: string;
   createdAt: string;
   createdBy: string;
   // backend คำนวณให้ (เจ้าของโน้ต หรือ ceo/admin) — ใช้ซ่อนปุ่มลบเท่านั้น สิทธิ์จริงบังคับที่ backend
   canDelete: boolean;
   commentCount: number;
+  attachments: NoteAttachmentDetail[];
+  mentions: NoteMention[];
 }
 
+// ส่งเป็น multipart/form-data — text ว่างได้ถ้ามีไฟล์แนบ (และกลับกัน)
 export interface CreateNotePayload {
+  title: string;
   text: string;
+  mentionedUserIds: string[];
+  files: File[];
 }
 
-export interface NoteCommentImageDetail {
-  id: string;
-  url: string;
-  name: string;
+export interface CreateNoteCommentPayload {
+  text: string;
+  mentionedUserIds: string[];
+  files: File[];
 }
 
 export interface NoteCommentDetail {
@@ -59,7 +89,8 @@ export interface NoteCommentDetail {
   createdAt: string;
   createdBy: string;
   canDelete: boolean;
-  images: NoteCommentImageDetail[];
+  attachments: NoteAttachmentDetail[];
+  mentions: NoteMention[];
 }
 
 export interface UpdateCustomerNamePayload {

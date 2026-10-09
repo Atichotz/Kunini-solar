@@ -1,4 +1,5 @@
-import { Component, Input, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, Input, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -12,6 +13,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { TodoService } from '../services/todo.service';
+import { BoardRefreshService } from '../services/board-refresh.service';
 import { TodoCommentsComponent } from './todo-comments/todo-comments.component';
 import { ATTACHMENT_ACCEPT, FilePreviewCache, mergeAttachmentFiles } from '../attachment-files.util';
 import type { Customer } from '../services/workflow.service';
@@ -55,8 +57,10 @@ interface TodoCardView {
 const ROLE_LABELS: Record<TodoRole, string> = {
   ceo: 'CEO',
   admin: 'Admin',
+  engineer: 'Engineer',
   technician: 'Technician',
-  purchasing: 'Purchasing'
+  purchasing: 'Purchasing',
+  sales: 'Sales'
 };
 
 // สีจุดหน้า Status dropdown ตาม reference (Notion)
@@ -81,11 +85,18 @@ const PRIVILEGED_ROLES: readonly TodoRole[] = ['ceo', 'admin'];
 })
 export class TodoBoardComponent implements OnInit, OnDestroy {
   private readonly todoService = inject(TodoService);
+  private readonly boardRefresh = inject(BoardRefreshService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
 
   // ล็อกงานให้เป็นของลูกค้ารายนี้เมื่อฝังในหน้า customer detail
   @Input() customerId: string | null = null;
+  // false = ซ่อนฟอร์ม Add (ใช้ [hidden] ไม่ใช่ @if เพื่อไม่ให้ title/description ที่พิมพ์ค้างไว้หาย) — default true ให้ dashboard เห็นฟอร์มตลอดเหมือนเดิม
+  @Input() showAddForm = true;
+  // true = ผู้ใช้ดูได้อย่างเดียว (technician): ปิดทุกการแก้ไข แต่ยัง comment ได้ในงานที่ตัวเองเป็น assignee
+  // parent ส่ง !canEditTodos() มา (fail-closed ระหว่างรอ profile) ส่วน role จาก me() เป็นชั้นสำรอง ไม่ต้องรอ parent
+  @Input() readOnly = false;
 
   // ตัวเลือกลูกค้าสำหรับ dropdown ผูก todo เรียงชื่อ ก-ฮ ไว้แล้ว (มีผลเฉพาะโหมดไม่ล็อก customerId)
   // ต้อง cache ผลลัพธ์ตอนรับ @Input แทนการ sort ใน getter ทุก change detection cycle — ไม่งั้น p-select ได้ [options]
@@ -106,6 +117,8 @@ export class TodoBoardComponent implements OnInit, OnDestroy {
   todosLoading = signal(true);
   // จำนวนงานทั้งหมด (ไม่ผ่าน filter) — ใช้แสดง badge บน tab ของ dashboard
   readonly totalCount = computed<number>(() => this.todos().length);
+  // จำนวนที่ยังไม่เสร็จ (isDone = false) จากรายการเดียวกับ totalCount — ใช้แสดง KPI card บน dashboard
+  readonly pendingCount = computed<number>(() => this.todos().filter(item => !item.isDone).length);
   // id งานที่กำลัง toggle/ลบอยู่ — กันกดซ้ำระหว่างรอ request + refetch
   private readonly pendingTodoIds = signal<ReadonlySet<string>>(new Set());
   // field ที่กำลังแก้ไขอยู่ (แยกอิสระต่อ field ไม่ใช่ทั้งแถว) — แก้ได้ทีละ field ทั้งระบบ, null = ไม่มี field ไหนกำลังแก้
@@ -200,9 +213,12 @@ export class TodoBoardComponent implements OnInit, OnDestroy {
 
   // manager: การ์ดเดียวพร้อม filter | role อื่น: My To-Do (อ่าน/ติ๊กอย่างเดียว) + Team To-Do
   // งานที่ assign ให้ตัวเองจะอยู่ทั้งสองการ์ด เพราะ Team คือทุกงานของทีมรวมงานของเราด้วย
+  // technician: My Task การ์ดเดียว — backend ส่งมาเฉพาะงานของตัวเองอยู่แล้ว Team Task จึงซ้ำกับ My Task เป๊ะ (ใช้ role จาก me() ไม่รอ parent)
   readonly cards = computed<TodoCardView[]>(() =>
     this.isManager()
       ? [this.toCardView('all', 'Task', this.filteredTodos(), true)]
+      : this.me()?.role === 'technician'
+      ? [this.toCardView('mine', 'My Task', this.myTodos(), false)]
       : [
         this.toCardView('mine', 'My Task', this.myTodos(), false),
         this.toCardView('team', 'Team Task', this.todos(), false)
@@ -211,6 +227,10 @@ export class TodoBoardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadMe();
+    // ยังไม่มี me() = loadMe() ยังวิ่งอยู่/พัง และจะโหลด list เองอยู่แล้ว ไม่ต้องยิงซ้ำ
+    this.boardRefresh.refresh$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      if (this.me()) this.loadTodos();
+    });
   }
 
   // ต้องรู้ role ก่อนถึงจะรู้ว่าแสดงกี่การ์ด จึงโหลด me ก่อนแล้วค่อยโหลดที่เหลือ
@@ -219,7 +239,8 @@ export class TodoBoardComponent implements OnInit, OnDestroy {
       next: me => {
         this.me.set(me);
         this.loadTodos();
-        this.loadAssignees();
+        // technician เรียก GET /todos/assignees ไม่ได้ (403) และมอบงานไม่ได้อยู่แล้ว
+        if (me.role !== 'technician') this.loadAssignees();
       },
       error: err => {
         this.notifyError('Load Failed', this.errorMessage(err, 'Unable to load your To-Do profile'));
@@ -432,7 +453,21 @@ export class TodoBoardComponent implements OnInit, OnDestroy {
   // สมาชิกทีมเห็นงานเพื่อนร่วมทีมได้แต่แก้ไม่ได้ — backend บังคับเช่นเดียวกัน ตรงนี้แค่ซ่อนปุ่มไม่ให้กดแล้วเจอ 403
   canModify(todo: TodoCard): boolean {
     const me = this.me();
+    if (this.isReadOnlyMode()) return false;
     return this.isManager() || (!!me && todo.assignees.some(assignee => assignee.id === me.id));
+  }
+
+  private isReadOnlyMode(): boolean {
+    return this.readOnly || this.me()?.role === 'technician';
+  }
+
+  // read-only (technician) comment ได้เฉพาะงานที่ตัวเองเป็น assignee — เกณฑ์เดียวกับ assertCanView ฝั่ง backend
+  // role อื่นเห็นงานไหนก็ comment ได้ตามกฎทีมเดิม (backend กรอง list มาแล้ว)
+  canComment(todo: TodoCard): boolean {
+    const me = this.me();
+    if (!me) return false;
+    if (this.isReadOnlyMode()) return todo.assignees.some(assignee => assignee.id === me.id);
+    return true;
   }
 
   // input: การ์ด, งานที่ผ่าน filter อื่นแล้ว — output: งานที่ title / description / ชื่อผู้รับงาน มีข้อความค้นหา (ไม่สนตัวพิมพ์เล็กใหญ่)

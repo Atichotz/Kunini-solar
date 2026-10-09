@@ -1,0 +1,70 @@
+:host {
+    display: block;
+}
+
+.att-images,
+.att-files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.att-image {
+    width: 96px;
+    height: 96px;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--k-light-grey);
+    background: var(--bg-color);
+    display: block;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    &:hover {
+        border-color: var(--k-accent-blue);
+    }
+}
+
+.att-file {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--k-light-grey);
+    border-radius: var(--radius-sm);
+    background: var(--bg-color);
+    color: var(--k-dark-grey);
+    font-size: 13px;
+    text-decoration: none;
+    transition: border-color 0.15s ease;
+
+    &:hover {
+        border-color: var(--k-accent-blue);
+    }
+}
+
+.att-file-icon {
+    color: var(--k-mid-grey);
+    font-size: 16px;
+}
+
+.att-file-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 260px;
+}
+
+.att-file-size {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--k-mid-grey);
+}

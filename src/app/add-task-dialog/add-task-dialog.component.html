@@ -1,21 +1,35 @@
-<p-dialog header="Task & Ticket" [(visible)]="visible" (visibleChange)="onVisibleChange($event)" [modal]="true"
+<p-dialog [header]="canSeeTicketBoard() ? 'Task & Ticket' : 'Task'" [(visible)]="visible" (visibleChange)="onVisibleChange($event)" [modal]="true"
   [style]="{ width: '90vw', height: '90vh' }" [draggable]="false" [resizable]="false"
   styleClass="add-task-dialog">
   <!-- @if: content ที่ project เข้า p-dialog ถูกสร้างตั้งแต่ header โหลดแม้ dialog ยังปิดอยู่ → board โหลดข้อมูลแค่ครั้งเดียวแล้วไม่เห็น task/ticket
        ที่เพิ่มทีหลังจากหน้าอื่น (เช่น customer detail) — ครอบด้วย @if ให้สร้าง board ใหม่ (ngOnInit โหลดสด) ทุกครั้งที่เปิด -->
   @if (visible()) {
-  <p-tabs value="todo">
+  <p-tabs [(value)]="activeTab">
     <p-tablist>
-      <p-tab value="todo">Task</p-tab>
-      <p-tab value="ticket">Ticket</p-tab>
+      <p-tab value="todo"><i class="fa-solid fa-list-check mr-2"></i>Task</p-tab>
+      @if (canSeeTicketBoard()) {
+      <p-tab value="ticket"><i class="fa-solid fa-ticket mr-2"></i>Ticket</p-tab>
+      }
     </p-tablist>
+    @let isAddFormOpen = activeTab() === 'ticket' ? showTicketForm() : showTaskForm();
+    @if (activeTab() === 'ticket' ? canEditTickets() : canEditTodos()) {
+    <div class="flex justify-end mt-3">
+      <button type="button" class="k-btn-sm k-btn-outline" [attr.aria-expanded]="isAddFormOpen"
+        (click)="toggleAddForm()">
+        <i class="fa-solid" [class.fa-xmark]="isAddFormOpen" [class.fa-plus]="!isAddFormOpen"></i>&nbsp;{{
+        isAddFormOpen ? 'Cancel' : (activeTab() === 'ticket' ? 'Add Ticket' : 'Add Task') }}
+      </button>
+    </div>
+    }
     <p-tabpanels>
       <p-tabpanel value="todo">
-        <app-todo-board [customers]="customers()" />
+        <app-todo-board [customers]="customers()" [showAddForm]="showTaskForm()" [readOnly]="!canEditTodos()" />
       </p-tabpanel>
+      @if (canSeeTicketBoard()) {
       <p-tabpanel value="ticket">
-        <app-ticket-board [customers]="customers()" />
+        <app-ticket-board [customers]="customers()" [showAddForm]="showTicketForm()" [readOnly]="!canEditTickets()" />
       </p-tabpanel>
+      }
     </p-tabpanels>
   </p-tabs>
   }

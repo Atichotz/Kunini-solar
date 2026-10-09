@@ -149,98 +149,12 @@ h3 {
   font-weight: 600;
 }
 
-/* Summary KPI Metrics */
-.kpi-card {
-  background: var(--card-bg);
-  padding: 24px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--k-light-grey);
-  border-top: 4px solid transparent;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
-  border-color: var(--k-mid-grey);
-}
-
-.card,
-.kpi-card {
+.card {
   transition: all .2s ease;
 
   &:hover {
     border: 1.5px solid var(--k-red);
   }
-}
-
-/* KPI Accent Colors */
-.kpi-card.review {
-  border-top-color: var(--k-red);
-}
-
-.kpi-card.install {
-  border-top-color: var(--k-accent-blue);
-}
-
-.kpi-card.complete {
-  border-top-color: var(--k-accent-green);
-}
-
-.kpi-card.revenue {
-  border-top-color: var(--k-dark-grey);
-}
-
-.kpi-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-pill);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.kpi-icon.review {
-  background: rgba(176, 29, 42, 0.1);
-  color: var(--k-red);
-}
-
-.kpi-icon.install {
-  background: rgba(0, 136, 194, 0.1);
-  color: var(--k-accent-blue);
-}
-
-.kpi-icon.complete {
-  background: rgba(85, 177, 165, 0.1);
-  color: var(--k-accent-green);
-}
-
-.kpi-icon.revenue {
-  background: rgba(65, 65, 66, 0.1);
-  color: var(--k-dark-grey);
-}
-
-.kpi-details {
-  flex: 1;
-}
-
-.kpi-val {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--k-black);
-  line-height: 1.2;
-}
-
-.kpi-lbl {
-  font-size: 12px;
-  color: var(--k-mid-grey);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 // ใช้แสดง error ของ KPI summary (kpiError) — .todo-error เดิมย้ายไป todo-board.component.scss แล้ว แต่ error นี้ยังอยู่ dashboard เอง
@@ -642,4 +556,8 @@ h3 {
 .activity-time {
   font-size: 11px;
   color: var(--k-mid-grey);
+}
+
+.kpi-card.kpi-card-content {
+  padding: 10px 24px !important;
 }
