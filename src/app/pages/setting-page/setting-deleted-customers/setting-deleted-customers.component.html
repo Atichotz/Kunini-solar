@@ -1,0 +1,65 @@
+<p-confirmDialog></p-confirmDialog>
+<div class="settings-content">
+  <div class="card content-card">
+    <div class="content-header">
+      <h2>Deleted Customers</h2>
+      <p>Restore customers that were removed from Workflow and Customer List</p>
+    </div>
+
+    @if (isLoading()) {
+      <div class="state-block">
+        <i class="fas fa-spinner fa-spin"></i> Loading...
+      </div>
+    } @else if (loadErrorMessage()) {
+      <div class="state-block" role="alert">
+        <p class="k-inline-error"><i class="fa-solid fa-circle-exclamation"></i>{{ loadErrorMessage() }}</p>
+        <button type="button" class="k-btn k-btn-outline k-btn-sm" (click)="load()">Retry</button>
+      </div>
+    } @else {
+      @if (actionErrorMessage()) {
+        <p class="k-inline-error action-error" role="alert"><i class="fa-solid fa-circle-exclamation"></i>{{
+          actionErrorMessage() }}</p>
+      }
+      @if (customers().length === 0) {
+        <p class="empty-state">No deleted customers</p>
+      } @else {
+        <div class="table-wrap">
+          <table class="deleted-table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Customer #</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Deleted</th>
+                <th>Deleted by</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (customer of customers(); track customer.id) {
+                <tr>
+                  <td class="name-cell">{{ customer.displayName }}</td>
+                  <td>{{ customer.customerNumber ?? '—' }}</td>
+                  <td>{{ customer.projectLocationName ?? '—' }}</td>
+                  <td>{{ statusName(customer.statusId) }}</td>
+                  <td>{{ customer.deletedAt | date: 'dd MMM yyyy, HH:mm' }}</td>
+                  <td>{{ customer.deletedByName ?? '—' }}</td>
+                  <td class="action-cell">
+                    <button type="button" class="k-btn-sm k-btn-outline" [disabled]="restoringId() !== null"
+                      (click)="onRestore(customer)">
+                      <i class="fa-solid" [class.fa-rotate-left]="restoringId() !== customer.id"
+                        [class.fa-spinner]="restoringId() === customer.id"
+                        [class.fa-spin]="restoringId() === customer.id"></i>&nbsp;{{
+                      restoringId() === customer.id ? 'Restoring...' : 'Restore' }}
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  </div>
+</div>

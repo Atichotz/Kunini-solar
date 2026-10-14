@@ -4,6 +4,18 @@ export interface StatusOption {
   sort_order: number | null;
 }
 
+// ลูกค้าที่ถูก soft delete — แสดงในหน้า Deleted Customers (CEO เท่านั้น)
+export interface DeletedCustomer {
+  id: string;
+  displayName: string;
+  customerNumber: string | null;
+  projectLocationName: string | null;
+  statusId: number | null;
+  deletedAt: string;
+  // null ถ้าไม่รู้ว่าใครลบ (แถวเก่า/ผู้ใช้ถูกลบออกจากระบบ)
+  deletedByName: string | null;
+}
+
 export interface ContactDetail {
   id: string;
   firstname: string | null;

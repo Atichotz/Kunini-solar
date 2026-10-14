@@ -9,7 +9,7 @@ import { SelectModule } from 'primeng/select';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MenuModule } from 'primeng/menu';
 import { ConfirmationService, MenuItem } from 'primeng/api';
-import { RouterLink, ActivatedRoute } from '@angular/router';
+import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { forkJoin, of, map, distinctUntilChanged, takeUntil, skip, filter, first } from 'rxjs';
 import { CustomerService } from '../../services/customer.service';
 import { EstimateService } from '../../services/estimate.service';
@@ -223,6 +223,7 @@ interface SystemFigures {
 export class CustomerDetailPageComponent implements OnInit {
   private readonly confirmationService = inject(ConfirmationService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly customerService = inject(CustomerService);
   private readonly estimateService = inject(EstimateService);
   private readonly siteSurveyReportService = inject(SiteSurveyReportService);
@@ -405,6 +406,54 @@ export class CustomerDetailPageComponent implements OnInit {
       dayCount: s.dayCount,
       eodReportCount: s.eodReportCount,
     }));
+  }
+
+  isDeletingCustomer = false;
+  customerDeleteErrorMessage = '';
+
+  // ถามยืนยันก่อนลบลูกค้ารายนี้ — soft delete: เอกสาร/โน้ต/ไฟล์ยังอยู่ครบ แต่ลูกค้าหายจาก Workflow และ Customer List
+  // CEO กู้คืนได้จากหน้า Deleted Customers
+  onDeleteCustomer(): void {
+    if (this.isDeletingCustomer || !this.customer) return;
+    const name = this.customer.displayName;
+    this.confirmationService.confirm({
+      header: 'Delete customer',
+      message: `"${name}" will be removed from Workflow and Customer List. Continue?`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => this.deleteCustomer(),
+    });
+  }
+
+  private deleteCustomer(): void {
+    const customerId = this.customer?.id;
+    if (!customerId) return;
+
+    this.customerDeleteErrorMessage = '';
+    this.isDeletingCustomer = true;
+
+    this.customerService.delete(customerId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.isDeletingCustomer = false;
+          void this.router.navigate(['/workflow']);
+        },
+        error: (err: unknown) => {
+          this.isDeletingCustomer = false;
+          const status = err instanceof HttpErrorResponse ? err.status : null;
+          // 404 = ถูกลบไปแล้วจาก tab/คนอื่น — เป้าหมายสำเร็จแล้ว พากลับ Workflow เหมือนกัน
+          if (status === 404) {
+            void this.router.navigate(['/workflow']);
+            return;
+          }
+          console.error('[API] Failed to delete customer:', err);
+          this.customerDeleteErrorMessage = status === 403
+            ? 'You do not have permission to delete this customer'
+            : 'Failed to delete the customer. Please try again';
+        },
+      });
   }
 
   // input: SOW UUID จากแถวใน History — ถามยืนยันก่อนลบ (soft delete เหมือน site survey)

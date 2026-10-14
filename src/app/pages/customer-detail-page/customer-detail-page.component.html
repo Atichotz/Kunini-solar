@@ -66,6 +66,10 @@
                 <div class="k-inline-error" role="alert"><i class="fa-solid fa-circle-exclamation"></i>{{
                     customerNumberErrorMessage }}</div>
                 }
+                @if (customerDeleteErrorMessage) {
+                <div class="k-inline-error" role="alert"><i class="fa-solid fa-circle-exclamation"></i>{{
+                    customerDeleteErrorMessage }}</div>
+                }
                 @if (currentStatusName) {
                 <div class="client-status"><span class="status-dot"></span> {{ currentStatusName }}</div>
                 }
@@ -85,10 +89,19 @@
                     (click)="setReportMenuItems(); reportMenu.toggle($event)">
                     <i class="fa-solid fa-file-lines"></i>&nbsp;Report&nbsp;<i class="fa-solid fa-caret-down"></i>
                 </button>
-                <p-menu #reportMenu [popup]="true" [model]="reportMenuItems" appendTo="body"></p-menu>
+            }
+            @if (canManageCustomers()) {
+            <button type="button" class="k-btn-sm k-btn-outline k-btn-danger" [disabled]="isDeletingCustomer"
+                (click)="onDeleteCustomer()">
+                <i class="fa-solid" [ngClass]="isDeletingCustomer ? 'fa-spinner fa-spin' : 'fa-trash'"></i>&nbsp;{{
+                isDeletingCustomer ? 'Deleting...' : 'Delete' }}
+            </button>
             }
         </div>
     </div>
+
+    <!-- อยู่นอก .header-buttons เพราะ host element ของ p-menu เป็น flex item ว่าง จะทำให้ช่องว่างระหว่างปุ่มเพิ่มอีกหนึ่งช่อง -->
+    <p-menu #reportMenu [popup]="true" [model]="reportMenuItems" appendTo="body"></p-menu>
 
     <!-- MAIN LAYOUT -->
     <div class="layout-grid">

@@ -25,6 +25,18 @@
           </span>
           <i class="fas fa-chevron-right nav-arrow"></i>
         </li>
+
+        @if (isCeo()) {
+          <li class="nav-item" [class.active]="activeSection() === 'deleted-customers'"
+            (click)="selectSection('deleted-customers')">
+            <span class="nav-icon"><i class="fa-solid fa-trash-can-arrow-up"></i></span>
+            <span class="nav-text">
+              <span class="nav-title">Deleted Customers</span>
+              <span class="nav-desc">Restore removed customers</span>
+            </span>
+            <i class="fas fa-chevron-right nav-arrow"></i>
+          </li>
+        }
       </ul>
     </aside>
 
@@ -33,6 +45,8 @@
       <app-setting-account />
     } @else if (activeSection() === 'products') {
       <app-setting-products />
+    } @else if (activeSection() === 'deleted-customers') {
+      <app-setting-deleted-customers />
     }
 
   </div>

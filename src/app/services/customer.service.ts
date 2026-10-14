@@ -7,6 +7,7 @@ import type {
   CreateCustomerPayload,
   CustomerDetail,
   CustomerListItem,
+  DeletedCustomer,
   ContactDetail,
   CreateNoteCommentPayload,
   CreateNotePayload,
@@ -46,6 +47,23 @@ export class CustomerService {
   // output: customers ทั้งหมดเรียงตามชื่อ พร้อม primary contact — ใช้กับ "Customer List" panel
   listView(): Observable<CustomerListItem[]> {
     return this.http.get<CustomerListItem[]>(`${this.baseUrl}/list-view`);
+  }
+
+  // input: customer UUID
+  // output: void — soft delete (ข้อมูลทั้งหมดยังอยู่ CEO กู้คืนได้), 404 ถ้าถูกลบไปแล้ว, 403 ถ้าสิทธิ์ไม่พอ
+  delete(customerId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${customerId}`);
+  }
+
+  // output: ลูกค้าที่ถูกลบ เรียงลบล่าสุดก่อน — CEO เท่านั้น (role อื่นได้ 403)
+  listDeleted(): Observable<DeletedCustomer[]> {
+    return this.http.get<DeletedCustomer[]>(`${this.baseUrl}/deleted`);
+  }
+
+  // input: customer UUID
+  // output: void — 404 ถ้าไม่ได้ถูกลบ/ถูกกู้ไปแล้ว, 409 ถ้า Customer # ชนกับลูกค้าที่ active อยู่
+  restore(customerId: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/${customerId}/restore`, {});
   }
 
   // input: CreateCustomerPayload (created_by แนบโดย backend จาก JWT)
