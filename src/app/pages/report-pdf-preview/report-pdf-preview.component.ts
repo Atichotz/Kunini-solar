@@ -31,6 +31,8 @@ interface InstallerGroup {
 interface PhotoSection {
   slot: InstallationPhotoSlot;
   title: string;
+  /** จำนวนรูปต่อแถว (จำนวนคอลัมน์ของ grid) — ใช้กำหนด column ใน template ด้วย */
+  perRow: number;
   rows: PdfPhoto[][];
 }
 
@@ -40,10 +42,11 @@ interface SerialSection {
   chunks: string[][];
 }
 
-const PHOTO_SECTIONS: readonly { slot: InstallationPhotoSlot; title: string }[] = [
-  { slot: 'sld', title: 'Single Line Diagram (SLD)' },
-  { slot: 'roof', title: 'Roof Layout (SketchUp/Photo)' },
-  { slot: 'equipment', title: 'Equipment Layout (Inverter / Combiner)' },
+// SLD เป็นแผนผังที่ต้องอ่านรายละเอียดได้ → แถวละ 1 รูปเต็มกว้าง; รูปถ่ายหน้างาน (roof/equipment) แถวละ 3 รูป
+const PHOTO_SECTIONS: readonly { slot: InstallationPhotoSlot; title: string; perRow: number }[] = [
+  { slot: 'sld', title: 'Single Line Diagram (SLD)', perRow: 1 },
+  { slot: 'roof', title: 'Roof Layout (SketchUp/Photo)', perRow: 3 },
+  { slot: 'equipment', title: 'Equipment Layout (Inverter / Combiner)', perRow: 3 },
 ];
 
 const SERIAL_SECTIONS: readonly { group: InstallationSerialGroup; label: string }[] = [
@@ -148,15 +151,16 @@ export class ReportPdfPreviewComponent implements OnInit {
   readonly loadRows = computed(() => chunk(this.report()?.loadChecklist ?? [], VALUE_ROWS_PER_BLOCK));
 
   // ===== section 7 =====
-  /** รูปที่ไฟล์ใน storage หาย (url = '') ถูกข้ามตั้งแต่ตรงนี้ ไม่ให้เกิดกรอบรูปเสียใน PDF — รูป layout ใหญ่เต็มกว้าง จึงแถวละ 1 รูป */
+  /** รูปที่ไฟล์ใน storage หาย (url = '') ถูกข้ามตั้งแต่ตรงนี้ ไม่ให้เกิดกรอบรูปเสียใน PDF — จัดเป็นแถวละ perRow รูปตาม section (1 แถว = 1 ก้อนตัดหน้า) */
   readonly photoSections = computed<PhotoSection[]>(() => {
     const photosBySlot = this.report()?.photosBySlot;
-    return PHOTO_SECTIONS.map(({ slot, title }) => ({
+    return PHOTO_SECTIONS.map(({ slot, title, perRow }) => ({
       slot,
       title,
+      perRow,
       rows: chunk(
         (photosBySlot?.[slot] ?? []).filter((p) => p.url !== '').map((p) => ({ url: p.url, name: p.fileName })),
-        1,
+        perRow,
       ),
     }));
   });

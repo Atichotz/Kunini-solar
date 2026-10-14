@@ -293,9 +293,13 @@
   color: var(--k-dark-grey);
 }
 
-// section 7: รูปแถวละ 1 ใบ เต็มกว้าง
+// section 7: จำนวนคอลัมน์มาจาก --photo-cols (ตั้งใน template ตาม perRow ของแต่ละ section)
+// minmax(0, 1fr): ไม่ให้รูปดันคอลัมน์กว้างเกินสัดส่วน
 .s-photo-row {
   margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(var(--photo-cols, 1), minmax(0, 1fr));
+  gap: 3mm;
 }
 
 .s-photo {

@@ -40,10 +40,11 @@
   }
 </ng-template>
 
-<!-- แถวรูป: $implicit = แถวรูป (แถวละ 1 รูปเต็มกว้าง จัดกลุ่มไว้แล้วใน ts) — 1 แถว = 1 pg-block เพื่อให้ตัดหน้าระหว่างแถวได้ -->
-<ng-template #photoGrid let-rows>
+<!-- แถวรูป: $implicit = แถวรูป (จัดกลุ่มไว้แล้วใน ts), perRow = จำนวนคอลัมน์ — 1 แถว = 1 pg-block เพื่อให้ตัดหน้าระหว่างแถวได้
+     คอลัมน์คงที่ตาม perRow: แถวสุดท้ายที่มีรูปไม่ครบ รูปจะไม่ขยายใหญ่กว่าแถวอื่น -->
+<ng-template #photoGrid let-rows let-perRow="perRow">
   @for (row of rows; track $index) {
-    <div class="s-photo-row pg-block">
+    <div class="s-photo-row pg-block" [style.--photo-cols]="perRow">
       @for (photo of row; track $index) {
         <figure class="s-photo"><img [src]="photo.url" [alt]="photo.name" /></figure>
       }
@@ -240,7 +241,7 @@
       <div class="s-title pg-block pg-keep">7. System Layout &amp; Schematics</div>
       @for (section of photoSections(); track section.slot; let first = $first) {
         <div class="s-sub pg-block pg-keep" [class.s-gap]="!first">{{ section.title }}</div>
-        <ng-container [ngTemplateOutlet]="photoGrid" [ngTemplateOutletContext]="{ $implicit: section.rows }" />
+        <ng-container [ngTemplateOutlet]="photoGrid" [ngTemplateOutletContext]="{ $implicit: section.rows, perRow: section.perRow }" />
       }
 
       <!-- ===== Warranty & Maintenance Schedule (S8) ===== -->
