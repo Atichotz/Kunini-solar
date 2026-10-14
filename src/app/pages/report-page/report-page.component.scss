@@ -111,6 +111,19 @@
   width: auto;
 }
 
+// ช่องกรอก brand/spec เองใต้ p-select — .test-table input ทำให้ input โปร่งใสไม่มีขอบ จึงต้องคืนกรอบให้เห็นว่าเป็นช่องกรอก
+.installer-table .installer-other-input {
+  margin-top: 6px;
+  padding: 10px 14px;
+  border: 1px solid var(--k-mid-grey);
+  border-radius: var(--radius-sm);
+  background: var(--k-white);
+
+  &:focus {
+    border: 1px solid var(--k-red);
+  }
+}
+
 /* =========================================
    Measurement tables (Test Results)
    ========================================= */

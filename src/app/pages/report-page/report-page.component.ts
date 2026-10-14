@@ -87,6 +87,9 @@ interface ProductLookup {
   field: 'brand' | 'spec';
 }
 
+// option พิเศษท้าย dropdown brand/spec — เลือกแล้วช่างกรอกชื่อเองในช่อง input ใต้ select (ไม่ใช่ค่าที่เก็บลง DB)
+const OTHER_OPTION = 'อื่นๆ (Other)';
+
 // แถวในตาราง Installer Comments — description fix ไว้ ช่างกรอกเฉพาะ value (text/select) หรือติ๊ก checked (check)
 // options เก็บเป็น array ที่ reuse ได้ ไม่ใช้ getter ใน template (getter คืน array ใหม่ทุก CD → p-select วนไม่จบ)
 interface InstallerRow {
@@ -97,6 +100,10 @@ interface InstallerRow {
   options: string[];
   value: string;
   checked: boolean;
+  // ช่างกด "อื่นๆ" เอง — เปลี่ยนเฉพาะใน onInstallerLookupChange (ต้องค้างไว้แม้ยังไม่ได้พิมพ์อะไร)
+  pickedOther: boolean;
+  // โชว์ช่องกรอกเองไหม = pickedOther หรือ (catalog โหลดแล้ว และ value ไม่อยู่ใน catalog) — คำนวณใหม่ทุกครั้งใน refreshLookupOptions
+  isOtherSelected: boolean;
 }
 
 interface InstallerSection {
@@ -299,6 +306,8 @@ export class ReportPageComponent implements OnInit, OnDestroy {
   powerStorageItems: EquipmentItem[] = [];
 
   installerSections: InstallerSection[] = [];
+  // ทำไมต้องรู้: ก่อน catalog โหลดเสร็จ ค่า brand/spec ที่บันทึกไว้จะดูเหมือน "ไม่อยู่ใน catalog" ทั้งหมด — ห้ามตีเป็น "อื่นๆ" ก่อนเวลา
+  private isCatalogLoaded = false;
 
   dcStrings: DcStringRow[] = [];
   totalPvPanels: number | null = null;
@@ -422,6 +431,8 @@ export class ReportPageComponent implements OnInit, OnDestroy {
         options: [],
         value: '',
         checked: false,
+        pickedOther: false,
+        isOtherSelected: false,
       })),
     };
   }
@@ -581,6 +592,8 @@ export class ReportPageComponent implements OnInit, OnDestroy {
         options: [],
         value: saved.value ?? '',
         checked: saved.checked,
+        pickedOther: false,
+        isOtherSelected: false,
       });
     }
     return sections;
@@ -608,24 +621,38 @@ export class ReportPageComponent implements OnInit, OnDestroy {
       .subscribe(({ panels, inverters }) => {
         this.panels = panels;
         this.inverters = inverters;
+        this.isCatalogLoaded = true;
         this.refreshLookupOptions();
       });
   }
 
   // brand เปลี่ยน → spec เดิมอาจไม่ใช่ของ brand ใหม่ ต้องล้างทิ้งก่อนคำนวณ options ใหม่
+  // เลือก "อื่นๆ" → value ว่างไว้ให้ช่างพิมพ์เอง (ห้ามเก็บข้อความ OTHER_OPTION ลง value เพราะจะไปอยู่ใน DB/PDF)
   onInstallerLookupChange(section: InstallerSection, row: InstallerRow, event: SelectChangeEvent): void {
-    row.value = event.value ?? '';
+    const selected: string = event.value ?? '';
+    row.pickedOther = selected === OTHER_OPTION;
+    row.value = row.pickedOther ? '' : selected;
     if (row.lookup?.field === 'brand') {
       const specRow = this.findLookupRow(section, row.lookup.catalog, 'spec');
-      if (specRow) specRow.value = '';
+      if (specRow) {
+        specRow.value = '';
+        specRow.pickedOther = false;
+      }
     }
     this.refreshLookupOptions();
   }
 
-  // spec ยังเลือกไม่ได้จนกว่าจะเลือก brand ของ section เดียวกัน
+  // รับ: แถว lookup / คืน: ค่าที่ p-select ควรโชว์ — "อื่นๆ" เมื่ออยู่ในโหมดกรอกเอง ไม่งั้นค่าจริง
+  // ทำไมแยก: p-select bind แบบ one-way เพื่อไม่ให้มันเขียน OTHER_OPTION ลง row.value เอง
+  lookupSelectValue(row: InstallerRow): string {
+    return row.isOtherSelected ? OTHER_OPTION : row.value;
+  }
+
+  // spec ยังเลือกไม่ได้จนกว่าจะเลือก brand ของ section เดียวกัน (brand = "อื่นๆ" ที่ยังไม่ได้พิมพ์ก็นับว่าเลือกแล้ว)
   isInstallerLookupDisabled(section: InstallerSection, row: InstallerRow): boolean {
     if (row.lookup?.field !== 'spec') return false;
-    return !this.findLookupRow(section, row.lookup.catalog, 'brand')?.value;
+    const brandRow = this.findLookupRow(section, row.lookup.catalog, 'brand');
+    return !brandRow?.value && !brandRow?.isOtherSelected;
   }
 
   private findLookupRow(
@@ -643,21 +670,40 @@ export class ReportPageComponent implements OnInit, OnDestroy {
   // สร้าง options ใหม่เป็น array ใหม่เฉพาะตอนข้อมูลเปลี่ยน (โหลด catalog / เปลี่ยน brand) — ไม่คำนวณใน template
   private refreshLookupOptions(): void {
     for (const section of this.installerSections) {
-      for (const row of section.rows) {
-        if (!row.lookup) continue;
-        const items = this.catalogItems(row.lookup.catalog);
-        if (row.lookup.field === 'brand') {
-          row.options = Array.from(new Set(items.map((i) => i.brand))).sort();
-        } else {
-          const brand = this.findLookupRow(section, row.lookup.catalog, 'brand')?.value;
-          row.options = brand
-            ? Array.from(new Set(items.filter((i) => i.brand === brand).map((i) => i.description))).sort()
-            : [];
-        }
-        // ค่าที่บันทึกไว้แต่ไม่อยู่ใน catalog แล้ว (สินค้าถูกลบ/เปลี่ยนชื่อ หรือ catalog โหลดไม่สำเร็จ) ต้องยังแสดง/ส่งกลับได้ ไม่งั้น p-select โชว์ว่างแล้ว save ทับค่าเดิมหาย
-        if (row.value && !row.options.includes(row.value)) row.options = [...row.options, row.value];
-      }
+      const lookupRows = section.rows.filter((r) => r.lookup !== null);
+      // brand ก่อน spec เสมอ — spec ต้องรู้ว่า brand เป็น "อื่นๆ" หรือไม่ก่อนคำนวณตัวเอง
+      const brandRows = lookupRows.filter((r) => r.lookup?.field === 'brand');
+      const specRows = lookupRows.filter((r) => r.lookup?.field === 'spec');
+      for (const row of [...brandRows, ...specRows]) this.refreshRowOptions(section, row);
     }
+  }
+
+  // รับ: section + แถว lookup / ผล: อัปเดต row.options และ row.isOtherSelected
+  // ค่าที่ไม่อยู่ใน catalog (สินค้าถูกลบ/เปลี่ยนชื่อ, catalog โหลดไม่สำเร็จ, หรือช่างพิมพ์เอง) ต้องยังแสดง/ส่งกลับได้ — ไม่งั้น save ทับค่าเดิมหาย
+  // หลัง catalog โหลดแล้วค่าเหล่านั้นแสดงเป็น "อื่นๆ" + ช่องกรอกเอง
+  private refreshRowOptions(section: InstallerSection, row: InstallerRow): void {
+    if (!row.lookup) return;
+    const items = this.catalogItems(row.lookup.catalog);
+    let catalogOptions: string[];
+    let isBrandOther = false;
+    if (row.lookup.field === 'brand') {
+      catalogOptions = Array.from(new Set(items.map((i) => i.brand))).sort();
+    } else {
+      const brandRow = this.findLookupRow(section, row.lookup.catalog, 'brand');
+      // brand กรอกเอง → catalog ไม่มี spec ของ brand นี้ ให้ spec กรอกเองด้วย
+      isBrandOther = brandRow?.isOtherSelected ?? false;
+      const brand = brandRow?.value;
+      catalogOptions =
+        brand && !isBrandOther
+          ? Array.from(new Set(items.filter((i) => i.brand === brand).map((i) => i.description))).sort()
+          : [];
+    }
+
+    const isOutsideCatalog = row.value !== '' && !catalogOptions.includes(row.value);
+    row.isOtherSelected = isBrandOther || row.pickedOther || (this.isCatalogLoaded && isOutsideCatalog);
+    // catalog ยังไม่มา → ยังตัดสินไม่ได้ว่าเป็นค่ากรอกเองไหม ใส่ค่าไว้ใน options ชั่วคราวให้ select โชว์ได้ก่อน
+    const pendingValue = !this.isCatalogLoaded && isOutsideCatalog ? [row.value] : [];
+    row.options = [...catalogOptions, ...pendingValue, OTHER_OPTION];
   }
 
   // รับ: prefix สำหรับ id + รายการ label / คืน: แถว checklist ว่าง (ยังไม่ติ๊ก ยังไม่กรอกค่า)

@@ -183,11 +183,17 @@
                   <input type="checkbox" [(ngModel)]="row.checked"> Check
                 </label>
                 } @else if (row.lookup) {
-                <p-select [options]="row.options" [(ngModel)]="row.value" appendTo="body" [filter]="true"
+                <!-- one-way [ngModel]: ค่าที่เปลี่ยนเข้า row.value ผ่าน onChange เท่านั้น กัน "อื่นๆ" หลุดลง value -->
+                <p-select [options]="row.options" [ngModel]="lookupSelectValue(row)" appendTo="body" [filter]="true"
                   [showClear]="true" [fluid]="true"
                   [disabled]="isInstallerLookupDisabled(sec, row)"
                   [placeholder]="row.lookup.field === 'spec' ? 'Select brand first' : 'Select brand'"
                   [ariaLabel]="row.description" (onChange)="onInstallerLookupChange(sec, row, $event)" />
+                @if (row.isOtherSelected) {
+                <input type="text" class="installer-other-input" [(ngModel)]="row.value"
+                  [placeholder]="row.lookup.field === 'spec' ? 'ระบุ spec' : 'ระบุชื่อ brand'"
+                  [attr.aria-label]="row.description + ' (กรอกเอง)'">
+                }
                 } @else {
                 <input type="text" [(ngModel)]="row.value" [attr.aria-label]="row.description">
                 }
