@@ -123,6 +123,25 @@
   margin-top: -1px;
 }
 
+// ข้อความยาวที่แตกเป็นหลายก้อน (.s-grid--cont = ย่อหน้าต่อจากก่อนหน้า, .s-grid--open = ยังมีย่อหน้าต่อ)
+// ให้เส้นกรอบต่อเนื่องเหมือนก้อนเดียว; ถ้าถูกตัดข้ามหน้าต้องปิดเส้นเองที่ปลายหน้า (.pg-end) และเปิดเส้นบนที่หัวหน้าถัดไป (.pg-start)
+.s-grid--cont {
+  border-top: 0;
+  margin-top: 0;
+}
+
+.s-grid--open .s-cell {
+  border-bottom: 0;
+}
+
+.s-grid--cont.pg-start {
+  border-top: 1px solid var(--k-black);
+}
+
+.s-grid--open.pg-end .s-cell {
+  border-bottom: 1px solid var(--k-black);
+}
+
 .s-cell {
   display: flex;
   flex-direction: column;

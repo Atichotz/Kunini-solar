@@ -1,3 +1,21 @@
+<!-- ข้อความยาวจาก textarea: 1 ย่อหน้า = 1 pg-block เพื่อให้ paginate() ตัดหน้าระหว่างย่อหน้าได้ (ก้อนเดียวสูงเกินหน้าจะล้นแผ่น)
+     เส้นกรอบต่อเนื่องเหมือนก้อนเดียว: s-grid--open = ยังมีย่อหน้าต่อ (ไม่ปิดเส้นล่าง), s-grid--cont = ย่อหน้าต่อจากก่อนหน้า (ไม่มีเส้นบน)
+     input: label (หัวข้อช่อง) / paragraphs (จาก toParagraphs ใน ts) / stacked (ต่อจากกริดก่อนหน้าไหม) — ไม่มีข้อความ → แสดง — -->
+<ng-template #longText let-label="label" let-paragraphs="paragraphs" let-stacked="stacked">
+  @for (para of paragraphs; track $index; let first = $first; let last = $last) {
+    <div class="s-grid s-grid--1 pg-block" [class.s-grid--stacked]="first && stacked" [class.s-grid--cont]="!first" [class.s-grid--open]="!last">
+      <div class="s-cell">
+        @if (first) { <span class="s-label">{{ label }}</span> }
+        <span class="s-value s-value--text">{{ para }}</span>
+      </div>
+    </div>
+  } @empty {
+    <div class="s-grid s-grid--1 pg-block" [class.s-grid--stacked]="stacked">
+      <div class="s-cell"><span class="s-label">{{ label }}</span><span class="s-value s-value--text">—</span></div>
+    </div>
+  }
+</ng-template>
+
 <!-- แถวรูป: $implicit = แถวรูป (จัดกลุ่มไว้แล้วใน ts) — 1 แถว = 1 pg-block เพื่อให้ตัดหน้าระหว่างแถวได้
      ไม่มีรูป = ไม่ render อะไรเลย -->
 <ng-template #photoGrid let-rows>
@@ -57,24 +75,21 @@
       </div>
 
       <div class="s-title pg-block pg-keep">2. Issue &amp; On-Site Inspection</div>
-      <div class="s-grid s-grid--1 pg-block">
-        <div class="s-cell"><span class="s-label">Call Out Reason / Issue (Reported by Customer)</span><span class="s-value s-value--text">{{ r.callOutReason || '—' }}</span></div>
-      </div>
-      <div class="s-grid s-grid--1 s-grid--stacked pg-block">
-        <div class="s-cell"><span class="s-label">On-site Inspection Findings (Technician's Assessment)</span><span class="s-value s-value--text">{{ r.inspectionFindings || '—' }}</span></div>
-      </div>
+      <ng-container [ngTemplateOutlet]="longText"
+        [ngTemplateOutletContext]="{ label: 'Call Out Reason / Issue (Reported by Customer)', paragraphs: callOutReasonParagraphs(), stacked: false }" />
+      <ng-container [ngTemplateOutlet]="longText"
+        [ngTemplateOutletContext]="{ label: 'On-site Inspection Findings (Technician\'s Assessment)', paragraphs: inspectionFindingParagraphs(), stacked: true }" />
       <ng-container [ngTemplateOutlet]="photoGrid" [ngTemplateOutletContext]="{ $implicit: preWorkPhotoRows() }" />
 
       <!-- ===== กลุ่ม 2: Action & Sign-Off (S3 + S4) ===== -->
       <div class="s-title pg-block pg-new pg-keep">3. Action Taken &amp; Result</div>
-      <div class="s-grid s-grid--1 pg-block">
-        <div class="s-cell"><span class="s-label">Actions Taken</span><span class="s-value s-value--text">{{ r.actionsTaken || '—' }}</span></div>
-      </div>
+      <ng-container [ngTemplateOutlet]="longText"
+        [ngTemplateOutletContext]="{ label: 'Actions Taken', paragraphs: actionsTakenParagraphs(), stacked: false }" />
+      <ng-container [ngTemplateOutlet]="longText"
+        [ngTemplateOutletContext]="{ label: 'Materials / Parts Used', paragraphs: materialsUsedParagraphs(), stacked: true }" />
+      <ng-container [ngTemplateOutlet]="longText"
+        [ngTemplateOutletContext]="{ label: 'Result / Current System Status', paragraphs: resultStatusNoteParagraphs(), stacked: true }" />
       <div class="s-grid s-grid--1 s-grid--stacked pg-block">
-        <div class="s-cell"><span class="s-label">Materials / Parts Used</span><span class="s-value s-value--text">{{ r.materialsUsed || '—' }}</span></div>
-      </div>
-      <div class="s-grid s-grid--1 s-grid--stacked pg-block">
-        <div class="s-cell"><span class="s-label">Result / Current System Status</span><span class="s-value s-value--text">{{ r.resultStatusNote || '—' }}</span></div>
         <div class="s-cell"><span class="s-label">Status</span><span class="s-value">{{ resolutionStatusLabel() }}</span></div>
       </div>
       <ng-container [ngTemplateOutlet]="photoGrid" [ngTemplateOutletContext]="{ $implicit: postWorkPhotoRows() }" />
