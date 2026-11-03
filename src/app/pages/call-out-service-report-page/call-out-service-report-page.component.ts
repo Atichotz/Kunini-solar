@@ -12,6 +12,7 @@ import { ImageModule } from 'primeng/image';
 import { catchError, concatMap, from, map, of, toArray } from 'rxjs';
 import { KLoadingComponent } from '../../k-loading/k-loading.component';
 import { CustomerService } from '../../services/customer.service';
+import { PermissionService } from '../../services/permission.service';
 import { CallOutServiceReportService } from '../../services/call-out-service-report.service';
 import {
   CALL_OUT_PHOTO_SLOTS,
@@ -56,6 +57,8 @@ export class CallOutServiceReportPageComponent implements OnInit, OnDestroy {
   private readonly reportService = inject(CallOutServiceReportService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly permission = inject(PermissionService);
+  readonly canEditDocuments = this.permission.canEditDocuments;
 
   // customer id จาก query param — Call Out Service Report ต้องผูกกับลูกค้าเสมอ ไม่มีแล้วเปิดหน้าไม่ได้ (เหมือน survey-report)
   customerId: string | null = null;
@@ -407,6 +410,7 @@ export class CallOutServiceReportPageComponent implements OnInit, OnDestroy {
 
   // กด Save: บันทึกฟอร์ม (POST ถ้ายังไม่มี report, ไม่งั้น PUT) → อัปโหลดรูปที่ค้างอยู่ทีละรูป
   saveReport(): void {
+    if (!this.canEditDocuments()) return;
     if (this.isSaving || !this.customerId) return;
 
     this.clearStatusMessages();

@@ -1,6 +1,6 @@
-export type TodoCategory = 'technician' | 'admin';
+export type TodoCategory = 'engineer' | 'admin';
 export type TodoStatus = 'todo' | 'to_schedule' | 'in_progress' | 'done';
-export type TodoRole = 'ceo' | 'purchasing' | 'admin' | 'technician';
+export type TodoRole = 'ceo' | 'purchasing' | 'admin' | 'engineer' | 'technician' | 'sales';
 
 // ผู้ใช้ใน allowed_users — role ตรงนี้คือแหล่งอ้างอิงเดียวของฟีเจอร์ To-Do (ไม่ใช่ role ใน UserProfile)
 export interface TodoAssignee {

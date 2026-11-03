@@ -13,6 +13,7 @@ import { SelectModule } from 'primeng/select';
 import { catchError, concatMap, forkJoin, from, map, Observable, of, toArray } from 'rxjs';
 import { KLoadingComponent } from '../../k-loading/k-loading.component';
 import { CustomerService } from '../../services/customer.service';
+import { PermissionService } from '../../services/permission.service';
 import { BatteryItem, EquipmentService, InverterItem } from '../../services/equipment.service';
 import { SiteSurveyReportService } from '../../services/site-survey-report.service';
 import {
@@ -119,6 +120,8 @@ export class SiteSurveyReportPageComponent implements OnInit, OnDestroy {
   private readonly reportService = inject(SiteSurveyReportService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly permission = inject(PermissionService);
+  readonly canEditDocuments = this.permission.canEditDocuments;
 
   // customer id จาก query param — Survey Report ต้องผูกกับลูกค้าเสมอ ไม่มีแล้วเปิดหน้าไม่ได้ (เหมือน report-page)
   customerId: string | null = null;
@@ -820,6 +823,7 @@ export class SiteSurveyReportPageComponent implements OnInit, OnDestroy {
 
   // กด Save: บันทึกฟอร์ม (POST ถ้ายังไม่มี report, ไม่งั้น PUT) → จับคู่ id ของ layout → อัปโหลดรูปที่ค้างอยู่ทีละรูป
   saveReport(): void {
+    if (!this.canEditDocuments()) return;
     if (this.isSaving || !this.customerId) return;
 
     this.clearStatusMessages();

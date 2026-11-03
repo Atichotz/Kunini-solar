@@ -12,8 +12,11 @@ export class TicketService {
   // output: ticket ที่ user เห็นได้ (backend กรองตามสิทธิ์แล้ว) เรียงตาม is_done ASC, created_at ASC
   //   ceo/admin ได้ทุก ticket, role อื่นได้ ticket ของทีม (role) เดียวกัน
   // input: customerId — ส่งมาแล้วได้ทุก ticket ของลูกค้ารายนั้นโดยไม่กรองทีม (หน้า customer detail ดูประวัติได้ทุก role)
-  getAll(customerId?: string): Observable<TicketCard[]> {
-    const params = customerId ? new HttpParams().set('customerId', customerId) : undefined;
+  //   isDone — false = เฉพาะงานค้าง, true = เฉพาะที่เสร็จแล้ว, ไม่ส่ง = ทุกสถานะ
+  getAll(options: { customerId?: string; isDone?: boolean } = {}): Observable<TicketCard[]> {
+    let params = new HttpParams();
+    if (options.customerId) params = params.set('customerId', options.customerId);
+    if (options.isDone !== undefined) params = params.set('isDone', options.isDone);
     return this.http.get<TicketCard[]>(this.baseUrl, { params });
   }
 

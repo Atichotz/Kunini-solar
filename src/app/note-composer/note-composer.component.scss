@@ -1,0 +1,294 @@
+:host {
+    display: block;
+}
+
+// การ์ดเดียวห่อทุกช่อง (แบบ Discord forum post) — ช่อง title/textarea ไร้ขอบ ให้ขอบอยู่ที่การ์ด
+.composer {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    border: 1px solid var(--k-light-grey);
+    border-radius: var(--radius-sm);
+    transition: border-color 0.15s ease;
+
+    &:focus-within {
+        border-color: var(--k-red);
+    }
+
+    &.is-dragover {
+        border-color: var(--k-accent-blue);
+        border-style: dashed;
+    }
+}
+
+// global `input`/`textarea` ใส่ border+padding+radius ให้ และ `input:focus` บังคับ border-color แดงด้วย !important
+// จึงต้องปิดทั้งหมดในช่องที่อยู่ในการ์ด
+.composer-title,
+.composer-text {
+    width: 100%;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--k-black);
+    box-shadow: none;
+    outline: none;
+
+    &:focus {
+        border: none !important;
+        outline: none;
+    }
+
+    &::placeholder {
+        color: var(--k-mid-grey);
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+}
+
+.composer-title {
+    padding: 14px 16px 4px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.composer-body {
+    position: relative;
+}
+
+.composer-text {
+    display: block;
+    padding: 10px 16px;
+    min-height: 88px;
+    max-height: 320px;
+    resize: vertical;
+    line-height: 1.5;
+    // Chrome 123+: ขยายตามเนื้อหา; browser อื่นใช้ rows + resize เอง
+    field-sizing: content;
+}
+
+.is-compact {
+    .composer-text {
+        min-height: 48px;
+        padding: 8px 12px;
+    }
+
+    .composer-title {
+        padding: 10px 12px 2px;
+    }
+}
+
+// รายการแท็ก ลอยใต้ textarea — ไม่ดัน layout ลงเวลาเปิด/ปิด
+.mention-list {
+    position: absolute;
+    left: 12px;
+    top: calc(100% - 4px);
+    z-index: 30;
+    min-width: 220px;
+    max-width: calc(100% - 24px);
+    max-height: 240px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 4px;
+    list-style: none;
+    background: var(--card-bg);
+    border: 1px solid var(--k-light-grey);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--k-shadow);
+}
+
+.mention-option {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--k-dark-grey);
+    cursor: pointer;
+
+    &.is-active {
+        background: var(--bg-color);
+        color: var(--k-black);
+        font-weight: 700;
+    }
+}
+
+.mention-option-at {
+    color: var(--k-accent-blue);
+    font-weight: 700;
+}
+
+.composer-attachments,
+.composer-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 16px 8px;
+}
+
+.is-compact .composer-attachments,
+.is-compact .composer-tags {
+    padding-inline: 12px;
+}
+
+.composer-file {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    padding: 8px 32px 8px 12px;
+    border: 1px solid var(--k-light-grey);
+    border-radius: var(--radius-sm);
+    background: var(--bg-color);
+    font-size: 13px;
+    color: var(--k-dark-grey);
+
+    &.is-image {
+        padding: 0;
+        width: 72px;
+        height: 72px;
+        overflow: visible;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: var(--radius-sm);
+        }
+    }
+}
+
+.composer-file-icon {
+    color: var(--k-mid-grey);
+    font-size: 16px;
+}
+
+.composer-file-name {
+    min-width: 0;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.composer-file-size {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--k-mid-grey);
+}
+
+.composer-file-remove,
+.composer-tag-remove {
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+}
+
+.composer-file-remove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--k-dark-grey);
+    color: var(--k-white);
+    font-size: 10px;
+
+    &:hover:not(:disabled) {
+        background: var(--k-red);
+    }
+}
+
+.composer-tags-icon {
+    color: var(--k-mid-grey);
+    font-size: 13px;
+}
+
+.composer-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 6px 2px 10px;
+    border: 1px solid var(--k-light-grey);
+    border-radius: var(--radius-pill);
+    background: var(--bg-color);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--k-accent-blue);
+}
+
+.composer-tag-remove {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--k-mid-grey);
+    font-size: 10px;
+
+    &:hover:not(:disabled) {
+        color: var(--k-red);
+    }
+}
+
+.composer-error {
+    padding: 0 16px 8px;
+}
+
+.composer-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--k-light-grey);
+}
+
+.composer-tools,
+.composer-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.composer-tools .icon-btn {
+    font-size: 16px;
+    padding: 6px 8px;
+}
+
+.composer-count {
+    font-size: 11px;
+    color: var(--k-mid-grey);
+
+    &.is-near-limit {
+        color: var(--k-red);
+        font-weight: 700;
+    }
+}
+
+.composer-dropzone {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: var(--radius-sm);
+    color: var(--k-accent-blue);
+    font-size: 14px;
+    font-weight: 700;
+    pointer-events: none;
+}

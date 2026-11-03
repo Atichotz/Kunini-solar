@@ -328,9 +328,19 @@ tr:hover .edit-btn {
     color: #2e7d6f;
   }
 
-  &.role-technician {
+  &.role-engineer {
     background: #f5f0ff;
     color: #6a3fac;
+  }
+
+  &.role-technician {
+    background: color-mix(in srgb, var(--k-accent-orange) 12%, var(--k-white));
+    color: var(--k-accent-orange);
+  }
+
+  &.role-sales {
+    background: color-mix(in srgb, var(--k-accent-blue) 12%, var(--k-white));
+    color: var(--k-accent-blue);
   }
 }
 

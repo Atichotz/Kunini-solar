@@ -50,7 +50,7 @@ const IMAGE_WAIT_TIMEOUT_MS = 10_000;
  * เทียบ Angular: component ที่เป็น "view" ล้วนๆ เหมือน site-survey-pdf-preview — ดึงรายงานที่ save แล้วด้วย
  * reportId จาก query param (refresh ได้ และ signed URL ของรูปสดใหม่ทุกครั้งที่เปิด)
  *
- * ผังหน้า: หน้า 1 = S1+S2 (+รูป Pre-Work), หน้า 2 = S3+S4 (+รูป Post-Work) — กลุ่มไหนล้นจะไหลไปหน้าถัดไปเอง
+ * ผังหน้า: เริ่มที่ S1 → S2 (+รูป Pre-Work) → S3 (+รูป Post-Work) → S4 ไหลต่อเนื่อง S3 ต่อท้ายข้อ 2 ทันที ไม่ขึ้นหน้าใหม่เอง
  */
 @Component({
   selector: 'app-call-out-service-pdf-preview',
@@ -87,6 +87,13 @@ export class CallOutServicePdfPreviewComponent implements OnInit {
   // รูปจัดเป็นแถวละ 3 ใบ: 1 แถว = 1 ก้อนที่ตัดหน้าได้ (ดู paginate())
   readonly preWorkPhotoRows = computed<PdfPhoto[][]>(() => chunk(this.photosOf(['preWork1', 'preWork2']), PHOTOS_PER_ROW));
   readonly postWorkPhotoRows = computed<PdfPhoto[][]>(() => chunk(this.photosOf(['postWork1', 'postWork2']), PHOTOS_PER_ROW));
+
+  // ข้อความยาวจาก textarea แตกเป็นย่อหน้า — 1 ย่อหน้า = 1 ก้อนที่ตัดหน้าได้ (ดู toParagraphs)
+  readonly callOutReasonParagraphs = computed<string[]>(() => toParagraphs(this.report()?.callOutReason));
+  readonly inspectionFindingParagraphs = computed<string[]>(() => toParagraphs(this.report()?.inspectionFindings));
+  readonly actionsTakenParagraphs = computed<string[]>(() => toParagraphs(this.report()?.actionsTaken));
+  readonly materialsUsedParagraphs = computed<string[]>(() => toParagraphs(this.report()?.materialsUsed));
+  readonly resultStatusNoteParagraphs = computed<string[]>(() => toParagraphs(this.report()?.resultStatusNote));
 
   readonly resolutionStatusLabel = computed<string>(() => {
     const status = this.report()?.resolutionStatus;
@@ -157,7 +164,7 @@ export class CallOutServicePdfPreviewComponent implements OnInit {
    * จัดหน้า: วัดความสูงจริงของทุก .pg-block แล้วจัดลงหน้า A4 แบบ greedy ให้บนจอ = ตอนพิมพ์
    * (หลักการเดียวกับ SiteSurveyPdfPreviewComponent.paginate — ดูคำอธิบายเต็มที่นั่น)
    *
-   * - .pg-new  = ขึ้นหน้าใหม่เสมอ (จุดเริ่มกลุ่ม: S1 และ S3)
+   * - .pg-new  = ขึ้นหน้าใหม่เสมอ (ใช้เฉพาะหัวเอกสาร S1)
    * - .pg-keep = หัวข้อ: ถ้าก้อนถัดไปไม่พอที่ในหน้านี้ ให้ย้ายหัวข้อไปหน้าใหม่ด้วย ไม่ปล่อยค้างท้ายหน้า
    * - ก้อนแรกของแต่ละหน้า (หน้า 2 เป็นต้นไป) ได้ class .pg-start:
    *     บนจอ → margin-top (--pg-skip) ดันลงไปอยู่ในแผ่นถัดไป / ตอนพิมพ์ → break-before: page
@@ -178,7 +185,7 @@ export class CallOutServicePdfPreviewComponent implements OnInit {
       const blocks = Array.from(doc.querySelectorAll<HTMLElement>('.pg-block'));
       // ล้างผลรอบก่อนทิ้ง เพื่อวัดตำแหน่งตามการไหลปกติ
       for (const block of blocks) {
-        block.classList.remove('pg-start');
+        block.classList.remove('pg-start', 'pg-end');
         block.style.removeProperty('--pg-skip');
       }
       if (blocks.length === 0) return;
@@ -203,6 +210,9 @@ export class CallOutServicePdfPreviewComponent implements OnInit {
           pageTop = rects[i].top;
         }
       }
+
+      // ก้อนสุดท้ายของแต่ละหน้า → .pg-end (ย่อหน้าที่ตัดกลางช่องข้อความต้องปิดเส้นกรอบล่างเอง)
+      for (const startIndex of pageStartIndexes.slice(1)) blocks[startIndex - 1].classList.add('pg-end');
 
       // 2) บนจอ: ดันก้อนแรกของแต่ละหน้าลงไปอยู่ในแผ่นของมัน (ตำแหน่งแผ่น p = p × (สูง+ช่องไฟ))
       let shift = 0; // ระยะที่ก้อนในหน้าปัจจุบันถูกดันลงจากตำแหน่งเดิมแล้ว
@@ -245,6 +255,15 @@ export class CallOutServicePdfPreviewComponent implements OnInit {
         .map((photo) => ({ url: photo.url, caption: SLOT_CAPTIONS[slot] })),
     );
   }
+}
+
+// input: ข้อความจาก textarea (อาจ null) / output: ย่อหน้าที่คั่นด้วยบรรทัดว่าง ตัดช่องว่างหัวท้าย ทิ้งย่อหน้าว่าง (ว่างทั้งหมด → [])
+// ย่อหน้าเดียวที่สูงเกินหน้ายังแบ่งไม่ได้ (ข้อจำกัดเดิมของ paginate)
+function toParagraphs(text: string | null | undefined): string[] {
+  return (text ?? '')
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => paragraph !== '');
 }
 
 // input: รายการ + ขนาดแถว / output: รายการแบ่งเป็นแถวๆ ละไม่เกิน size (ว่าง → [])

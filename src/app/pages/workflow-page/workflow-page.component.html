@@ -1,5 +1,48 @@
 <div class="workflow-wrapper">
   <p-toast></p-toast>
+  @if (!isLoading() && !loadError()) {
+  <div class="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+    <div class="kpi-card kpi-compact review">
+      <div class="kpi-icon review">
+          <i class="fa-solid fa-magnifying-glass-chart"></i>
+        </div>
+      <div class="kpi-details">
+        <div class="kpi-val">{{ needAnalysisCount() }}</div>
+        <div class="kpi-lbl">Need Analysis</div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-compact install">
+      <div class="kpi-icon install">
+          <i class="fa-solid fa-screwdriver-wrench"></i>
+        </div>
+      <div class="kpi-details">
+        <div class="kpi-val">{{ waitingInstallCount() }}</div>
+        <div class="kpi-lbl">Waiting Install</div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-compact complete">
+      <div class="kpi-icon complete">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+      <div class="kpi-details">
+        <div class="kpi-val">{{ installedThisYearCount() }}</div>
+        <div class="kpi-lbl">Installed (This Year)</div>
+      </div>
+    </div>
+    @if (canViewRevenue()) {
+    <div class="kpi-card kpi-compact revenue">
+      <div class="kpi-icon revenue">
+          <i class="fa-solid fa-baht-sign"></i>
+        </div>
+      <div class="kpi-details">
+        <div class="kpi-val">{{ totalEstRevenueLabel() }}</div>
+        <div class="kpi-lbl">Total Est. Revenue</div>
+      </div>
+    </div>
+    }
+  </div>
+  }
+
   @if(!isLoading()) {
   <nav class="wf-nav-bar"  >
     <div class="wf-nav-main">
@@ -9,11 +52,13 @@
       }
     </div>
     <div class="wf-nav-right">
+      @if (!isTechnician()) {
       <button class="k-btn-sm k-btn-primary wf-add-customer-btn" (click)="openNewCustomerDialog()">
         <i class="fa-solid fa-plus fs-[12px]"></i> &nbsp;
         <span pButtonLabel class="wf-add-customer-label">Customer</span>
         <i class="fa-solid fa-user wf-add-customer-icon"></i>
       </button>
+      }
     </div>
   </nav>
   }
@@ -48,7 +93,7 @@
       <div class="card-list" cdkDropList cdkScrollable [id]="col.id.toString()" [cdkDropListData]="col.cards"
         [cdkDropListConnectedTo]="columnIds" [cdkDropListEnterPredicate]="canEnterColumn" (cdkDropListDropped)="drop($event, col.id)">
         @for (card of col.cards; track card.id) {
-        <div class="card" cdkDrag (click)="openDetail(card)">
+        <div class="card" cdkDrag [cdkDragDisabled]="isTechnician()" (click)="openDetail(card)">
           <div class="card-drag-preview" *cdkDragPreview>
             <div class="card-name">{{ card.name }}</div>
           </div>

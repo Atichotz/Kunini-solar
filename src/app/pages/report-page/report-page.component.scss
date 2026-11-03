@@ -77,6 +77,54 @@
 }
 
 /* =========================================
+   Installer Comments table (System Configuration)
+   ========================================= */
+.installer-table {
+  margin-bottom: 0;
+}
+
+.installer-col-section {
+  width: 64px;
+}
+
+.installer-col-component {
+  width: 22%;
+}
+
+.installer-col-item {
+  width: 40px;
+  text-align: center;
+}
+
+.installer-col-comment {
+  width: 30%;
+}
+
+.installer-cell-section,
+.installer-cell-item {
+  text-align: center;
+  color: var(--k-mid-grey);
+}
+
+// .test-table input บังคับ width 100% — checkbox ต้องคืนค่าเป็นขนาดปกติ
+.installer-table .installer-check input {
+  width: auto;
+}
+
+// ช่องกรอก brand/spec เองใต้ p-select — .test-table input ทำให้ input โปร่งใสไม่มีขอบ จึงต้องคืนกรอบให้เห็นว่าเป็นช่องกรอก
+.installer-table .installer-other-input {
+  margin-top: 6px;
+  padding: 10px 14px;
+  border: 1px solid var(--k-mid-grey);
+  border-radius: var(--radius-sm);
+  background: var(--k-white);
+
+  &:focus {
+    border: 1px solid var(--k-red);
+  }
+}
+
+/* =========================================
    Measurement tables (Test Results)
    ========================================= */
 .test-table {
@@ -119,7 +167,7 @@
   width: 70%;
 }
 
-.report-phase-label {
+.report-phase-input {
   font-weight: 600;
 }
 
@@ -180,6 +228,8 @@
 }
 
 .report-sn-input {
+  flex: 1;
+  min-width: 0;
   font-family: monospace;
   font-size: 13px;
 }
@@ -195,7 +245,13 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 12px;
-  margin-bottom: 8px;
+}
+
+// ปุ่ม upload ตอนมีรูปแล้ว: เป็นช่องสุดท้ายใน grid ขนาดเท่ารูป (1:1)
+.report-photo-box-tile {
+  height: auto;
+  margin-top: 0;
+  aspect-ratio: 1 / 1;
 }
 
 .report-photo-item {
@@ -216,8 +272,37 @@
   position: absolute;
   top: 4px;
   right: 4px;
+  z-index: 1;
   background: rgba(255, 255, 255, 0.85);
   border-radius: 50%;
+}
+
+// รูปที่เลือกไว้แต่ยังไม่อัปโหลด (จะอัปตอนกด Save) — เส้นประ + ป้ายให้ต่างจากรูปที่ save แล้ว
+.report-photo-item--pending {
+  border-style: dashed;
+  border-color: var(--k-mid-grey);
+}
+
+.report-photo-pending-badge {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  z-index: 1;
+  padding: 1px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.65);
+  color: white;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+// k-loading ซ้อนเต็มจอเหนือฟอร์ม (รวม navbar) ระหว่าง save — z-index สูงกว่า dialog ทั่วไป
+.report-saving-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: wait;
 }
 
 /* =========================================
@@ -252,113 +337,4 @@
 .report-bottom-actions {
   padding-top: 24px;
   border-top: 1px solid var(--k-light-grey);
-}
-
-/* =========================================
-   PDF print styles
-   ========================================= */
-.print-header,
-.print-footer {
-  display: none;
-}
-
-@media print {
-  @page {
-    size: A4;
-    margin: 25mm 15mm;
-  }
-
-  .print-header {
-    display: flex;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    justify-content: space-between;
-    align-items: flex-end;
-    padding-bottom: 10px;
-    border-bottom: 2px solid var(--k-red);
-  }
-
-  .print-header-brand {
-    font-weight: 700;
-    font-size: 18px;
-    color: var(--k-black);
-  }
-
-  .print-header-brand-sub {
-    font-weight: 400;
-  }
-
-  .print-header-sub {
-    font-size: 12px;
-    color: var(--k-dark-grey);
-  }
-
-  .print-footer {
-    display: block;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    text-align: center;
-    font-size: 10px;
-    color: var(--k-mid-grey);
-    padding-top: 10px;
-    border-top: 1px solid var(--k-light-grey);
-  }
-
-  .max-w-container {
-    width: 100%;
-    max-width: 100%;
-    margin-top: 20px;
-  }
-
-  .card {
-    box-shadow: none;
-    padding: 16px;
-    margin-bottom: 20px;
-  }
-
-  .page-break {
-    page-break-before: always;
-  }
-
-  .no-print {
-    display: none !important;
-  }
-
-  input,
-  select,
-  textarea {
-    border: none;
-    border-bottom: 1px solid var(--k-light-grey);
-    border-radius: 0;
-    padding: 4px 0;
-    background: transparent;
-    resize: none;
-  }
-
-  .test-table input {
-    border-bottom: none;
-  }
-
-  // p-datepicker renders its input deep inside its own component template — global
-  // encapsulation means the plain "input" rule above can't reach it, so target it explicitly
-  ::ng-deep .p-datepicker-input {
-    border: none;
-    border-bottom: 1px solid var(--k-light-grey);
-    border-radius: 0;
-    padding: 4px 0;
-    background: transparent;
-  }
-
-  ::ng-deep .p-datepicker-dropdown {
-    display: none;
-  }
-
-  .photo-box {
-    border: 1px solid var(--k-light-grey);
-    background: transparent;
-  }
 }

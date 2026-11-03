@@ -1,12 +1,11 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { DecimalPipe, DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
-import { TodoService } from '../../services/todo.service';
 import { Customer, WORKFLOW_STATUS, WorkflowService } from '../../services/workflow.service';
-import type { TodoAssignee } from '../../dto/todo.dto';
 import { TodoBoardComponent } from '../../todo-board/todo-board.component';
 import { TicketBoardComponent } from '../../ticket-board/ticket-board.component';
+import { PermissionService } from '../../services/permission.service';
 
 interface SystemTypeSlice {
   label: string;
@@ -63,61 +62,53 @@ interface SizeBar {
   styleUrl: './dashboard.component.scss'
 })
 export class DashboardComponent implements OnInit {
-  private readonly todoService = inject(TodoService);
   private readonly workflowService = inject(WorkflowService);
+  private readonly permission = inject(PermissionService);
+
+  // sales ใช้ Task ได้แต่ไม่ใช้ Ticket — ซ่อน KPI/tab/board ของ Ticket (backend ตอบ 403 อยู่แล้ว)
+  readonly canSeeTodoBoard = this.permission.canSeeTodoBoard;
+  readonly canSeeTicketBoard = this.permission.canSeeTicketBoard;
+
+  // อ่านค่าจาก board ผ่าน viewChild แทน template ref เพราะ board อยู่ใน @if ที่ต่างบล็อกกับ KPI/tab ที่แสดงตัวเลข (undefined = ไม่ได้ render)
+  readonly todoBoard = viewChild(TodoBoardComponent);
+  readonly ticketBoard = viewChild(TicketBoardComponent);
 
   // toggle เลือกดูได้ทีละหมวด (tab) — default เปิดมาที่ Todo
   activeSection = signal<DashboardSection>('todo');
 
-  // KPI cards (Need Analysis / Waiting Install) นับจาก statusId ของ customer เดียวกับที่หน้า workflow ใช้
+  constructor() {
+    // role ที่ไม่มี tab Ticket ต้องย้ายไป tab ที่เปิดได้ ไม่งั้นค้างอยู่ที่หน้าว่าง — รอ profile โหลดก่อนตัดสิน (ยังไม่รู้ role = ไม่ย้าย)
+    effect(() => {
+      if (!this.permission.isProfileLoaded() || this.canSeeTicketBoard()) return;
+      if (this.activeSection() === 'ticket') this.activeSection.set('todo');
+    });
+  }
+
+  // ฟอร์ม Add ของ Task/Ticket ซ่อนไว้ก่อนจนกดปุ่ม Add — แยก state ต่อ tab เพื่อให้ฟอร์มที่เปิดค้างไว้ยังอยู่เมื่อสลับ tab กลับมา
+  showTaskForm = signal(false);
+  showTicketForm = signal(false);
+
+  // ปุ่ม Add แสดงเฉพาะ tab Task/Ticket — tab อื่นไม่มีฟอร์มให้สลับ
+  toggleAddForm(): void {
+    const section = this.activeSection();
+    if (section === 'todo') this.showTaskForm.update(isOpen => !isOpen);
+    else if (section === 'ticket') this.showTicketForm.update(isOpen => !isOpen);
+  }
+
+  // KPI card Waiting Install นับจาก statusId ของ customer เดียวกับที่หน้า workflow ใช้ (และ donut / ส่งให้ board)
   customers = signal<Customer[]>([]);
   kpiLoading = signal(true);
   kpiError = signal<string | null>(null);
 
-  readonly needAnalysisCount = computed<number>(() =>
-    this.customers().filter(customer => customer.statusId === WORKFLOW_STATUS.NEED_ANALYSIS).length
-  );
   readonly waitingInstallCount = computed<number>(() =>
     this.customers().filter(customer => customer.statusId === WORKFLOW_STATUS.TO_BE_INSTALLED).length
   );
 
-  // นับเฉพาะที่ Installed และ installedAt อยู่ในปีปัจจุบัน (เวลาไทย) — installedAt เป็น null (ข้อมูลเก่า) จะไม่ถูกนับ
-  readonly installedThisYearCount = computed<number>(() => {
-    const currentYear = this.yearInBangkok(new Date());
-    return this.customers().filter(customer =>
-      customer.statusId === WORKFLOW_STATUS.INSTALLED &&
-      customer.installedAt !== null &&
-      this.yearInBangkok(new Date(customer.installedAt)) === currentYear
-    ).length;
-  });
-
-  // ตัวเองใน allowed_users — role ตรงนี้ (ไม่ใช่ PermissionService) ใช้ตัดสินว่า Revenue KPI card แสดงไหม
-  // (TodoBoardComponent โหลด me ของตัวเองแยกต่างหากสำหรับการ์ด To-Do — ยอมยิง API getMe() ซ้ำ 2 ครั้งแทนที่จะผูกกลับด้วย event)
-  me = signal<TodoAssignee | null>(null);
-
-  readonly isManager = computed<boolean>(() => {
-    const role = this.me()?.role;
-    return role === 'ceo' || role === 'admin';
-  });
-
   ngOnInit(): void {
-    this.loadMe();
     this.loadKpi();
   }
 
-  // ผลรวม estimate final ทุกใบ (รวมรอบติดตั้งที่ 2+) ของลูกค้าที่ไม่ใช่ Rejected — price เป็น null เมื่อ role ไม่ใช่ ceo/admin
-  readonly totalEstRevenue = computed<number>(() =>
-    this.customers()
-      .filter(customer => customer.statusId !== WORKFLOW_STATUS.REJECTED)
-      .reduce((sum, customer) => sum + (customer.price ?? 0), 0)
-  );
-
-  // output: ยอดแบบย่อ เช่น "฿ 651K", "฿ 1.2M", "฿ 0"
-  readonly totalEstRevenueLabel = computed<string>(() =>
-    '฿ ' + new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(this.totalEstRevenue())
-  );
-
-  // donut นับลูกค้าทุกช่วงเวลา ยกเว้นที่ Rejected (สอดคล้องกับ card Revenue)
+  // donut นับลูกค้าทุกช่วงเวลา ยกเว้นที่ Rejected
   private readonly systemTypeCustomers = computed<Customer[]>(() =>
     this.customers().filter(customer => customer.statusId !== WORKFLOW_STATUS.REJECTED)
   );
@@ -160,11 +151,6 @@ export class DashboardComponent implements OnInit {
     return `conic-gradient(${stops.join(', ')})`;
   });
 
-  // input: Date — output: ปี ค.ศ. ตามเวลา Asia/Bangkok (กันเพี้ยนช่วงข้ามปีที่ browser อยู่คนละ timezone)
-  private yearInBangkok(date: Date): number {
-    return Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Bangkok', year: 'numeric' }).format(date));
-  }
-
   // โหลดครั้งเดียวตอนเข้าหน้า (ไม่ realtime) — error แล้วแสดง '–' แทน 0 กันเลขหลอก
   private loadKpi(): void {
     this.workflowService.getCustomers().subscribe({
@@ -176,14 +162,6 @@ export class DashboardComponent implements OnInit {
         this.kpiError.set(this.errorMessage(err, 'Unable to load summary'));
         this.kpiLoading.set(false);
       }
-    });
-  }
-
-  // ใช้เฉพาะรู้ role ตัวเองสำหรับ Revenue KPI card — ไม่โหลด todos/assignees ต่อ (การ์ด To-Do ย้ายไป TodoBoardComponent แล้ว)
-  private loadMe(): void {
-    this.todoService.getMe().subscribe({
-      next: me => this.me.set(me),
-      error: err => console.error('[API] Failed to load To-Do profile:', err)
     });
   }
 

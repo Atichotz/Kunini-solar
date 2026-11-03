@@ -527,44 +527,18 @@
   }
 }
 
-.ticket-pager {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--k-light-grey);
-}
-
-.ticket-page-size,
-.ticket-page-nav {
-  display: flex;
+.ticket-done-toggle {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-}
-
-.ticket-page-size-top {
-  margin-top: 12px;
-}
-
-.ticket-pager-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--k-mid-grey);
-}
-
-.ticket-pager-btn {
-  min-width: 32px;
-  padding: 4px 10px;
-  border: 1px solid var(--k-light-grey);
+  padding: 10px 16px;
+  border: 1px solid var(--k-mid-grey);
   border-radius: var(--radius-pill);
-  background: var(--card-bg);
+  background: transparent;
   font-size: 12px;
-  font-weight: 700;
-  color: var(--k-dark-grey);
+  font-weight: 600;
+  color: var(--k-mid-grey);
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
 
   &:hover:not(:disabled) {
     border-color: var(--k-red);
@@ -574,12 +548,12 @@
   &.active {
     border-color: var(--k-red);
     background: var(--k-red);
-    color: var(--k-white);
+    color: #fff;
   }
 
   &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
+    opacity: 0.6;
+    cursor: wait;
   }
 }
 
@@ -707,8 +681,9 @@ input.add-ticket-input {
   font-size: 12px;
 }
 
-/* Task detail dialog (เปิดจากคลิก title ใน .ticket-title) */
-:host ::ng-deep .task-detail-drawer {
+/* Task detail dialog (เปิดจากคลิก title ใน .ticket-title)
+   ไม่ใช้ :host เพราะ dialog ใช้ appendTo="body" (กันโดนซ่อนตาม [hidden] ของแท็บที่ครอบ board) */
+::ng-deep .task-detail-drawer {
   .p-dialog-header {
     align-items: flex-start;
     padding: 20px 24px;
@@ -1004,6 +979,20 @@ input.add-ticket-input {
   &.status-badge-done {
     background: color-mix(in srgb, var(--k-accent-green) 15%, var(--k-white));
     color: var(--k-accent-green);
+  }
+}
+
+.task-drawer-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--k-mid-grey);
+
+  strong {
+    font-weight: 600;
+    color: var(--k-dark-grey);
   }
 }
 

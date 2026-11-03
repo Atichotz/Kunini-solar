@@ -1,27 +1,31 @@
-<div class="max-w-container p-[24px]">
+<p-confirmDialog></p-confirmDialog>
+<!-- inert ระหว่าง save: กัน Tab/คีย์บอร์ดเข้าถึงฟอร์มที่อยู่หลัง overlay -->
+<div class="max-w-container p-[24px]" [class.doc-readonly]="!canEditDocuments()" [attr.inert]="isSaving ? '' : null">
 
-  <!-- Repeating PDF Header -->
-  <div class="print-header">
-    <div class="print-header-brand">KUNINI <span class="print-header-brand-sub">SOLAR</span></div>
-    <div class="print-header-sub">Installation Completion Report</div>
-  </div>
-
-  <!-- Repeating PDF Footer -->
-  <div class="print-footer">
-    HUAHIN &bull; PATTAYA &bull; BANGKOK | ELECTRICAL &amp; SOLAR EPC CONTRACTORS | www.kunini.com
-  </div>
-
-  <!-- Page Header (hidden on print) -->
-  <div class="flex justify-between items-start no-print !mb-2 flex-wrap">
+  <!-- Page Header -->
+  <div class="flex justify-between items-start !mb-2 flex-wrap">
     <div>
-      <h1 class="k-header mb-1">Installation Report</h1>
-      @if (!loadErrorMessage) {
-      <div class="item-meta">Draft only — data is not saved to the database yet and will be lost on reload</div>
+      <h1 class="k-header mb-1">Installation / Service Report</h1>
+      @if (!loadErrorMessage && !isLoadingReport) {
+      @if (reportId && createdAt) {
+      <div class="item-meta">
+        Created {{ createdAt | date:'dd MMM yyyy' }}
+        @if (createdBy) { by <strong>{{ createdBy }}</strong> }
+        · Last edited {{ updatedAt | date:'dd MMM yyyy, HH:mm' }}
+        @if (updatedBy) { by <strong>{{ updatedBy }}</strong> }
+      </div>
+      } @else {
+      <div class="item-meta">New report — not saved yet. Photos you pick are uploaded when you press Save</div>
+      }
       }
     </div>
     <div class="flex gap-2 items-center">
-      @if (hasSavedLocally) {
-      <span class="text-sm" style="color: var(--k-accent-green);">Saved locally</span>
+      @if (saveNotice) {
+      <span class="text-sm" style="color: var(--k-accent-green);">{{ saveNotice }}</span>
+      }
+      <!-- รายงานที่เคยบันทึกแล้ว (มี reportId) → มีปุ่ม Export ด้านบนด้วย; รายงานใหม่ยังไม่โชว์ -->
+      @if (reportId && !loadErrorMessage && !isLoadingReport) {
+      <button type="button" class="k-btn k-btn-outline k-btn-sm k-btn-header" [disabled]="isSaving" (click)="exportToPdf()">Export to PDF</button>
       }
       <p-button [routerLink]="backLink" [rounded]="true" variant="outlined" severity="danger">
         <i class="fa-solid fa-xmark"></i>
@@ -31,15 +35,41 @@
 
   @if (loadErrorMessage) {
   <div class="card" style="color: var(--k-red);">{{ loadErrorMessage }}</div>
+  } @else if (isLoadingReport) {
+  <div class="text-sm p-[24px]" style="color: var(--k-mid-grey);">Loading...</div>
   } @else {
 
+  @if (saveErrorMessage) {
+  <div class="card mb-6" role="alert" style="color: var(--k-red);">
+    <div>{{ saveErrorMessage }}</div>
+    @if (isConflict) {
+    <button type="button" class="k-btn k-btn-outline mt-2" (click)="confirmReloadLatest()">Reload latest version</button>
+    }
+  </div>
+  }
+  @if (photoErrorMessage) {
+  <div class="card mb-6" role="alert" style="color: var(--k-red);">{{ photoErrorMessage }}</div>
+  }
+
   <div class="flex-col gap-6">
+
+    <!-- Report Title: หัวเอกสารบน PDF — ว่างหรือเท่ากับ default = บันทึกเป็น null ให้ PDF ใช้ค่า default -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h2>Report Title</h2>
+        <span class="text-sm report-header-hint">Shown at the top of the exported PDF</span>
+      </div>
+      <div class="input-group">
+        <label class="input-label" for="reportTitle">Title</label>
+        <input id="reportTitle" type="text" [(ngModel)]="reportTitle" [attr.maxlength]="reportTitleMaxLength"
+          [placeholder]="defaultReportTitle">
+      </div>
+    </div>
 
     <!-- 1. Client & Site Details -->
     <div class="card mb-6">
       <div class="card-header">
         <h2>1. Client &amp; Site Details</h2>
-        <span class="badge badge-final no-print">Installation Complete</span>
       </div>
       <div class="grid grid-cols-2 gap-4">
         <div class="input-group">
@@ -94,14 +124,14 @@
         <div>
           <div class="flex justify-between items-center mb-2">
             <span class="input-label mb-0">Solar Array Details</span>
-            <button type="button" class="k-btn-text no-print" (click)="addArrayItem()">+ Add Item</button>
+            <button type="button" class="k-btn-text" (click)="addArrayItem()">+ Add Item</button>
           </div>
           @for (item of arrayDetails; track item.id) {
           <div class="component-row">
             <input type="text" class="comp-qty" [(ngModel)]="item.qty" placeholder="Qty">
             <input type="text" class="comp-name" [(ngModel)]="item.name" placeholder="Component name">
             <input type="text" class="comp-detail" [(ngModel)]="item.detail" placeholder="Detail (optional)">
-            <button type="button" class="icon-btn no-print" title="Remove" (click)="removeArrayItem(item)">
+            <button type="button" class="icon-btn" title="Remove" (click)="removeArrayItem(item)">
               <i class="fa-solid fa-trash"></i>
             </button>
           </div>
@@ -115,14 +145,14 @@
         <div>
           <div class="flex justify-between items-center mb-2">
             <span class="input-label mb-0">Power &amp; Storage Details</span>
-            <button type="button" class="k-btn-text no-print" (click)="addPowerStorageItem()">+ Add Item</button>
+            <button type="button" class="k-btn-text" (click)="addPowerStorageItem()">+ Add Item</button>
           </div>
           @for (item of powerStorageItems; track item.id) {
           <div class="component-row">
             <input type="text" class="comp-qty" [(ngModel)]="item.qty" placeholder="Qty">
             <input type="text" class="comp-name" [(ngModel)]="item.name" placeholder="Component name">
             <input type="text" class="comp-detail" [(ngModel)]="item.detail" placeholder="Detail (optional)">
-            <button type="button" class="icon-btn no-print" title="Remove" (click)="removePowerStorageItem(item)">
+            <button type="button" class="icon-btn" title="Remove" (click)="removePowerStorageItem(item)">
               <i class="fa-solid fa-trash"></i>
             </button>
           </div>
@@ -133,9 +163,60 @@
         </div>
 
       </div>
-    </div>
 
-    <div class="page-break"></div>
+      <div class="report-divider"></div>
+
+      <!-- Installer Comments -->
+      <div>
+        <span class="input-label mb-2">Installer Comments</span>
+        <table class="test-table installer-table">
+          <thead>
+            <tr>
+              <th class="installer-col-section">Section</th>
+              <th class="installer-col-component">Components / Equipment</th>
+              <th class="installer-col-item">#</th>
+              <th>Description</th>
+              <th class="installer-col-comment">Installer Comments</th>
+            </tr>
+          </thead>
+          @for (sec of installerSections; track sec.id) {
+          <tbody class="installer-group">
+            @for (row of sec.rows; track row.id; let i = $index) {
+            <tr>
+              @if (i === 0) {
+              <td class="installer-cell-section" [attr.rowspan]="sec.rows.length">{{ sec.section }}</td>
+              <td [attr.rowspan]="sec.rows.length">{{ sec.component }}</td>
+              }
+              <td class="installer-cell-item">{{ i + 1 }}</td>
+              <td>{{ row.description }}</td>
+              <td>
+                @if (row.inputType === 'check') {
+                <label class="checkbox-label installer-check">
+                  <input type="checkbox" [(ngModel)]="row.checked"> Check
+                </label>
+                } @else if (row.lookup) {
+                <!-- one-way [ngModel]: ค่าที่เปลี่ยนเข้า row.value ผ่าน onChange เท่านั้น กัน "อื่นๆ" หลุดลง value -->
+                <p-select [options]="row.options" [ngModel]="lookupSelectValue(row)" appendTo="body" [filter]="true"
+                  [showClear]="true" [fluid]="true"
+                  [disabled]="isInstallerLookupDisabled(sec, row)"
+                  [placeholder]="row.lookup.field === 'spec' ? 'Select brand first' : 'Select brand'"
+                  [ariaLabel]="row.description" (onChange)="onInstallerLookupChange(sec, row, $event)" />
+                @if (row.isOtherSelected) {
+                <input type="text" class="installer-other-input" [(ngModel)]="row.value"
+                  [placeholder]="row.lookup.field === 'spec' ? 'ระบุ spec' : 'ระบุชื่อ brand'"
+                  [attr.aria-label]="row.description + ' (กรอกเอง)'">
+                }
+                } @else {
+                <input type="text" [(ngModel)]="row.value" [attr.aria-label]="row.description">
+                }
+              </td>
+            </tr>
+            }
+          </tbody>
+          }
+        </table>
+      </div>
+    </div>
 
     <!-- 3. Schedule of Test Results & Commissioning -->
     <div class="card mb-6">
@@ -148,7 +229,7 @@
       <div class="mb-4">
         <div class="flex justify-between items-center mb-2">
           <span class="input-label mb-0">DC String Measurements (Test Instrument - DC Clamp Meter)</span>
-          <button type="button" class="k-btn-text no-print" (click)="addDcString()">+ Add String</button>
+          <button type="button" class="k-btn-text" (click)="addDcString()">+ Add String</button>
         </div>
         <table class="test-table">
           <thead>
@@ -160,7 +241,7 @@
               <th>VDC &#64; String Reading</th>
               <th>AMP Reading</th>
               <th>Time</th>
-              <th class="no-print"></th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -173,7 +254,7 @@
               <td><input type="text" [(ngModel)]="row.vdcReading"></td>
               <td><input type="text" [(ngModel)]="row.ampReading"></td>
               <td><input type="text" [(ngModel)]="row.time"></td>
-              <td class="no-print">
+              <td>
                 <button type="button" class="icon-btn" title="Remove row" (click)="removeDcString(row)">
                   <i class="fa-solid fa-trash"></i>
                 </button>
@@ -206,21 +287,30 @@
 
       <!-- AC Measurements -->
       <div class="mb-4">
-        <span class="input-label mb-2">AC Phase Measurements (Test Instrument - AC Multi Meter)</span>
+        <div class="flex justify-between items-center mb-2">
+          <span class="input-label mb-0">AC Phase Measurements (Test Instrument - AC Multi Meter)</span>
+          <button type="button" class="k-btn-text" (click)="addAcPhase()">+ Add Phase</button>
+        </div>
         <table class="test-table report-ac-table">
           <thead>
             <tr>
               <th>Phase</th>
               <th>AMP Reading</th>
               <th>Voltage Reading</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             @for (row of acPhases; track row.id) {
             <tr>
-              <td class="report-phase-label">{{ row.phase }}</td>
+              <td><input type="text" class="report-phase-input" [(ngModel)]="row.phase" placeholder="e.g. L1"></td>
               <td><input type="text" [(ngModel)]="row.ampReading"></td>
               <td><input type="text" [(ngModel)]="row.voltageReading"></td>
+              <td>
+                <button type="button" class="icon-btn" title="Remove row" (click)="removeAcPhase(row)">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </td>
             </tr>
             }
           </tbody>
@@ -267,13 +357,13 @@
           <div>
             <div class="flex justify-between items-center mb-2">
               <span class="input-label mb-0 report-sn-label">Inverter(s)</span>
-              <button type="button" class="k-btn-text no-print report-sn-add" (click)="addSerial('inverter')">+ Add SN</button>
+              <button type="button" class="k-btn-text report-sn-add" (click)="addSerial('inverter')">+ Add SN</button>
             </div>
             <div class="flex flex-col gap-2">
               @for (entry of serialsFor('inverter'); track entry.id) {
               <div class="flex items-center gap-2">
-                <input type="text" [(ngModel)]="entry.value" class="report-sn-input" placeholder="Scan or enter Inverter SN...">
-                <button type="button" class="icon-btn no-print" title="Remove" (click)="removeSerial('inverter', entry)">
+                <input type="text" [(ngModel)]="entry.value" class="report-sn-input" placeholder="Enter Inverter SN...">
+                <button type="button" class="icon-btn" title="Remove" (click)="removeSerial('inverter', entry)">
                   <i class="fa-solid fa-trash"></i>
                 </button>
               </div>
@@ -284,13 +374,13 @@
           <div>
             <div class="flex justify-between items-center mb-2">
               <span class="input-label mb-0 report-sn-label">Batteries</span>
-              <button type="button" class="k-btn-text no-print report-sn-add" (click)="addSerial('battery')">+ Add SN</button>
+              <button type="button" class="k-btn-text report-sn-add" (click)="addSerial('battery')">+ Add SN</button>
             </div>
             <div class="flex flex-col gap-2">
               @for (entry of serialsFor('battery'); track entry.id) {
               <div class="flex items-center gap-2">
-                <input type="text" [(ngModel)]="entry.value" class="report-sn-input" placeholder="Scan or enter Battery SN...">
-                <button type="button" class="icon-btn no-print" title="Remove" (click)="removeSerial('battery', entry)">
+                <input type="text" [(ngModel)]="entry.value" class="report-sn-input" placeholder="Enter Battery SN...">
+                <button type="button" class="icon-btn" title="Remove" (click)="removeSerial('battery', entry)">
                   <i class="fa-solid fa-trash"></i>
                 </button>
               </div>
@@ -301,13 +391,13 @@
           <div>
             <div class="flex justify-between items-center mb-2">
               <span class="input-label mb-0 report-sn-label">Solar Panels</span>
-              <button type="button" class="k-btn-text no-print report-sn-add" (click)="addSerial('panel')">+ Add SN</button>
+              <button type="button" class="k-btn-text report-sn-add" (click)="addSerial('panel')">+ Add SN</button>
             </div>
             <div class="flex flex-col gap-2">
               @for (entry of serialsFor('panel'); track entry.id) {
               <div class="flex items-center gap-2">
-                <input type="text" [(ngModel)]="entry.value" class="report-sn-input" placeholder="Scan or enter Panel SN...">
-                <button type="button" class="icon-btn no-print" title="Remove" (click)="removeSerial('panel', entry)">
+                <input type="text" [(ngModel)]="entry.value" class="report-sn-input" placeholder="Enter Panel SN...">
+                <button type="button" class="icon-btn" title="Remove" (click)="removeSerial('panel', entry)">
                   <i class="fa-solid fa-trash"></i>
                 </button>
               </div>
@@ -318,13 +408,13 @@
           <div>
             <div class="flex justify-between items-center mb-2">
               <span class="input-label mb-0 report-sn-label">Optimizers / Microinverters</span>
-              <button type="button" class="k-btn-text no-print report-sn-add" (click)="addSerial('optimizer')">+ Add SN</button>
+              <button type="button" class="k-btn-text report-sn-add" (click)="addSerial('optimizer')">+ Add SN</button>
             </div>
             <div class="flex flex-col gap-2">
               @for (entry of serialsFor('optimizer'); track entry.id) {
               <div class="flex items-center gap-2">
-                <input type="text" [(ngModel)]="entry.value" class="report-sn-input" placeholder="Scan or enter Optimizer SN...">
-                <button type="button" class="icon-btn no-print" title="Remove" (click)="removeSerial('optimizer', entry)">
+                <input type="text" [(ngModel)]="entry.value" class="report-sn-input" placeholder="Enter Optimizer SN...">
+                <button type="button" class="icon-btn" title="Remove" (click)="removeSerial('optimizer', entry)">
                   <i class="fa-solid fa-trash"></i>
                 </button>
               </div>
@@ -336,8 +426,6 @@
       </div>
 
     </div>
-
-    <div class="page-break"></div>
 
     <!-- 4. Checklist - Permits (for SLD) -->
     <div class="card mb-6">
@@ -377,6 +465,7 @@
     <div class="card mb-6">
       <div class="card-header">
         <h2>6. Load</h2>
+        <button type="button" class="k-btn-text" (click)="addLoadItem()">+ Add Ct.</button>
       </div>
       <div class="flex flex-col gap-2">
         @for (item of loadChecklist; track item.id) {
@@ -385,12 +474,15 @@
             <input type="checkbox" [(ngModel)]="item.checked"> {{ item.label }}
           </label>
           <input type="text" class="value-check-input" [(ngModel)]="item.value" [attr.aria-label]="item.label">
+          @if (loadChecklist.length > 1) {
+          <button type="button" class="icon-btn" title="Remove" (click)="removeLoadItem(item)">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+          }
         </div>
         }
       </div>
     </div>
-
-    <div class="page-break"></div>
 
     <!-- 7. System Layout & Schematics -->
     <div class="card mb-6">
@@ -402,22 +494,23 @@
 
         <div class="input-group full-width">
           <label class="input-label">Single Line Diagram (SLD)</label>
-          @if (photosFor('sld').length > 0) {
-          <div class="report-photo-grid">
+          <div [class.report-photo-grid]="photosFor('sld').length > 0">
             @for (photo of photosFor('sld'); track photo.id) {
-            <div class="report-photo-item">
-              <img [src]="photo.previewUrl" [alt]="photo.file.name">
-              <button type="button" class="icon-btn no-print report-photo-remove" title="Remove photo"
-                (click)="removePhoto('sld', photo)">
+            <div class="report-photo-item" [class.report-photo-item--pending]="!!photo.file">
+              <p-image [src]="photo.previewUrl" [alt]="photo.name" [preview]="true" appendTo="body"
+                styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+              @if (photo.file) { <span class="report-photo-pending-badge">Pending</span> }
+              <button type="button" class="icon-btn report-photo-remove" title="Remove photo"
+                [disabled]="isPhotoRemoving(photo)" (click)="removePhoto('sld', photo)">
                 <i class="fa-solid fa-times"></i>
               </button>
             </div>
             }
-          </div>
-          }
-          <div class="photo-box no-print report-photo-box-lg" (dragover)="$event.preventDefault()"
-            (drop)="onPhotoDrop('sld', $event)" (click)="sldPhotoInput.click()">
-            + Upload SLD Document / Image
+            <div class="photo-box" [class.report-photo-box-lg]="photosFor('sld').length === 0"
+              [class.report-photo-box-tile]="photosFor('sld').length > 0" (dragover)="$event.preventDefault()"
+              (drop)="onPhotoDrop('sld', $event)" (click)="sldPhotoInput.click()">
+              + Upload SLD Document / Image
+            </div>
           </div>
           <input #sldPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
             (change)="onPhotoFilesSelected('sld', $event)">
@@ -425,22 +518,23 @@
 
         <div class="input-group">
           <label class="input-label">Roof Layout (SketchUp/Photo)</label>
-          @if (photosFor('roof').length > 0) {
-          <div class="report-photo-grid">
+          <div [class.report-photo-grid]="photosFor('roof').length > 0">
             @for (photo of photosFor('roof'); track photo.id) {
-            <div class="report-photo-item">
-              <img [src]="photo.previewUrl" [alt]="photo.file.name">
-              <button type="button" class="icon-btn no-print report-photo-remove" title="Remove photo"
-                (click)="removePhoto('roof', photo)">
+            <div class="report-photo-item" [class.report-photo-item--pending]="!!photo.file">
+              <p-image [src]="photo.previewUrl" [alt]="photo.name" [preview]="true" appendTo="body"
+                styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+              @if (photo.file) { <span class="report-photo-pending-badge">Pending</span> }
+              <button type="button" class="icon-btn report-photo-remove" title="Remove photo"
+                [disabled]="isPhotoRemoving(photo)" (click)="removePhoto('roof', photo)">
                 <i class="fa-solid fa-times"></i>
               </button>
             </div>
             }
-          </div>
-          }
-          <div class="photo-box no-print" (dragover)="$event.preventDefault()"
-            (drop)="onPhotoDrop('roof', $event)" (click)="roofPhotoInput.click()">
-            + Upload Roof Layout
+            <div class="photo-box" [class.report-photo-box-tile]="photosFor('roof').length > 0"
+              (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('roof', $event)"
+              (click)="roofPhotoInput.click()">
+              + Upload Roof Layout
+            </div>
           </div>
           <input #roofPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
             (change)="onPhotoFilesSelected('roof', $event)">
@@ -448,22 +542,23 @@
 
         <div class="input-group">
           <label class="input-label">Equipment Layout (Inverter / Combiner)</label>
-          @if (photosFor('equipment').length > 0) {
-          <div class="report-photo-grid">
+          <div [class.report-photo-grid]="photosFor('equipment').length > 0">
             @for (photo of photosFor('equipment'); track photo.id) {
-            <div class="report-photo-item">
-              <img [src]="photo.previewUrl" [alt]="photo.file.name">
-              <button type="button" class="icon-btn no-print report-photo-remove" title="Remove photo"
-                (click)="removePhoto('equipment', photo)">
+            <div class="report-photo-item" [class.report-photo-item--pending]="!!photo.file">
+              <p-image [src]="photo.previewUrl" [alt]="photo.name" [preview]="true" appendTo="body"
+                styleClass="survey-photo-image" imageClass="survey-photo-thumb" />
+              @if (photo.file) { <span class="report-photo-pending-badge">Pending</span> }
+              <button type="button" class="icon-btn report-photo-remove" title="Remove photo"
+                [disabled]="isPhotoRemoving(photo)" (click)="removePhoto('equipment', photo)">
                 <i class="fa-solid fa-times"></i>
               </button>
             </div>
             }
-          </div>
-          }
-          <div class="photo-box no-print" (dragover)="$event.preventDefault()"
-            (drop)="onPhotoDrop('equipment', $event)" (click)="equipmentPhotoInput.click()">
-            + Upload Equipment Layout
+            <div class="photo-box" [class.report-photo-box-tile]="photosFor('equipment').length > 0"
+              (dragover)="$event.preventDefault()" (drop)="onPhotoDrop('equipment', $event)"
+              (click)="equipmentPhotoInput.click()">
+              + Upload Equipment Layout
+            </div>
           </div>
           <input #equipmentPhotoInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple
             (change)="onPhotoFilesSelected('equipment', $event)">
@@ -471,8 +566,6 @@
 
       </div>
     </div>
-
-    <div class="page-break"></div>
 
     <!-- 8. Warranty & Maintenance Schedule -->
     <div class="card mb-6">
@@ -489,20 +582,15 @@
             <p-datepicker [(ngModel)]="nextMaintenanceDate" appendTo="body" [showIcon]="true" [fluid]="true"
               placeholder="Select date" />
           </div>
-          <p class="report-maintenance-hint">
-            We recommend a professional panel cleaning and electrical inspection every 6 to 12 months to
-            ensure optimal system performance.
-          </p>
+          <p class="report-maintenance-hint">{{ maintenanceHint }}</p>
         </div>
 
         <div class="report-warranty-box">
           <span class="input-label mb-2">Standard Warranty Terms</span>
           <ul class="report-warranty-list">
-            <li><strong>Solar Panels:</strong> 12-Year Product, 25-Year Linear Power</li>
-            <li><strong>Inverter:</strong> 10-Year Comprehensive</li>
-            <li><strong>Battery:</strong> 10-Year Performance</li>
-            <li><strong>Mounting Structure:</strong> 10-Year Product</li>
-            <li><strong>Kunini Workmanship:</strong> 2-Year Installation Guarantee</li>
+            @for (term of warrantyTerms; track term.item) {
+            <li><strong>{{ term.item }}:</strong> {{ term.text }}</li>
+            }
           </ul>
         </div>
 
@@ -510,11 +598,21 @@
     </div>
 
     <!-- Bottom Actions -->
-    <div class="flex justify-end gap-2 no-print report-bottom-actions">
-      <button type="button" class="k-btn k-btn-outline" (click)="saveDraft()">Save Report (local only)</button>
-      <button type="button" class="k-btn k-btn-primary" (click)="exportToPdf()">Export to PDF</button>
+    <div class="flex justify-end gap-2 report-bottom-actions">
+      <button type="button" class="k-btn k-btn-primary" [disabled]="isSaving" (click)="saveReport()">
+        @if (isSaving) { <i class="fas fa-spinner fa-spin"></i> Saving… } @else { Save Report }
+      </button>
+      <button type="button" class="k-btn k-btn-outline" (click)="exportToPdf()">Export to PDF</button>
     </div>
 
   </div>
   }
 </div>
+
+<!-- Saving: บล็อกทั้งหน้าด้วย k-loading ระหว่าง save (ฟอร์ม + อัปโหลดรูป) กัน user แก้/ออกกลางทาง
+     ซ้อนทับฟอร์มแทนการสลับ @if เพื่อไม่ทำให้ DOM ฟอร์มถูกสร้างใหม่ (scroll position จะได้ไม่เด้งขึ้นบน) -->
+@if (isSaving) {
+<div class="report-saving-overlay" role="alert" aria-busy="true" aria-live="assertive">
+  <app-k-loading></app-k-loading>
+</div>
+}

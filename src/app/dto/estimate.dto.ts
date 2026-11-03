@@ -122,7 +122,7 @@ export interface EstimateSummary {
   revisedFromId: string | null;
   // มีค่า = ใบ final นี้ถูก revision อื่นแทนที่แล้ว — โชว์ badge "Superseded" แทน "Final" และไม่นับใน currentSystem
   supersededById: string | null;
-  // null = backend ซ่อนราคาตาม role (technician)
+  // null = backend ซ่อนราคาตาม role (engineer)
   grandTotal: number | null;
   totalKw: number;
   createdAt: string;

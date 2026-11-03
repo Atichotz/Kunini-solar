@@ -1,7 +1,7 @@
-import { Component, DestroyRef, OnDestroy, OnInit, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, DestroyRef, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
-import { CommonModule } from '@angular/common';
+import { CommonModule, formatDate } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { InputTextModule } from 'primeng/inputtext';
@@ -9,24 +9,28 @@ import { SelectModule } from 'primeng/select';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MenuModule } from 'primeng/menu';
 import { ConfirmationService, MenuItem } from 'primeng/api';
-import { RouterLink, ActivatedRoute } from '@angular/router';
-import { forkJoin, of, map, distinctUntilChanged, takeUntil, skip } from 'rxjs';
+import { RouterLink, ActivatedRoute, Router } from '@angular/router';
+import { forkJoin, of, map, distinctUntilChanged, takeUntil, skip, filter, first } from 'rxjs';
 import { CustomerService } from '../../services/customer.service';
 import { EstimateService } from '../../services/estimate.service';
 import { SiteSurveyReportService } from '../../services/site-survey-report.service';
 import { SowService } from '../../services/sow.service';
 import { CallOutServiceReportService } from '../../services/call-out-service-report.service';
+import { InstallationReportService } from '../../services/installation-report.service';
 import { PermissionService } from '../../services/permission.service';
 import { KLoadingComponent } from '../../k-loading/k-loading.component';
 import { TodoBoardComponent } from '../../todo-board/todo-board.component';
 import { STATUS_META as TICKET_STATUS_META, TicketBoardComponent } from '../../ticket-board/ticket-board.component';
 import { ScrollToTopComponent } from '../../scroll-to-top/scroll-to-top.component';
-import { LinkifyPipe } from '../../pipes/linkify.pipe';
-import type { CustomerDetail, ElectricBillDetail, NoteDetail, NoteCommentDetail, StatusOption, UpsertContactPayload } from '../../dto/customer.dto';
+import { NoteTextPipe } from '../../pipes/note-text.pipe';
+import { NoteAttachmentListComponent } from '../../note-attachment-list/note-attachment-list.component';
+import { NoteComposerComponent, type NoteComposerValue } from '../../note-composer/note-composer.component';
+import type { CustomerDetail, ElectricBillDetail, MentionableUser, NoteDetail, NoteCommentDetail, StatusOption, UpsertContactPayload } from '../../dto/customer.dto';
 import type { EstimateDetail, EstimateSummary } from '../../dto/estimate.dto';
 import type { SiteSurveyReportSummary } from '../../dto/site-survey-report.dto';
 import type { SowSummary } from '../../dto/sow.dto';
 import type { CallOutResolutionStatus, CallOutServiceReportSummary } from '../../dto/call-out-service-report.dto';
+import type { InstallationReportSummary } from '../../dto/installation-report.dto';
 import type { TicketCard } from '../../dto/ticket.dto';
 
 interface Contact {
@@ -84,12 +88,39 @@ interface CustomerInfoDraft {
 const ELECTRIC_BILL_ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 const ELECTRIC_BILL_MAX_SIZE_BYTES = 10 * 1024 * 1024;
 
-// ต้องตรงกับ NOTE_COMMENT_MAX_IMAGES / NOTE_COMMENT_IMAGE_ALLOWED_MIME_TYPES / NOTE_COMMENT_IMAGE_MAX_SIZE_BYTES ใน backend (customers.service.ts, dto/note-comment.dto.ts)
-const NOTE_COMMENT_MAX_IMAGES = 5;
-const NOTE_COMMENT_IMAGE_ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const NOTE_COMMENT_IMAGE_MAX_SIZE_BYTES = 10 * 1024 * 1024;
+// เกิน 1 นาทีถึงนับว่า "แก้ไข" — report ที่เพิ่งสร้างแล้วอัปโหลดรูปต่อจะมี updatedAt ห่าง createdAt แค่ไม่กี่วินาที
+const UPDATED_AFTER_CREATED_MS = 60_000;
 
-interface EstimateHistoryRow {
+// วันที่ + label ที่แถวใน History โชว์ — ให้รู้ว่าเป็นวันสร้าง/แก้ไข/finalize
+interface HistoryDateInfo {
+  dateIso: string;
+  dateLabel: 'Created' | 'Updated' | 'Finalized';
+  // โชว์ตอน hover เมื่อวันที่หลักไม่ใช่วันสร้าง — null เมื่อเป็น Created อยู่แล้ว
+  dateTooltip: string | null;
+  // 'created by' เมื่อวันที่เป็น Updated แต่ไม่รู้ว่าใครแก้ (estimate/ticket ไม่มี updatedBy) — กันชื่อคนสร้างถูกอ่านเป็นคนแก้
+  byPrefix: 'by' | 'created by';
+}
+
+// in: createdIso/updatedIso (ISO), createdBy (null ได้), hasUpdater = รู้ชื่อคนแก้ไหม / out: HistoryDateInfo
+function buildDateInfo(createdIso: string, updatedIso: string, createdBy: string | null, hasUpdater: boolean): HistoryDateInfo {
+  const isUpdated = toTimestamp(updatedIso) - toTimestamp(createdIso) > UPDATED_AFTER_CREATED_MS;
+  if (!isUpdated) {
+    return { dateIso: createdIso, dateLabel: 'Created', dateTooltip: null, byPrefix: 'by' };
+  }
+  return {
+    dateIso: updatedIso,
+    dateLabel: 'Updated',
+    dateTooltip: buildCreatedTooltip(createdIso, createdBy),
+    byPrefix: hasUpdater ? 'by' : 'created by',
+  };
+}
+
+function buildCreatedTooltip(createdIso: string, createdBy: string | null): string {
+  const createdDate = formatDate(createdIso, 'dd MMM yyyy', 'en-US');
+  return createdBy ? `Created ${createdDate} by ${createdBy}` : `Created ${createdDate}`;
+}
+
+interface EstimateHistoryRow extends HistoryDateInfo {
   id: string;
   title: string;
   badgeLabel: string;
@@ -101,22 +132,21 @@ interface EstimateHistoryRow {
   hasOpenRevision: boolean;
   // final, ยังไม่ถูกแทนที่, และไม่มี draft revision ค้างอยู่แล้ว — โชว์ปุ่ม Create Revision ได้
   canCreateRevision: boolean;
-  dateIso: string;
   author: string;
   grandTotal: number | null;
 }
 
-interface SiteSurveyHistoryRow {
+interface SiteSurveyHistoryRow extends HistoryDateInfo {
   id: string;
-  dateIso: string;
+  createdByUserId: string | null;
   author: string;
   photoCount: number;
   layoutOptionCount: number;
 }
 
-interface CallOutHistoryRow {
+interface CallOutHistoryRow extends HistoryDateInfo {
   id: string;
-  dateIso: string;
+  createdByUserId: string | null;
   author: string;
   resolutionStatus: CallOutResolutionStatus;
   statusLabel: string;
@@ -124,23 +154,30 @@ interface CallOutHistoryRow {
   photoCount: number;
 }
 
-interface SowHistoryRow {
+interface InstallationHistoryRow extends HistoryDateInfo {
   id: string;
-  dateIso: string;
+  createdByUserId: string | null;
+  author: string;
+  photoCount: number;
+}
+
+interface SowHistoryRow extends HistoryDateInfo {
+  id: string;
+  createdByUserId: string | null;
   author: string;
   dayCount: number;
   eodReportCount: number;
 }
 
-interface TicketHistoryRow {
+interface TicketHistoryRow extends HistoryDateInfo {
   id: string;
   // ส่ง ticket ตัวเต็มไปให้ TicketBoardComponent.openTaskDrawer() ตอนคลิกแถว
   ticket: TicketCard;
   title: string;
   statusLabel: string;
   isDone: boolean;
-  dateIso: string;
-  createdByName: string;
+  // ชื่อที่ต่อท้าย byPrefix: คนแก้ล่าสุดถ้าแถวนี้ขึ้น Updated ไม่งั้นคนสร้าง
+  author: string;
   assigneeNames: string;
   commentCount: number;
 }
@@ -150,6 +187,7 @@ type HistoryTimelineRow =
   | ({ kind: 'estimate' } & EstimateHistoryRow)
   | ({ kind: 'siteSurvey' } & SiteSurveyHistoryRow)
   | ({ kind: 'callOut' } & CallOutHistoryRow)
+  | ({ kind: 'installation' } & InstallationHistoryRow)
   | ({ kind: 'sow' } & SowHistoryRow)
   | ({ kind: 'ticket' } & TicketHistoryRow);
 
@@ -177,25 +215,43 @@ interface SystemFigures {
 
 @Component({
   selector: 'app-customer-detail-page',
-  imports: [CommonModule, FormsModule, FloatLabelModule, InputTextModule, SelectModule, ConfirmDialogModule, MenuModule, RouterLink, KLoadingComponent, TodoBoardComponent, TicketBoardComponent, ScrollToTopComponent, LinkifyPipe],
+  imports: [CommonModule, FormsModule, FloatLabelModule, InputTextModule, SelectModule, ConfirmDialogModule, MenuModule, RouterLink, KLoadingComponent, TodoBoardComponent, TicketBoardComponent, ScrollToTopComponent, NoteComposerComponent, NoteAttachmentListComponent, NoteTextPipe],
   providers: [ConfirmationService],
   templateUrl: './customer-detail-page.component.html',
   styleUrl: './customer-detail-page.component.scss'
 })
-export class CustomerDetailPageComponent implements OnInit, OnDestroy {
+export class CustomerDetailPageComponent implements OnInit {
   private readonly confirmationService = inject(ConfirmationService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly customerService = inject(CustomerService);
   private readonly estimateService = inject(EstimateService);
   private readonly siteSurveyReportService = inject(SiteSurveyReportService);
   private readonly sowService = inject(SowService);
   private readonly callOutServiceReportService = inject(CallOutServiceReportService);
+  private readonly installationReportService = inject(InstallationReportService);
   // ใช้ซ่อนปุ่ม/ข้อมูลตาม role เพื่อ UX เท่านั้น — สิทธิ์จริงบังคับที่ backend
   private readonly permission = inject(PermissionService);
-  readonly canManage = this.permission.canManage;
+  readonly canManageCustomers = this.permission.canManageCustomers;
+  readonly canSeeTodoBoard = this.permission.canSeeTodoBoard;
+  readonly canSeeTicketBoard = this.permission.canSeeTicketBoard;
+  readonly canEditTodos = this.permission.canEditTodos;
+  readonly canEditTickets = this.permission.canEditTickets;
+  readonly isSales = this.permission.isSales;
+  readonly isProfileLoaded = this.permission.isProfileLoaded;
+  readonly canEditDocuments = this.permission.canEditDocuments;
   readonly canCreateQuotation = this.permission.canCreateQuotation;
   readonly canSeePrice = this.permission.canSeePrice;
   readonly isCeo = this.permission.isCeo;
+  // technician เห็นหน้านี้แบบอ่านอย่างเดียว + SOW/Report: ไม่เห็น System, Notes, ใบเสนอราคา และแก้ค่าไฟไม่ได้ — Task/Ticket เห็นเฉพาะของตัวเอง ดู/comment ได้อย่างเดียว
+  readonly isTechnician = this.permission.isTechnician;
+  readonly canUseStaffTools = this.permission.canUseStaffTools;
+  readonly canDeleteDocument = (createdByUserId: string | null): boolean => this.permission.canDeleteDocument(createdByUserId);
+  // emit ครั้งเดียวเมื่อ GET /users/me เสร็จ — ใช้รอรู้ role ก่อนเรียก API ที่ technician ไม่มีสิทธิ์
+  private readonly profileLoaded$ = toObservable(this.permission.isProfileLoaded).pipe(filter(Boolean), first());
+  // ใช้เปิด drawer ของ ticket จากแถวใน History — board อยู่ในอีกบล็อกของ template จึงอ้าง template ref ตรงๆ ไม่ได้
+  // public เพราะ badge ของแท็บ Ticket อยู่คนละ @if block กับ board จึงอ้าง template ref ไม่ได้
+  readonly ticketBoardRef = viewChild(TicketBoardComponent);
   private readonly destroyRef = inject(DestroyRef);
 
   // เมนูของปุ่ม Report — แยกไปหน้า Install report เดิม กับ Site Survey Report
@@ -206,7 +262,7 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
   setReportMenuItems(): void {
     const customerId = this.customer?.id;
     this.reportMenuItems = [
-      { label: 'Installation Report', icon: 'fa-solid fa-file-lines', routerLink: '/report', queryParams: { customerId } },
+      { label: 'Installation / Service Report', icon: 'fa-solid fa-file-lines', routerLink: '/report', queryParams: { customerId } },
       { label: 'Site Survey Report', icon: 'fa-solid fa-people-roof', routerLink: '/survey-report', queryParams: { customerId } },
       { label: 'Call Out Service Report', icon: 'fa-solid fa-truck-fast', routerLink: '/call-out-service-report', queryParams: { customerId } },
     ];
@@ -234,6 +290,7 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
   isLoadingSiteSurveys = true;
   isLoadingSows = true;
   isLoadingCallOuts = true;
+  isLoadingInstallations = true;
   isLoadingNotes = true;
   isLoadingTickets = true;
 
@@ -273,7 +330,9 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
         isSuperseded,
         hasOpenRevision,
         canCreateRevision: e.status === 'final' && !isSuperseded && !hasOpenRevision,
-        dateIso: (e.status === 'final' ? e.finalizedAt : e.updatedAt) ?? e.createdAt,
+        ...(e.status === 'final' && e.finalizedAt
+          ? { dateIso: e.finalizedAt, dateLabel: 'Finalized' as const, dateTooltip: buildCreatedTooltip(e.createdAt, e.createdBy), byPrefix: 'by' as const }
+          : buildDateInfo(e.createdAt, e.updatedAt, e.createdBy, false)),
         author: (e.status === 'final' ? e.finalizedBy : e.createdBy) ?? '—',
         grandTotal: e.grandTotal,
       };
@@ -288,8 +347,9 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
   get siteSurveyHistoryRows(): SiteSurveyHistoryRow[] {
     return this.siteSurveyReports.map((r) => ({
       id: r.id,
+      createdByUserId: r.createdByUserId,
       // updatedAt รวมการแก้รูปด้วย — ตรงกับที่หน้า report โชว์ว่า "Last edited"
-      dateIso: r.updatedAt,
+      ...buildDateInfo(r.createdAt, r.updatedAt, r.createdBy, !!r.updatedBy),
       author: r.updatedBy ?? r.createdBy ?? '—',
       photoCount: r.photoCount,
       layoutOptionCount: r.layoutOptionCount,
@@ -304,12 +364,29 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
   get callOutHistoryRows(): CallOutHistoryRow[] {
     return this.callOutReports.map((r) => ({
       id: r.id,
+      createdByUserId: r.createdByUserId,
       // updatedAt รวมการแก้รูปด้วย — ตรงกับที่หน้า report โชว์ว่า "Last edited"
-      dateIso: r.updatedAt,
+      ...buildDateInfo(r.createdAt, r.updatedAt, r.createdBy, !!r.updatedBy),
       author: r.updatedBy ?? r.createdBy ?? '—',
       resolutionStatus: r.resolutionStatus,
       statusLabel: CALL_OUT_STATUS_LABEL[r.resolutionStatus],
       reportedErrorCode: r.reportedErrorCode,
+      photoCount: r.photoCount,
+    }));
+  }
+
+  // Installation Report ของลูกค้ารายนี้ (ยังไม่ถูกลบ) — แสดงใน History timeline
+  installationReports: InstallationReportSummary[] = [];
+  installationHistoryErrorMessage = '';
+  deletingInstallationId: string | null = null;
+
+  get installationHistoryRows(): InstallationHistoryRow[] {
+    return this.installationReports.map((r) => ({
+      id: r.id,
+      createdByUserId: r.createdByUserId,
+      // updatedAt รวมการแก้รูปด้วย — ตรงกับที่หน้า report โชว์ว่า "Last edited"
+      ...buildDateInfo(r.createdAt, r.updatedAt, r.createdBy, !!r.updatedBy),
+      author: r.updatedBy ?? r.createdBy ?? '—',
       photoCount: r.photoCount,
     }));
   }
@@ -322,12 +399,61 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
   get sowHistoryRows(): SowHistoryRow[] {
     return this.sows.map((s) => ({
       id: s.id,
+      createdByUserId: s.createdByUserId,
       // updatedAt รวมการแก้รูปด้วย — ตรงกับที่หน้า SOW โชว์ว่า "Last edited"
-      dateIso: s.updatedAt,
+      ...buildDateInfo(s.createdAt, s.updatedAt, s.createdBy, !!s.updatedBy),
       author: s.updatedBy ?? s.createdBy ?? '—',
       dayCount: s.dayCount,
       eodReportCount: s.eodReportCount,
     }));
+  }
+
+  isDeletingCustomer = false;
+  customerDeleteErrorMessage = '';
+
+  // ถามยืนยันก่อนลบลูกค้ารายนี้ — soft delete: เอกสาร/โน้ต/ไฟล์ยังอยู่ครบ แต่ลูกค้าหายจาก Workflow และ Customer List
+  // CEO กู้คืนได้จากหน้า Deleted Customers
+  onDeleteCustomer(): void {
+    if (this.isDeletingCustomer || !this.customer) return;
+    const name = this.customer.displayName;
+    this.confirmationService.confirm({
+      header: 'Delete customer',
+      message: `"${name}" will be removed from Workflow and Customer List. Continue?`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => this.deleteCustomer(),
+    });
+  }
+
+  private deleteCustomer(): void {
+    const customerId = this.customer?.id;
+    if (!customerId) return;
+
+    this.customerDeleteErrorMessage = '';
+    this.isDeletingCustomer = true;
+
+    this.customerService.delete(customerId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.isDeletingCustomer = false;
+          void this.router.navigate(['/workflow']);
+        },
+        error: (err: unknown) => {
+          this.isDeletingCustomer = false;
+          const status = err instanceof HttpErrorResponse ? err.status : null;
+          // 404 = ถูกลบไปแล้วจาก tab/คนอื่น — เป้าหมายสำเร็จแล้ว พากลับ Workflow เหมือนกัน
+          if (status === 404) {
+            void this.router.navigate(['/workflow']);
+            return;
+          }
+          console.error('[API] Failed to delete customer:', err);
+          this.customerDeleteErrorMessage = status === 403
+            ? 'You do not have permission to delete this customer'
+            : 'Failed to delete the customer. Please try again';
+        },
+      });
   }
 
   // input: SOW UUID จากแถวใน History — ถามยืนยันก่อนลบ (soft delete เหมือน site survey)
@@ -442,6 +568,43 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
       });
   }
 
+  // input: report UUID จากแถวใน History — ถามยืนยันก่อนลบ (soft delete เหมือน site survey)
+  onDeleteInstallation(id: string): void {
+    if (this.deletingInstallationId) return;
+    this.confirmationService.confirm({
+      header: 'Confirm Delete',
+      message: 'This installation report will be removed from the list. Continue?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      accept: () => this.deleteInstallation(id),
+    });
+  }
+
+  private deleteInstallation(id: string): void {
+    this.installationHistoryErrorMessage = '';
+    this.deletingInstallationId = id;
+
+    this.installationReportService.delete(id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.deletingInstallationId = null;
+          this.installationReports = this.installationReports.filter((r) => r.id !== id);
+        },
+        error: (err) => {
+          this.deletingInstallationId = null;
+          // 404 = ถูกลบไปแล้วจากที่อื่น — เอาออกจากลิสต์ให้ตรงกับความจริง ไม่ต้องแจ้ง error
+          if (err?.status === 404) {
+            this.installationReports = this.installationReports.filter((r) => r.id !== id);
+            return;
+          }
+          console.error('[API] Failed to delete installation report:', err);
+          this.installationHistoryErrorMessage = 'Failed to delete the installation report. Please try again';
+        },
+      });
+  }
+
   // ticket ของลูกค้ารายนี้ — ไม่ได้โหลดเอง แต่รับจาก <app-ticket-board> ผ่าน (ticketsChange)
   // เพราะบอร์ดต้องโหลด list เดียวกันไว้ให้ dialog รายละเอียด/แท็บ Ticket อยู่แล้ว จะได้ไม่ยิง getAll() ซ้ำ
   tickets: TicketCard[] = [];
@@ -449,22 +612,44 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
 
   // แท็บ Task/Ticket ในการ์ด "Add Task" — ทั้งสอง board ยัง render ตลอด (ไม่ผูกกับแท็บ) เพื่อให้ totalCount() ขึ้น badge ได้แม้ไม่ได้เปิดดูอยู่ (เหมือน dashboard)
   activeTaskTab = signal<'task' | 'ticket'>('task');
+  // ฟอร์ม Add ของแต่ละแท็บซ่อนไว้ก่อนจนกดปุ่ม Add — แยก state ต่อแท็บ เพื่อให้ฟอร์มที่เปิดค้างไว้ยังอยู่เมื่อสลับแท็บกลับมา
+  showTaskForm = signal(false);
+  showTicketForm = signal(false);
+
+  toggleAddForm(): void {
+    const formSignal = this.activeTaskTab() === 'task' ? this.showTaskForm : this.showTicketForm;
+    formSignal.update(isOpen => !isOpen);
+  }
+
+  // ปุ่ม Add ของแท็บที่เปิดอยู่ — sales เพิ่ม Task ได้แต่เพิ่ม Ticket ไม่ได้ จึงเช็คสิทธิ์ตามแท็บ
+  readonly canAddOnActiveTab = computed<boolean>(() =>
+    this.activeTaskTab() === 'task' ? this.canEditTodos() : this.canEditTickets()
+  );
 
   get ticketHistoryRows(): TicketHistoryRow[] {
-    return this.tickets.map((t) => ({
-      id: t.id,
-      ticket: t,
-      title: t.title,
-      statusLabel: TICKET_STATUS_META[t.status].label,
-      isDone: t.status === 'done',
-      dateIso: t.updatedAt,
-      createdByName: t.createdByName ?? '—',
-      assigneeNames: t.assignees.map((assignee) => assignee.name).join(', ') || '—',
-      commentCount: t.commentCount,
-    }));
+    return this.tickets.map((t) => {
+      const dateInfo = buildDateInfo(t.createdAt, t.updatedAt, t.createdByName, !!t.updatedByName);
+      // ป้าย Created ต้องตามด้วยคนสร้าง — ticket ที่แก้ภายใน threshold หลังสร้างยังนับเป็น Created แม้ updatedByName จะมีค่าแล้ว
+      const isUpdated = dateInfo.dateLabel !== 'Created';
+      return {
+        id: t.id,
+        ticket: t,
+        title: t.title,
+        statusLabel: TICKET_STATUS_META[t.status].label,
+        isDone: t.status === 'done',
+        ...dateInfo,
+        author: (isUpdated ? t.updatedByName : null) ?? t.createdByName ?? '—',
+        assigneeNames: t.assignees.map((assignee) => assignee.name).join(', ') || '—',
+        commentCount: t.commentCount,
+      };
+    });
   }
 
   // in: list ที่ board กรองตาม customerId แล้ว (emit ทุกครั้งที่ reload รวมหลังเพิ่ม/ลบ comment)
+  openTicketDrawer(ticket: TicketCard): void {
+    this.ticketBoardRef()?.openTaskDrawer(ticket);
+  }
+
   onTicketsChange(tickets: TicketCard[]): void {
     this.tickets = tickets;
     this.ticketHistoryErrorMessage = '';
@@ -476,18 +661,42 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
     this.ticketHistoryErrorMessage = 'Failed to load ticket history';
   }
 
-  // รวม estimate + site survey + call out + SOW + ticket เป็น timeline เดียว เรียงใหม่→เก่า (in: estimateHistoryRows, siteSurveyHistoryRows, callOutHistoryRows, sowHistoryRows, ticketHistoryRows / out: HistoryTimelineRow[])
+  // รวม estimate + site survey + call out + installation + SOW + ticket เป็น timeline เดียว เรียงใหม่→เก่า (in: estimateHistoryRows, siteSurveyHistoryRows, callOutHistoryRows, installationHistoryRows, sowHistoryRows, ticketHistoryRows / out: HistoryTimelineRow[])
   get historyTimelineRows(): HistoryTimelineRow[] {
     const estimateRows = this.estimateHistoryRows.map((row) => ({ kind: 'estimate' as const, ...row }));
     const siteSurveyRows = this.siteSurveyHistoryRows.map((row) => ({ kind: 'siteSurvey' as const, ...row }));
     const callOutRows = this.callOutHistoryRows.map((row) => ({ kind: 'callOut' as const, ...row }));
+    const installationRows = this.installationHistoryRows.map((row) => ({ kind: 'installation' as const, ...row }));
     const sowRows = this.sowHistoryRows.map((row) => ({ kind: 'sow' as const, ...row }));
     const ticketRows = this.ticketHistoryRows.map((row) => ({ kind: 'ticket' as const, ...row }));
-    return [...estimateRows, ...siteSurveyRows, ...callOutRows, ...sowRows, ...ticketRows].sort((a, b) => toTimestamp(b.dateIso) - toTimestamp(a.dateIso));
+    return [...estimateRows, ...siteSurveyRows, ...callOutRows, ...installationRows, ...sowRows, ...ticketRows].sort((a, b) => toTimestamp(b.dateIso) - toTimestamp(a.dateIso));
+  }
+
+  // แบ่งหน้า History ฝั่ง client เหมือน ticket-board — ทุก source โหลดมาครบแล้วค่อยรวม
+  readonly historyPageSizeOptions = [5, 10, 20, 30] as const;
+  historyPageSize = 10;
+  historyPage = 1;
+
+  setHistoryPage(page: number): void {
+    this.historyPage = Math.max(1, page);
+  }
+
+  // เปลี่ยนจำนวนต่อหน้าแล้วกลับหน้า 1 ไม่พยายามรักษาตำแหน่งเดิม
+  setHistoryPageSize(size: number): void {
+    this.historyPageSize = size;
+    this.setHistoryPage(1);
+  }
+
+  // in: timeline ทั้งหมด (เรียงแล้ว) / out: แถวของหน้าปัจจุบัน + เลขหน้า — clamp เพราะลบแล้วจำนวนหน้าอาจลดลง
+  getHistoryView(rows: HistoryTimelineRow[]): { visibleRows: HistoryTimelineRow[]; currentPage: number; totalPages: number } {
+    const totalPages = Math.max(1, Math.ceil(rows.length / this.historyPageSize));
+    const currentPage = Math.min(this.historyPage, totalPages);
+    const start = (currentPage - 1) * this.historyPageSize;
+    return { visibleRows: rows.slice(start, start + this.historyPageSize), currentPage, totalPages };
   }
 
   get isLoadingHistory(): boolean {
-    return this.isLoadingEstimates || this.isLoadingSiteSurveys || this.isLoadingCallOuts || this.isLoadingSows || this.isLoadingTickets;
+    return this.isLoadingEstimates || this.isLoadingSiteSurveys || this.isLoadingCallOuts || this.isLoadingInstallations || this.isLoadingSows || this.isLoadingTickets;
   }
 
   contacts: Contact[] = [];
@@ -506,23 +715,20 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
 
   notes: Note[] = [];
   showNoteForm = false;
-  newNoteText = '';
   isSavingNote = false;
   deletingNoteId: string | null = null;
   noteErrorMessage = '';
+  // โหลดครั้งเดียวต่อลูกค้า และต้องเป็น reference เดิมตลอด (ไม่ใช่ getter ที่ new array ทุกครั้ง) ไม่งั้น composer คิดรายชื่อใหม่ทุกรอบ change detection
+  mentionableUsers: MentionableUser[] = [];
+  private readonly noteComposer = viewChild<NoteComposerComponent>('noteComposer');
 
   readonly noteCommentMaxLength = NOTE_COMMENT_MAX_LENGTH;
   expandedNoteCommentIds = new Set<string>();
   commentsByNoteId: Partial<Record<string, NoteCommentDetail[]>> = {};
   isLoadingCommentsForNoteId: Partial<Record<string, boolean>> = {};
-  commentDraftByNoteId: Partial<Record<string, string>> = {};
   isSavingCommentForNoteId: Partial<Record<string, boolean>> = {};
   deletingCommentId: string | null = null;
   commentErrorByNoteId: Partial<Record<string, string>> = {};
-
-  readonly noteCommentMaxImages = NOTE_COMMENT_MAX_IMAGES;
-  // รูปที่เลือกไว้แต่ยังไม่ส่ง — เก็บคู่กับ object URL ไว้ preview, ต้อง revoke ทิ้งเองตอนลบ/ส่งสำเร็จ/เปลี่ยนลูกค้า กัน memory leak
-  commentImageDraftByNoteId: Partial<Record<string, { file: File; previewUrl: string }[]>> = {};
 
   isEditingName = false;
   isSavingName = false;
@@ -584,10 +790,6 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy(): void {
-    this.revokeAllCommentImageDrafts();
-  }
-
   // input: id ของลูกค้าจาก route param — output: ไม่มี, reset state เดิมทั้งหมดแล้วโหลดข้อมูลลูกค้าคนใหม่
   // ทุก request ผูก takeUntil(customerId$) ไว้ด้วย กัน request ของ id เก่ามาถึงทีหลังแล้วเขียนทับ state ของ id ใหม่
   private loadCustomerData(id: string): void {
@@ -599,19 +801,24 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
     this.isLoadingSiteSurveys = true;
     this.isLoadingSows = true;
     this.isLoadingCallOuts = true;
+    this.isLoadingInstallations = true;
     this.isLoadingNotes = true;
     this.isLoadingTickets = true;
     this.estimates = [];
     this.siteSurveyReports = [];
     this.callOutReports = [];
+    this.installationReports = [];
     this.sows = [];
     this.tickets = [];
     this.notes = [];
+    this.historyPage = 1;
     this.ticketHistoryErrorMessage = '';
     this.siteSurveyHistoryErrorMessage = '';
     this.deletingSiteSurveyId = null;
     this.callOutHistoryErrorMessage = '';
     this.deletingCallOutId = null;
+    this.installationHistoryErrorMessage = '';
+    this.deletingInstallationId = null;
     this.sowHistoryErrorMessage = '';
     this.deletingSowId = null;
     this.noteErrorMessage = '';
@@ -633,34 +840,18 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
     this.expandedNoteCommentIds = new Set<string>();
     this.commentsByNoteId = {};
     this.isLoadingCommentsForNoteId = {};
-    this.commentDraftByNoteId = {};
     this.isSavingCommentForNoteId = {};
     this.commentErrorByNoteId = {};
-    this.revokeAllCommentImageDrafts();
-    this.commentImageDraftByNoteId = {};
+    this.mentionableUsers = [];
 
     this.isEditingName = false;
     this.isEditingCustomerNumber = false;
     this.isEditingInfo = false;
     this.showNoteForm = false;
-    this.newNoteText = '';
 
     this.customerService.getStatuses().pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (statuses) => { this.statusList = statuses; },
       error: (err) => console.error('[API] Failed to load statuses:', err),
-    });
-
-    this.estimateService.listByCustomer(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (estimates) => {
-        this.estimates = estimates;
-        this.isLoadingEstimates = false;
-        this.loadSystemDetails(estimates);
-      },
-      error: (err) => {
-        console.error('[API] Failed to load estimate history:', err);
-        this.isLoadingEstimates = false;
-        this.isLoadingSystem = false;
-      },
     });
 
     this.siteSurveyReportService.listByCustomer(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
@@ -687,6 +878,18 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
       },
     });
 
+    this.installationReportService.listByCustomer(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (reports) => {
+        this.installationReports = reports;
+        this.isLoadingInstallations = false;
+      },
+      error: (err) => {
+        console.error('[API] Failed to load installation report history:', err);
+        this.isLoadingInstallations = false;
+        this.installationHistoryErrorMessage = 'Failed to load installation report history';
+      },
+    });
+
     this.sowService.listByCustomer(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (sows) => {
         this.sows = sows;
@@ -699,17 +902,7 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
       },
     });
 
-    this.customerService.listNotes(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (notes) => {
-        this.notes = notes;
-        this.isLoadingNotes = false;
-      },
-      error: (err) => {
-        console.error('[API] Failed to load notes:', err);
-        this.isLoadingNotes = false;
-        this.noteErrorMessage = 'Failed to load notes';
-      },
-    });
+    this.loadStaffOnlyData(id);
 
     this.customerService.getOne(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data) => {
@@ -732,6 +925,62 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
         console.error('[API] Failed to load customer:', err);
         this.customerLoadError = err.status === 404 ? 'Customer not found' : 'Failed to load customer. Please try again';
         this.isLoading = false;
+      },
+    });
+  }
+
+  // input: id ของลูกค้า — output: ไม่มี
+  // ใบเสนอราคา/ระบบ และ Notes technician ไม่มีสิทธิ์ (backend ตอบ 403) จึงต้องรู้ role ก่อนค่อยเรียก
+  // รอ profile โหลดเสร็จก่อนตัดสิน ไม่งั้น technician ที่เปิดหน้านี้ตรงๆ จะยิง API เหล่านี้ไปก่อนแล้วโดน 403
+  // technician ไม่โหลดอะไรเลย แต่ต้องปิดสถานะ loading ของทุกส่วน ไม่งั้น History ค้างที่ "Loading…"
+  private loadStaffOnlyData(id: string): void {
+    this.profileLoaded$.pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      if (!this.canUseStaffTools()) {
+        this.isLoadingEstimates = false;
+        this.isLoadingSystem = false;
+        this.isLoadingNotes = false;
+        this.isLoadingTickets = false;
+        return;
+      }
+      this.loadEstimates(id);
+      this.loadNotes(id);
+      this.loadMentionableUsers(id);
+    });
+  }
+
+  private loadEstimates(id: string): void {
+    this.estimateService.listByCustomer(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (estimates) => {
+        this.estimates = estimates;
+        this.isLoadingEstimates = false;
+        this.loadSystemDetails(estimates);
+      },
+      error: (err) => {
+        console.error('[API] Failed to load estimate history:', err);
+        this.isLoadingEstimates = false;
+        this.isLoadingSystem = false;
+      },
+    });
+  }
+
+  // ล้มเหลวก็แค่แท็กคนไม่ได้ — โน้ตยังโพสต์ได้ปกติ จึงไม่โชว์ error ให้ผู้ใช้
+  private loadMentionableUsers(id: string): void {
+    this.customerService.listMentionableUsers(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (users) => { this.mentionableUsers = users; },
+      error: (err) => console.error('[API] Failed to load mentionable users:', err),
+    });
+  }
+
+  private loadNotes(id: string): void {
+    this.customerService.listNotes(id).pipe(takeUntil(this.customerIdChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (notes) => {
+        this.notes = notes;
+        this.isLoadingNotes = false;
+      },
+      error: (err) => {
+        console.error('[API] Failed to load notes:', err);
+        this.isLoadingNotes = false;
+        this.noteErrorMessage = 'Failed to load notes';
       },
     });
   }
@@ -1152,37 +1401,70 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
     });
   }
 
+  // เปิดฟอร์ม หรือปิดฟอร์ม (ถามยืนยันก่อนถ้ามี draft ที่ยังไม่ส่ง กันพิมพ์ยาวๆ แล้วหายเพราะเผลอกด Cancel)
   toggleNoteForm(): void {
     if (this.isSavingNote) return;
-    this.showNoteForm = !this.showNoteForm;
-    this.noteErrorMessage = '';
     if (!this.showNoteForm) {
-      this.newNoteText = '';
+      this.showNoteForm = true;
+      this.noteErrorMessage = '';
+      return;
     }
+    if (this.noteComposer()?.hasDraft()) {
+      this.confirmationService.confirm({
+        header: 'Discard draft',
+        message: 'Discard this note? What you wrote and attached will be lost.',
+        icon: 'pi pi-exclamation-triangle',
+        acceptLabel: 'Discard',
+        rejectLabel: 'Keep editing',
+        accept: () => this.closeNoteForm(),
+      });
+      return;
+    }
+    this.closeNoteForm();
   }
 
-  // input: this.newNoteText — output: ไม่มี, เพิ่มโน้ตที่ backend คืนมาไว้บนสุดของ list
-  // ไม่ล้างข้อความจนกว่า API จะสำเร็จ เพื่อไม่ให้ข้อความที่พิมพ์หายเมื่อ network หลุด
-  saveNote(): void {
-    const trimmed = this.newNoteText.trim();
-    if (!this.customer || !trimmed || this.isSavingNote) return;
+  private closeNoteForm(): void {
+    this.showNoteForm = false;
+    this.noteErrorMessage = '';
+  }
 
+  // input: ค่าจาก composer (title/ข้อความ/คนที่แท็ก/ไฟล์) + composer ตัวนั้น — output: ไม่มี, เพิ่มโน้ตที่ backend คืนมาไว้บนสุดของ list
+  // ไม่ล้าง composer จนกว่า API จะสำเร็จ เพื่อไม่ให้ข้อความและไฟล์ที่เลือกไว้หายเมื่อ network หลุด
+  saveNote(value: NoteComposerValue, composer: NoteComposerComponent): void {
+    if (!this.customer || this.isSavingNote) return;
+
+    const customerId = this.customer.id;
     this.noteErrorMessage = '';
     this.isSavingNote = true;
 
-    this.customerService.addNote(this.customer.id, { text: trimmed }).subscribe({
+    this.customerService.addNote(customerId, value).subscribe({
       next: (saved) => {
-        this.notes = [saved, ...this.notes];
-        this.newNoteText = '';
-        this.showNoteForm = false;
         this.isSavingNote = false;
+        // ผู้ใช้สลับไปลูกค้าคนอื่นระหว่างที่กำลัง upload — โน้ตนี้ไม่ใช่ของหน้าที่เปิดอยู่แล้ว ห้ามแทรกเข้า list ของลูกค้าคนใหม่
+        if (this.customer?.id !== customerId) return;
+        this.notes = [saved, ...this.notes];
+        composer.reset();
+        this.showNoteForm = false;
       },
       error: (err: HttpErrorResponse) => {
         console.error('[API] Failed to save note:', err);
         this.isSavingNote = false;
-        this.noteErrorMessage = 'Failed to save note. Please try again';
+        this.noteErrorMessage = this.describeNoteSaveError(err, 'Failed to save note. Please try again');
       },
     });
+  }
+
+  // input: error จาก POST โน้ต/comment + ข้อความสำรอง — output: ข้อความที่ผู้ใช้แก้เองได้ (ไฟล์ใหญ่เกิน/ข้อมูลไม่ครบ/เน็ตหลุด) ไม่งั้นใช้ข้อความสำรอง
+  private describeNoteSaveError(err: HttpErrorResponse, fallback: string): string {
+    if (err.status === 0) return 'Network error. Check your connection and try again';
+    if (err.status === 413) return 'A file is too large (max 10MB per file)';
+    if (err.status === 400) {
+      const body: unknown = err.error;
+      const message = typeof body === 'object' && body !== null && 'message' in body ? body.message : undefined;
+      if (typeof message === 'string') return message;
+      if (Array.isArray(message)) return message.filter((m): m is string => typeof m === 'string').join(', ') || fallback;
+    }
+    return fallback;
   }
 
   // input: note id — output: ไม่มี
@@ -1256,85 +1538,33 @@ export class CustomerDetailPageComponent implements OnInit, OnDestroy {
     });
   }
 
-  // input: this.commentDraftByNoteId[noteId] + this.commentImageDraftByNoteId[noteId] — output: ไม่มี, เพิ่ม comment ที่ backend คืนมาไว้ท้าย list และ +1 commentCount บนโน้ต
-  // ส่งได้แม้ไม่มีข้อความ ถ้ามีรูปแนบอย่างน้อย 1 รูป
-  saveNoteComment(noteId: string): void {
-    const trimmed = (this.commentDraftByNoteId[noteId] ?? '').trim();
-    const draftImages = this.commentImageDraftByNoteId[noteId] ?? [];
-    if (!this.customer || (!trimmed && draftImages.length === 0) || this.isSavingCommentForNoteId[noteId]) return;
+  // input: note id + ค่าจาก composer + composer ตัวนั้น — output: ไม่มี, เพิ่ม comment ที่ backend คืนมาไว้ท้าย list และ +1 commentCount บนโน้ต
+  // ส่งได้แม้ไม่มีข้อความ ถ้ามีไฟล์แนบอย่างน้อย 1 ไฟล์ (composer เช็คให้แล้ว)
+  saveNoteComment(noteId: string, value: NoteComposerValue, composer: NoteComposerComponent): void {
+    if (!this.customer || this.isSavingCommentForNoteId[noteId]) return;
 
+    const customerId = this.customer.id;
     this.commentErrorByNoteId[noteId] = '';
     this.isSavingCommentForNoteId[noteId] = true;
 
-    this.customerService.addNoteComment(this.customer.id, noteId, trimmed, draftImages.map((d) => d.file)).subscribe({
+    this.customerService.addNoteComment(customerId, noteId, { text: value.text, mentionedUserIds: value.mentionedUserIds, files: value.files }).subscribe({
       next: (saved) => {
-        this.commentsByNoteId[noteId] = [...(this.commentsByNoteId[noteId] ?? []), saved];
-        this.commentDraftByNoteId[noteId] = '';
-        this.clearCommentImageDrafts(noteId);
         this.isSavingCommentForNoteId[noteId] = false;
+        // สลับลูกค้าระหว่าง upload — state ของลูกค้าคนเดิมถูกล้างไปแล้ว ไม่ต้องเขียนกลับ
+        if (this.customer?.id !== customerId) return;
+        this.commentsByNoteId[noteId] = [...(this.commentsByNoteId[noteId] ?? []), saved];
+        composer.reset();
         const note = this.notes.find(n => n.id === noteId);
         if (note) note.commentCount += 1;
       },
       error: (err: HttpErrorResponse) => {
         console.error('[API] Failed to save comment:', err);
         this.isSavingCommentForNoteId[noteId] = false;
-        this.commentErrorByNoteId[noteId] = 'Failed to save comment. Please try again';
+        this.commentErrorByNoteId[noteId] = err.status === 404
+          ? 'This note no longer exists. Reload the page'
+          : this.describeNoteSaveError(err, 'Failed to save comment. Please try again');
       },
     });
-  }
-
-  // input: note id + FileList จาก <input type="file" multiple> — output: ไม่มี, validate แล้วเพิ่มเข้า draft ของโน้ตนั้น (เก็บ object URL ไว้ preview)
-  onCommentImagesSelected(noteId: string, event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const files = Array.from(input.files ?? []);
-    input.value = '';
-    if (files.length === 0) return;
-
-    const existing = this.commentImageDraftByNoteId[noteId] ?? [];
-    this.commentErrorByNoteId[noteId] = '';
-
-    if (existing.length + files.length > NOTE_COMMENT_MAX_IMAGES) {
-      this.commentErrorByNoteId[noteId] = `You can attach up to ${NOTE_COMMENT_MAX_IMAGES} images per comment`;
-      return;
-    }
-
-    for (const file of files) {
-      if (!NOTE_COMMENT_IMAGE_ACCEPTED_TYPES.includes(file.type)) {
-        this.commentErrorByNoteId[noteId] = 'Only JPEG, PNG, or WebP images are supported';
-        return;
-      }
-      if (file.size > NOTE_COMMENT_IMAGE_MAX_SIZE_BYTES) {
-        this.commentErrorByNoteId[noteId] = 'Each image must not exceed 10MB';
-        return;
-      }
-    }
-
-    const added = files.map((file) => ({ file, previewUrl: URL.createObjectURL(file) }));
-    this.commentImageDraftByNoteId[noteId] = [...existing, ...added];
-  }
-
-  // input: note id + index ในรายการรูปที่ยังไม่ส่ง — output: ไม่มี, ลบออกจาก draft และ revoke object URL กัน memory leak
-  removeCommentImageDraft(noteId: string, index: number): void {
-    const existing = this.commentImageDraftByNoteId[noteId] ?? [];
-    const target = existing[index];
-    if (!target) return;
-    URL.revokeObjectURL(target.previewUrl);
-    this.commentImageDraftByNoteId[noteId] = existing.filter((_, i) => i !== index);
-  }
-
-  private clearCommentImageDrafts(noteId: string): void {
-    for (const draft of this.commentImageDraftByNoteId[noteId] ?? []) {
-      URL.revokeObjectURL(draft.previewUrl);
-    }
-    delete this.commentImageDraftByNoteId[noteId];
-  }
-
-  private revokeAllCommentImageDrafts(): void {
-    for (const drafts of Object.values(this.commentImageDraftByNoteId)) {
-      for (const draft of drafts ?? []) {
-        URL.revokeObjectURL(draft.previewUrl);
-      }
-    }
   }
 
   // input: note id + comment id — output: ไม่มี

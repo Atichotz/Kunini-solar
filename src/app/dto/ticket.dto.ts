@@ -1,5 +1,5 @@
 export type TicketStatus = 'todo' | 'to_schedule' | 'in_progress' | 'done';
-export type TicketRole = 'ceo' | 'purchasing' | 'admin' | 'technician';
+export type TicketRole = 'ceo' | 'purchasing' | 'admin' | 'engineer' | 'technician' | 'sales';
 
 // ผู้ใช้ใน allowed_users — role ตรงนี้คือแหล่งอ้างอิงเดียวของฟีเจอร์ Ticket (ไม่ใช่ role ใน UserProfile)
 export interface TicketAssignee {
@@ -22,6 +22,8 @@ export interface TicketCard {
   assignees: TicketAssignee[];
   // ชื่อคนสร้าง — null ถ้า ticket เก่าไม่มี created_by
   createdByName: string | null;
+  // ชื่อคนแก้ล่าสุด — null ถ้ายังไม่เคยถูกแก้หลังสร้าง (รวม ticket เก่าก่อนมี updated_by)
+  updatedByName: string | null;
   commentCount: number;
   createdAt: string;
   updatedAt: string;

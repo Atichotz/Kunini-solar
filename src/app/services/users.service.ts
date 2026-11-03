@@ -5,7 +5,7 @@ import { environment } from '../../environments/environment';
 
 export interface UserListItem {
   userId: string;
-  role: 'ceo' | 'purchasing' | 'admin' | 'technician';
+  role: 'ceo' | 'purchasing' | 'admin' | 'engineer' | 'technician' | 'sales';
   name: string;
   email: string;
   username: string | null;

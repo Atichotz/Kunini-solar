@@ -10,6 +10,16 @@
 </IfModule>
 
 <IfModule mod_headers.c>
+  # Security headers (ทุกไฟล์)
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "DENY"
+  # เริ่ม 1 วันก่อน — ห้ามใส่ includeSubDomains/preload จนกว่าจะมั่นใจว่าทุก subdomain เป็น HTTPS
+  Header always set Strict-Transport-Security "max-age=86400"
+  # Report-Only: ดู console ว่ามีอะไรโดนบล็อกก่อน แล้วค่อยเปลี่ยนเป็น Content-Security-Policy
+  # style-src 'unsafe-inline' จำเป็น เพราะ Angular/PrimeNG ใส่ inline style
+  Header always set Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.kunini.com; frame-src https://calendar.google.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
+
   # index.html + version.json: ห้าม cache ทั้ง browser และ LiteSpeed server cache
   <FilesMatch "^(index\.html|version\.json)$">
     Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"

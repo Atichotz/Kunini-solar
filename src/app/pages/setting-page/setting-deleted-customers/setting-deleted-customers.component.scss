@@ -1,0 +1,96 @@
+// รูปแบบ card/header เดียวกับ setting-account — ไม่ย้ายเข้า styles.scss เพราะ setting-account ก็ประกาศของตัวเองแบบ component-scoped
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.content-card {
+  padding: 24px;
+
+  @media (max-width: 1024px) {
+    padding: 18px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 14px;
+  }
+}
+
+.content-header {
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--k-light-grey);
+  padding-bottom: 16px;
+
+  h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--k-dark-grey);
+    margin-bottom: 4px;
+  }
+
+  p {
+    font-size: 13px;
+    color: var(--k-mid-grey);
+  }
+}
+
+.state-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 0;
+  color: var(--k-mid-grey);
+}
+
+.action-error {
+  margin-bottom: 12px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 32px 0;
+  color: var(--k-mid-grey);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.deleted-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th {
+    text-align: left;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--k-mid-grey);
+    padding: 0 10px 8px 10px;
+    border-bottom: 2px solid var(--k-light-grey);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 10px;
+    border-bottom: 1px solid var(--k-light-grey);
+    color: var(--k-black);
+    vertical-align: middle;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.name-cell {
+  font-weight: 700;
+}
+
+.action-cell {
+  text-align: right;
+  white-space: nowrap;
+}

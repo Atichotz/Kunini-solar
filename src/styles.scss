@@ -145,6 +145,37 @@ h1.k-header {
   border-color: var(--k-dark-grey);
 }
 
+// ปุ่มลบ/ทำลายข้อมูล — ใช้คู่กับ .k-btn หรือ .k-btn-sm (+ .k-btn-outline) ต้องอยู่หลัง .k-btn-outline เพื่อ override สี border/hover
+.k-btn-danger {
+  background-color: transparent;
+  color: var(--k-red);
+  border-color: var(--k-red);
+}
+
+.k-btn-danger:hover:not(:disabled) {
+  background-color: rgba(176, 29, 42, 0.08);
+  border-color: var(--k-red);
+}
+
+.k-btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+// ข้อความ error ใต้ฟอร์ม/การ์ด — ใช้คู่ role="alert" และไอคอน fa-circle-exclamation นำหน้า
+.k-inline-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--k-red);
+
+  i {
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+}
+
 .k-btn:hover,
 .k-btn-sm:hover {
   transform: translateY(-2px);
@@ -627,6 +658,11 @@ h1.k-header {
   flex-shrink: 0;
 }
 
+.k-tab i {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
 .k-tab:hover {
   color: var(--k-dark-grey);
 }
@@ -1082,8 +1118,16 @@ select:focus {
   transition: opacity 0.15s ease;
 }
 
-.note-item:hover .note-delete-btn {
+.note-item:hover .note-delete-btn,
+.note-delete-btn:focus-visible {
   opacity: 1;
+}
+
+// จอสัมผัสไม่มี hover — ถ้าซ่อนปุ่มลบไว้จะกดไม่ได้เลย
+@media (hover: none) {
+  .note-delete-btn {
+    opacity: 1;
+  }
 }
 
 .note-form {
@@ -1116,6 +1160,12 @@ select:focus {
     color: var(--k-red);
     text-decoration: underline;
   }
+}
+
+// "@ชื่อ" ของคนที่ถูกแท็ก — อยู่ใน innerHTML ที่ NoteTextPipe สร้าง จึงต้องเป็น global (component SCSS มองไม่เห็น)
+.note-mention {
+  color: var(--k-accent-blue);
+  font-weight: 700;
 }
 
 .upload-area {
@@ -1161,6 +1211,11 @@ select:focus {
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
+
+  &:focus-visible {
+    outline: 2px solid var(--k-accent-blue);
+    outline-offset: 2px;
+  }
 
   &.btn-remove {
     background-color: transparent;
@@ -1282,4 +1337,152 @@ select:focus {
   background: var(--k-dark-grey);
   color: white;
   border-color: var(--k-dark-grey);
+}
+
+/* Pager — ใช้ร่วมกัน (ticket-board, customer-detail History) */
+.k-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--k-light-grey);
+}
+
+.k-pager-size,
+.k-pager-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.k-pager-size-top {
+  margin-top: 12px;
+}
+
+.k-pager-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--k-mid-grey);
+}
+
+.k-pager-btn {
+  min-width: 32px;
+  padding: 4px 10px;
+  border: 1px solid var(--k-light-grey);
+  border-radius: var(--radius-pill);
+  background: var(--card-bg);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--k-dark-grey);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    border-color: var(--k-red);
+    color: var(--k-red);
+  }
+
+  &.active {
+    border-color: var(--k-red);
+    background: var(--k-red);
+    color: var(--k-white);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+/* Summary KPI Metrics — ใช้ร่วมกันใน dashboard และ workflow-page */
+.kpi-card {
+  background: var(--card-bg);
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--k-light-grey);
+  border-top: 4px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+    border: 1.5px solid var(--k-red);
+    border-top: 4px solid transparent;
+  }
+
+  &.review { border-top-color: var(--k-red); }
+  &.install { border-top-color: var(--k-accent-blue); }
+  &.complete { border-top-color: var(--k-accent-green); }
+  &.revenue { border-top-color: var(--k-dark-grey); }
+}
+
+.kpi-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+
+  &.review { background: rgba(176, 29, 42, 0.1); color: var(--k-red); }
+  &.install { background: rgba(0, 136, 194, 0.1); color: var(--k-accent-blue); }
+  &.complete { background: rgba(85, 177, 165, 0.1); color: var(--k-accent-green); }
+  &.revenue { background: rgba(65, 65, 66, 0.1); color: var(--k-dark-grey); }
+}
+
+.kpi-details {
+  flex: 1;
+}
+
+.kpi-val {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--k-black);
+  line-height: 1.2;
+}
+
+.kpi-lbl {
+  font-size: 12px;
+  color: var(--k-mid-grey);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* รุ่นกะทัดรัด สำหรับหน้าที่พื้นที่แนวตั้งจำกัด (workflow board) */
+.kpi-card.kpi-compact {
+  padding: 10px 16px;
+  gap: 12px;
+
+  .kpi-icon { width: 36px; height: 36px; font-size: 16px; }
+  .kpi-val { font-size: 20px; }
+}
+
+
+/* ===== DOC READ-ONLY (purchasing เปิด SOW/Report ดูได้อย่างเดียว) — ซ่อนปุ่มแก้ ปิดการกรอก แต่ Export to PDF ยังใช้ได้ ===== */
+.doc-readonly {
+  .k-btn-primary,
+  .k-btn-text.no-print,
+  .icon-btn.no-print,
+  .photo-box,
+  .survey-layout-remove-btn {
+    display: none !important;
+  }
+
+  input,
+  textarea,
+  select,
+  .p-select,
+  .p-datepicker,
+  .p-inputtext,
+  .weather-btn {
+    pointer-events: none;
+  }
 }

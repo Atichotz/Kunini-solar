@@ -102,6 +102,8 @@ export interface CallOutServiceReportSummary {
   photoCount: number;
   createdAt: string;
   createdBy: string | null;
+  // ใช้ซ่อนปุ่มลบของคนอื่นสำหรับ technician — null = แถวเก่าไม่มีเจ้าของ
+  createdByUserId: string | null;
   updatedAt: string;
   updatedBy: string | null;
 }

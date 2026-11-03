@@ -32,6 +32,8 @@ export class TodoCommentsComponent implements OnInit, OnDestroy {
   @Input({ required: true }) me!: TodoAssignee | null;
   // คนที่มองเห็น task นี้ได้เท่านั้น (privileged + assignee ที่ role ตรงกับ task) — คำนวณจาก parent ต่อ task
   @Input({ required: true }) mentionOptions!: AssigneeOption[];
+  // true = แสดง comment อย่างเดียว ซ่อนช่องพิมพ์และปุ่มลบ (parent ส่งมาจาก canComment)
+  @Input() readOnly = false;
   // แจ้ง parent ให้ reload todos list เพื่ออัปเดตจำนวน comment บน badge (parent เก็บ commentCount รวมไว้ที่ TodoCard)
   @Output() commentsChanged = new EventEmitter<void>();
 
@@ -71,7 +73,7 @@ export class TodoCommentsComponent implements OnInit, OnDestroy {
   }
 
   canDelete(comment: TodoComment): boolean {
-    if (!this.me) return false;
+    if (!this.me || this.readOnly) return false;
     return comment.author.id === this.me.id || this.me.role === 'ceo' || this.me.role === 'admin';
   }
 

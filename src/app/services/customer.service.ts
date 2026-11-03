@@ -7,8 +7,11 @@ import type {
   CreateCustomerPayload,
   CustomerDetail,
   CustomerListItem,
+  DeletedCustomer,
   ContactDetail,
+  CreateNoteCommentPayload,
   CreateNotePayload,
+  MentionableUser,
   NoteDetail,
   NoteCommentDetail,
   UpdateCustomerNamePayload,
@@ -44,6 +47,23 @@ export class CustomerService {
   // output: customers ทั้งหมดเรียงตามชื่อ พร้อม primary contact — ใช้กับ "Customer List" panel
   listView(): Observable<CustomerListItem[]> {
     return this.http.get<CustomerListItem[]>(`${this.baseUrl}/list-view`);
+  }
+
+  // input: customer UUID
+  // output: void — soft delete (ข้อมูลทั้งหมดยังอยู่ CEO กู้คืนได้), 404 ถ้าถูกลบไปแล้ว, 403 ถ้าสิทธิ์ไม่พอ
+  delete(customerId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${customerId}`);
+  }
+
+  // output: ลูกค้าที่ถูกลบ เรียงลบล่าสุดก่อน — CEO เท่านั้น (role อื่นได้ 403)
+  listDeleted(): Observable<DeletedCustomer[]> {
+    return this.http.get<DeletedCustomer[]>(`${this.baseUrl}/deleted`);
+  }
+
+  // input: customer UUID
+  // output: void — 404 ถ้าไม่ได้ถูกลบ/ถูกกู้ไปแล้ว, 409 ถ้า Customer # ชนกับลูกค้าที่ active อยู่
+  restore(customerId: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/${customerId}/restore`, {});
   }
 
   // input: CreateCustomerPayload (created_by แนบโดย backend จาก JWT)
@@ -114,10 +134,16 @@ export class CustomerService {
     return this.http.get<NoteDetail[]>(`${this.baseUrl}/${customerId}/notes`);
   }
 
-  // input: customer UUID + ข้อความโน้ต (author แนบโดย backend จาก JWT)
-  // output: โน้ตที่สร้างแล้ว
+  // input: customer UUID
+  // output: คนที่แท็กได้ในโน้ต/comment (ไม่รวมตัวเอง และ technician)
+  listMentionableUsers(customerId: string): Observable<MentionableUser[]> {
+    return this.http.get<MentionableUser[]>(`${this.baseUrl}/${customerId}/notes/mentionable-users`);
+  }
+
+  // input: customer UUID + title/ข้อความ/คนที่แท็ก/ไฟล์แนบ (author แนบโดย backend จาก JWT)
+  // output: โน้ตที่สร้างแล้วพร้อม signed URL ของไฟล์แนบ
   addNote(customerId: string, payload: CreateNotePayload): Observable<NoteDetail> {
-    return this.http.post<NoteDetail>(`${this.baseUrl}/${customerId}/notes`, payload);
+    return this.http.post<NoteDetail>(`${this.baseUrl}/${customerId}/notes`, this.toNoteFormData(payload));
   }
 
   // input: customer UUID + note UUID
@@ -132,18 +158,29 @@ export class CustomerService {
     return this.http.get<NoteCommentDetail[]>(`${this.baseUrl}/${customerId}/notes/${noteId}/comments`);
   }
 
-  // input: customer UUID + note UUID + ข้อความ (ว่างได้ถ้ามีรูปแนบ) + รูปแนบ 0-5 รูป (author แนบโดย backend จาก JWT)
-  // output: comment ที่สร้างแล้ว พร้อม signed URL ของรูป
-  addNoteComment(customerId: string, noteId: string, text: string, images: File[]): Observable<NoteCommentDetail> {
-    const formData = new FormData();
-    formData.append('text', text);
-    images.forEach((image) => formData.append('images', image));
-    return this.http.post<NoteCommentDetail>(`${this.baseUrl}/${customerId}/notes/${noteId}/comments`, formData);
+  // input: customer UUID + note UUID + ข้อความ (ว่างได้ถ้ามีไฟล์แนบ) + คนที่แท็ก + ไฟล์แนบ (author แนบโดย backend จาก JWT)
+  // output: comment ที่สร้างแล้ว พร้อม signed URL ของไฟล์แนบ
+  addNoteComment(customerId: string, noteId: string, payload: CreateNoteCommentPayload): Observable<NoteCommentDetail> {
+    return this.http.post<NoteCommentDetail>(
+      `${this.baseUrl}/${customerId}/notes/${noteId}/comments`,
+      this.toNoteFormData(payload),
+    );
   }
 
   // input: customer UUID + note UUID + comment UUID
   // output: void — 404 ถ้าถูกลบไปแล้ว
   deleteNoteComment(customerId: string, noteId: string, commentId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${customerId}/notes/${noteId}/comments/${commentId}`);
+  }
+
+  // multipart: field ที่เป็น array ต้อง append ซ้ำชื่อเดิมทีละค่า (backend รวมเป็น array เอง)
+  // title ที่ว่างไม่ต้องส่ง เพราะ backend ถือว่าไม่ได้กรอกอยู่แล้ว
+  private toNoteFormData(payload: { title?: string; text: string; mentionedUserIds: string[]; files: File[] }): FormData {
+    const formData = new FormData();
+    if (payload.title) formData.append('title', payload.title);
+    if (payload.text) formData.append('text', payload.text);
+    payload.mentionedUserIds.forEach((userId) => formData.append('mentionedUserIds', userId));
+    payload.files.forEach((file) => formData.append('files', file));
+    return formData;
   }
 }

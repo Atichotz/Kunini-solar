@@ -8,7 +8,7 @@ import { environment } from '../../environments/environment';
 
 export interface UserProfile {
   userId: string;
-  role: 'ceo' | 'purchasing' | 'admin' | 'technician';
+  role: 'ceo' | 'purchasing' | 'admin' | 'engineer' | 'technician' | 'sales';
   email: string;
   displayName: string | null;
   avatarUrl: string | null;
@@ -38,8 +38,10 @@ export class AuthService {
           auth: {
             // zone.js patches Promise globally ทำให้ navigator.locks ทำงานผิดปกติ
             // override ให้ใช้ blocking lock แทน ifAvailable ที่ fail ทันที
+            // cast: lib.dom ของ TS 5.9 ตีความ request(fn) เป็น Promise<Promise<R>>
+            // แต่ runtime promise ซ้อนกันจะ flatten เป็น Promise<R> อยู่แล้ว
             lock: <R>(name: string, _acquireTimeout: number, fn: () => Promise<R>): Promise<R> =>
-              navigator.locks.request(name, fn),
+              navigator.locks.request(name, fn) as Promise<R>,
           },
         }
       );

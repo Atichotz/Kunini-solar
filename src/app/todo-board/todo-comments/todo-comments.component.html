@@ -61,6 +61,7 @@
   <p class="comments-error" role="alert">{{ message }}</p>
   }
 
+  @if (!readOnly) {
   <div class="comment-composer">
     <div class="comment-composer-input">
       <textarea #commentInput class="comment-textarea" rows="2" maxlength="4000" placeholder="Add a comment…"
@@ -114,4 +115,5 @@
       </button>
     </div>
   </div>
+  }
 </div>

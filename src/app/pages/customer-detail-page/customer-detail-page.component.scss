@@ -19,7 +19,16 @@ a:hover {
 .client-name {
     font-size: 20px;
     font-weight: 700;
-    color: #1a1a1a;
+    color: var(--k-black);
+}
+
+// สีเน้น/ข้อความรองที่เดิมเขียน inline ใน template
+.icon-accent {
+    color: var(--k-red);
+}
+
+.text-muted {
+    color: var(--k-mid-grey);
 }
 
 // base input/border/padding มาจาก global — override เฉพาะขนาดตัวอักษรให้เท่ากับ .client-name
@@ -30,12 +39,21 @@ a:hover {
 }
 
 .client-status {
-    font-size: 11px;
-    color: #999;
+    font-size: 12px;
+    color: var(--k-dark-grey);
     margin-top: 2px;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
+}
+
+// จุดนิ่ง — ไม่กะพริบ/ไม่เขียวตลอด เพราะ status ที่ไม่ดี (เช่น cancelled) จะสื่อผิด
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--k-accent-green);
+    display: inline-block;
 }
 
 .customer-number-label {
@@ -72,19 +90,39 @@ a:hover {
     padding: 16px 24px 16px 24px;
     margin-top: 24px;
     margin-bottom: 24px;
-    border-bottom: 1px solid var(--k-light-grey);
-    border: 3px solid var(--k-red);
+    border: 1px solid var(--k-light-grey);
+    border-left: 4px solid var(--k-red); // แถบแดงด้านซ้ายแทนกรอบหนา — ยังคงเอกลักษณ์แบรนด์แต่ไม่รก
     border-radius: var(--radius-lg);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
+// ใช้เงาแทนการเปลี่ยน border ตอน hover — border เปลี่ยนขนาดทำให้เนื้อหาในการ์ดขยับ
 .card {
     padding: 24px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-    transition: all .3s ease;
+    transition: box-shadow .2s ease;
 }
 
 .card:hover {
-    border: 1.5px solid var(--k-red);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.07);
+}
+
+// ใช้ cover เพื่อไม่ให้เห็นขอบรูปเมื่อการ์ดสูงขึ้นตามเนื้อหา
+// gradient ขาวโปร่งทับรูปอีกชั้น — ลายเส้น/ใบไม้ในรูปทำให้ label สีเทา 12px อ่านยากถ้าปล่อยรูปเต็ม
+// ไม่ override background-color — ให้ใช้ค่าจาก .card ส่วนกลางเป็นสีรองพื้น
+.bill-card {
+    --bill-bg-overlay: color-mix(in srgb, var(--k-white) 65%, transparent);
+
+    background-image:
+        linear-gradient(var(--bill-bg-overlay), var(--bill-bg-overlay)),
+        url('/assets/images/bg-electronic-bill.jpg');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center bottom;
+
+    .input-label {
+        color: var(--k-dark-grey);
+    }
 }
 
 .card-header {
@@ -92,21 +130,10 @@ a:hover {
     margin-bottom: 16px;
 }
 
-.btn-text {
-    background: none;
-    color: var(--k-accent-blue);
-    padding: 0;
-    font-weight: normal;
-}
-
-.btn-text:hover {
-    text-decoration: underline;
-}
-
 /* Badges / Tags */
-.badge-project-type {
-    background-color: var(--k-black);
-    color: #fff;
+.badge-current {
+    background-color: var(--k-accent-green);
+    color: var(--k-white);
 }
 
 /* Tag Selection Format */
@@ -125,9 +152,19 @@ a:hover {
     font-size: 12px;
     /* Reduced font size */
     color: var(--k-dark-grey);
-    background-color: #fff;
+    background-color: var(--k-white);
     cursor: pointer;
     transition: all 0.2s ease;
+
+    // โหมดอ่านอย่างเดียว — ตัวที่ไม่ได้เลือกจางลงและไม่ใช่ปุ่ม (ไม่มี pointer หลอก)
+    &.tag-static {
+        cursor: default;
+
+        &:not(.active) {
+            color: var(--k-mid-grey);
+            border-color: var(--k-light-grey);
+        }
+    }
 
     &.HuaHin {
         border-color: var(--k-huahin);
@@ -159,7 +196,7 @@ button.tag-item {
 
 .tag-item.active {
     background-color: var(--k-dark-grey);
-    color: #fff;
+    color: var(--k-white);
 
     &.HuaHin {
         background-color: var(--k-huahin);
@@ -189,7 +226,7 @@ button.tag-item {
     font-size: 13px;
     font-weight: 700;
     color: var(--k-dark-grey);
-    background-color: #fff;
+    background-color: var(--k-white);
     cursor: pointer;
     outline: none;
     width: 45%;
@@ -248,14 +285,43 @@ button.tag-item {
     color: var(--k-mid-grey);
 }
 
-/* SVG Icons */
-.icon {
-    width: 14px;
-    height: 14px;
-    vertical-align: middle;
-    margin-right: 6px;
-    stroke: var(--k-mid-grey);
-    opacity: 0.8;
+/* System Details — แถวละหนึ่งเส้นคั่น (เดิมมี .divider + border ซ้อนกัน) */
+.system-rows {
+    display: flex;
+    flex-direction: column;
+}
+
+.system-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+
+    & + & {
+        border-top: 1px solid var(--k-light-grey);
+    }
+
+    &:first-child {
+        padding-top: 0;
+    }
+
+    &:last-child {
+        padding-bottom: 0;
+    }
+
+    .info-label {
+        margin-bottom: 0;
+    }
+
+    .info-value {
+        text-align: right;
+    }
+}
+
+.system-price {
+    color: var(--k-red);
+    font-weight: 700;
 }
 
 /* Document List */
@@ -265,15 +331,35 @@ button.tag-item {
     gap: 10px;
 }
 
+// label บอกว่าวันที่ในแถวเป็นวันสร้าง/แก้ไข/finalize — เฉพาะ History ของหน้านี้
+.history-date-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--k-mid-grey);
+
+    &.is-updated {
+        color: var(--k-dark-grey);
+    }
+}
+
 .doc-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 16px;
     padding: 12px 16px;
     background-color: var(--bg-color);
     border-radius: var(--radius-sm);
     border: 1px solid var(--k-light-grey);
     font-size: 13px;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+
+    &:hover {
+        background-color: var(--card-bg);
+        border-color: var(--k-mid-grey);
+    }
 }
 
 .doc-item-title {
@@ -282,7 +368,46 @@ button.tag-item {
     text-decoration: none;
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
+    min-width: 0;
+}
+
+// ไอคอนประเภทเอกสารในวงกลมจาง — สแกนแยก estimate/ticket/sow/survey/call-out ได้เร็วขึ้น
+.doc-item-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: rgba(0, 136, 194, 0.1);
+    color: var(--k-accent-blue);
+    font-size: 12px;
+}
+
+// meta (วันที่/คน) อยู่บน ปุ่ม action อยู่ล่าง — ไม่ปนกันเป็นบรรทัดเดียว
+.doc-item-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+    text-align: right;
+}
+
+.doc-item-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+
+    // แถวที่ไม่มีปุ่มให้ (เช่น quotation final ของ role ที่ไม่ใช่ CEO) ไม่ต้องกินที่ว่าง
+    &:not(:has(> *)) {
+        display: none;
+    }
 }
 
 .doc-item-title:hover {
@@ -341,8 +466,13 @@ button.doc-item-title {
 }
 
 .editing-row td {
-    background-color: var(--k-light-grey);
+    background-color: var(--bg-color);
     padding: 6px 10px;
+
+    // แถบแดงซ้ายบอกว่าแถวนี้กำลังแก้ไข
+    &:first-child {
+        box-shadow: inset 3px 0 0 var(--k-red);
+    }
 }
 
 .name-cell {
@@ -363,10 +493,10 @@ button.doc-item-title {
     font-size: 13px;
     font-family: inherit;
     outline: none;
-    background: #fff;
+    background: var(--k-white);
 
     &:focus {
-        border-color: var(--k-accent-blue);
+        border-color: var(--k-red);
     }
 }
 
@@ -376,9 +506,13 @@ button.doc-item-title {
     border-radius: var(--radius-sm);
     font-size: 13px;
     font-family: inherit;
-    background: #fff;
+    background: var(--k-white);
     outline: none;
     cursor: pointer;
+
+    &:focus {
+        border-color: var(--k-red);
+    }
 }
 
 .action-cell {
@@ -391,7 +525,7 @@ button.doc-item-title {
 // เหลือแค่ .btn-save ที่ยังใช้เฉพาะ contact table หน้านี้
 .btn-icon.btn-save {
     background-color: var(--k-accent-green);
-    color: #fff;
+    color: var(--k-white);
     margin-right: 4px;
 
     &:hover {
@@ -407,8 +541,8 @@ button.doc-item-title {
     font-weight: 700;
 
     &.type-primary {
-        background-color: #e0f2fe;
-        color: #0369a1;
+        background-color: rgba(0, 136, 194, 0.1);
+        color: var(--k-accent-blue);
     }
 
     &.type-secondary {
@@ -417,7 +551,7 @@ button.doc-item-title {
     }
 
     &.type-other {
-        background-color: #f3f4f6;
+        background-color: var(--bg-color);
         color: var(--k-mid-grey);
     }
 }
@@ -428,8 +562,45 @@ button.doc-item-title {
     gap: 10px;
 }
 
-.grid-cols-3 {
-    grid-template-columns: repeat(3, 1fr);
+// คอลัมน์ขวาแคบ — auto-fit ให้ช่องหล่นลงบรรทัดใหม่เองแทนการบังคับ 3 คอลัมน์
+.bill-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px 16px;
+
+    // โหมดดูอย่างเดียว: ช่อง disabled ดูเป็นค่าธรรมดา ไม่ใช่ฟอร์มสีเทา
+    // ใช้ border โปร่งใส (ไม่ลบ) เพื่อไม่ให้ช่องขยับตอนกด Edit
+    &.is-viewing {
+        input:disabled {
+            background: transparent;
+            border-color: transparent;
+            color: var(--k-black);
+            font-weight: 700;
+            padding-left: 0;
+            opacity: 1;
+            -webkit-text-fill-color: var(--k-black);
+
+            // placeholder เช่น "e.g. 5500" จะดูเหมือนข้อมูลจริงถ้าปล่อยไว้
+            &::placeholder {
+                color: transparent;
+            }
+        }
+
+        ::ng-deep .p-select.p-disabled {
+            background: transparent;
+            border-color: transparent;
+            opacity: 1;
+
+            .p-select-label {
+                color: var(--k-black);
+                font-weight: 700;
+                padding-left: 0;
+            }
+
+            .p-select-dropdown {
+                display: none;
+            }
+        }
+    }
 }
 
 .full-width {
@@ -466,43 +637,15 @@ button.doc-item-title {
     }
 }
 
-.bill-error {
-    color: var(--k-red);
-    font-size: 13px;
-}
-
-.header-actions {
-    &:hover {
-        .ic-hd {
-            transition: all 0.5s ease;
-            color: var(--k-red);
-        }
-    }
-}
-
-.dot-green {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #22c55e;
-    display: inline-block;
-    animation: pulse 2s infinite;
-}
-
 .info-label i {
     color: var(--k-red);
 }
 
-@keyframes pulse {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.4;
-    }
+// Task/Ticket tabs — .k-tabs global มี padding ซ้าย-ขวาเอง แต่ตรงนี้อยู่ในการ์ดที่มี padding อยู่แล้ว
+.task-tabs {
+    padding-inline: 0;
+    display: flex;
+    gap: 12px;
 }
 
 /* Note Comments — badge toggle เหมือน .todo-comment-toggle ของ todo-board แต่ scope เฉพาะหน้านี้ */
@@ -559,75 +702,24 @@ button.doc-item-title {
 }
 
 .note-comment-form {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
     margin-top: 4px;
-
-    // base border/padding/radius มาจาก global .form-textarea — override แค่ความสูงให้เหมาะกับ reply สั้น ๆ
-    textarea {
-        min-height: 48px;
-    }
 }
 
-.note-comment-images {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+// display:flex ของ .note-comments ชนะ [hidden] ของ browser — ต้องบังคับซ่อนเอง (comment ที่พับไว้ยังต้อง render ค้างไว้เพื่อเก็บ draft)
+.note-comments[hidden] {
+    display: none;
 }
 
-.note-comment-image-thumb {
-    position: relative;
-    width: 64px;
-    height: 64px;
-    flex-shrink: 0;
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-    border: 1px solid var(--k-light-grey);
-    display: block;
-
-    img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
+.note-composer-wrap {
+    margin-bottom: 20px;
 }
 
-.note-comment-image-remove {
-    position: absolute;
-    top: -6px;
-    right: -6px;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: none;
-    background: var(--k-red);
-    color: white;
-    font-size: 10px;
-    line-height: 1;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.note-comment-form-actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-}
-
-// เหมือน .comment-attach-btn ของ todo-comments — label ครอบ input[type=file] ไว้แทนปุ่ม + click() เพื่อความเรียบง่าย
-.note-comment-attach-btn {
-    display: inline-flex;
-    cursor: pointer;
-}
-
-.note-comment-attach-btn-disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-    pointer-events: none;
+.note-title {
+    margin-bottom: 4px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--k-black);
+    overflow-wrap: anywhere;
 }
 
 /* =========================================
@@ -654,10 +746,6 @@ button.doc-item-title {
 }
 
 @media (max-width: 768px) {
-    .grid-cols-3 {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
     .status-select {
         width: 100%;
         max-width: none;
@@ -666,19 +754,22 @@ button.doc-item-title {
     .doc-item {
         flex-direction: column;
         align-items: flex-start;
-        gap: 6px;
+        gap: 8px;
+    }
 
-        .item-meta {
-            text-align: left;
-        }
+    .doc-item-side {
+        align-items: flex-start;
+        text-align: left;
+        flex-shrink: 1;
+        width: 100%;
+    }
+
+    .doc-item-actions {
+        justify-content: flex-start;
     }
 }
 
 @media (max-width: 480px) {
-    .grid-cols-3 {
-        grid-template-columns: 1fr;
-    }
-
     .card-header {
         flex-wrap: wrap;
         gap: 8px;

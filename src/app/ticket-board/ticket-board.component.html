@@ -3,7 +3,7 @@
 @if (me()) {
 @if (!dialogOnly) {
 <!-- ฟอร์มเพิ่ม ticket อยู่บนสุดนอก card เสมอ ไม่ว่าจะยุบ/ขยายการ์ดอยู่ -->
-<div class="add-ticket-form">
+<div class="add-ticket-form" [hidden]="!showAddForm">
   <div class="add-ticket-heading">Add ticket</div>
   <input #titleInput type="text" class="add-ticket-input mb-2" placeholder="Title"
     (keyup.enter)="addTask(titleInput, descInput)">
@@ -52,7 +52,7 @@
 <div class="card">
   <div class="card-header" style="cursor: pointer;" (click)="toggleCollapsed()">
     <div class="flex items-center gap-2">
-      <i class="fa-regular fa-file-lines text-[18px]" style="color: var(--k-red);"></i>
+      <i class="fa-solid fa-ticket text-[18px]" style="color: var(--k-red);"></i>
       <h2>Ticket</h2>
       <span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background: #fde8ea; color: var(--k-red);">
         {{ board().tickets.length }}
@@ -83,13 +83,17 @@
           (ngModelChange)="setPersonFilter($event)" appendTo="body" placeholder="All people" [filter]="true"
           filterBy="name" [showClear]="true" class="ticket-filter" />
         }
+        <button type="button" class="ticket-done-toggle" [class.active]="showDone()" [attr.aria-pressed]="showDone()"
+          [disabled]="doneLoading()" title="Show completed tickets" (click)="toggleShowDone()">
+          <i class="fa-solid fa-circle-check"></i>Is Done
+        </button>
       </div>
 
       @if (board().tickets.length > pageSizeOptions[0]) {
-      <div class="ticket-page-size ticket-page-size-top mb-2" (click)="$event.stopPropagation()">
-        <span class="ticket-pager-label">Show</span>
+      <div class="k-pager-size k-pager-size-top mb-2" (click)="$event.stopPropagation()">
+        <span class="k-pager-label">Show</span>
         @for (size of pageSizeOptions; track size) {
-        <button type="button" class="ticket-pager-btn" [class.active]="pageSize() === size"
+        <button type="button" class="k-pager-btn" [class.active]="pageSize() === size"
           (click)="setPageSize(size)">{{ size }}</button>
         }
       </div>
@@ -297,8 +301,8 @@
             }
             } @empty {
             <tr>
-              <td class="td-cell ticket-empty" [attr.colspan]="columnCount">{{ searchText().trim() ? 'No matching tickets'
-                : 'No tickets' }}</td>
+              <td class="td-cell ticket-empty" [attr.colspan]="columnCount">{{ doneLoading() ? 'Loading completed tickets…' : searchText().trim() ? 'No matching tickets'
+                : showDone() ? 'No completed tickets' : 'No tickets' }}</td>
             </tr>
             }
           </tbody>
@@ -306,19 +310,19 @@
       </div>
 
       @if (board().tickets.length > pageSizeOptions[0]) {
-      <div class="ticket-pager" (click)="$event.stopPropagation()">
-        <div class="ticket-page-size">
-          <span class="ticket-pager-label">Show</span>
+      <div class="k-pager" (click)="$event.stopPropagation()">
+        <div class="k-pager-size">
+          <span class="k-pager-label">Show</span>
           @for (size of pageSizeOptions; track size) {
-          <button type="button" class="ticket-pager-btn" [class.active]="pageSize() === size"
+          <button type="button" class="k-pager-btn" [class.active]="pageSize() === size"
             (click)="setPageSize(size)">{{ size }}</button>
           }
         </div>
-        <div class="ticket-page-nav">
-          <button type="button" class="ticket-pager-btn" title="Previous page" [disabled]="board().currentPage <= 1"
+        <div class="k-pager-nav">
+          <button type="button" class="k-pager-btn" title="Previous page" [disabled]="board().currentPage <= 1"
             (click)="setPage(board().currentPage - 1)">‹</button>
-          <span class="ticket-pager-label">{{ board().currentPage }} / {{ board().totalPages }}</span>
-          <button type="button" class="ticket-pager-btn" title="Next page"
+          <span class="k-pager-label">{{ board().currentPage }} / {{ board().totalPages }}</span>
+          <button type="button" class="k-pager-btn" title="Next page"
             [disabled]="board().currentPage >= board().totalPages"
             (click)="setPage(board().currentPage + 1)">›</button>
         </div>
@@ -330,7 +334,7 @@
 
 }
 <p-dialog [visible]="!!drawerTicket()" (visibleChange)="onDrawerVisibleChange($event)" [modal]="true"
-  [dismissableMask]="!drawerEditing()" [closeOnEscape]="!drawerEditing()" [draggable]="false" [resizable]="false" [style]="{ width: '50vw' }"
+  [dismissableMask]="!drawerEditing()" [closeOnEscape]="!drawerEditing()" [draggable]="false" [resizable]="false" [style]="{ width: '50vw' }" appendTo="body"
   [contentStyle]="{ 'max-height': '80vh', 'overflow-y': 'auto' }" styleClass="task-detail-drawer">
   @if (drawerTicket(); as ticket) {
   <ng-template #header>
@@ -506,6 +510,14 @@
         }
       </div>
       }
+    </div>
+    }
+
+    <!-- ticket เก่าก่อนมี updated_by จะไม่มีชื่อ → ซ่อนทั้งบรรทัดแทนโชว์ "—" -->
+    @if (ticket.updatedByName) {
+    <div class="task-drawer-meta">
+      <i class="fa-regular fa-pen-to-square"></i>
+      Updated by <strong>{{ ticket.updatedByName }}</strong> · {{ ticket.updatedAt | date: 'dd/MM/yyyy HH:mm' }}
     </div>
     }
   </div>

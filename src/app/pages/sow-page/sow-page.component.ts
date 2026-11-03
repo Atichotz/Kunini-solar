@@ -14,6 +14,7 @@ import { SelectModule } from 'primeng/select';
 import { TabsModule } from 'primeng/tabs';
 import { KLoadingComponent } from '../../k-loading/k-loading.component';
 import { CustomerService } from '../../services/customer.service';
+import { PermissionService } from '../../services/permission.service';
 import { SowService } from '../../services/sow.service';
 import {
   SOW_DAY_STATUSES,
@@ -97,6 +98,8 @@ export class SowPageComponent implements OnInit, OnDestroy {
   private readonly sowService = inject(SowService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly permission = inject(PermissionService);
+  readonly canEditDocuments = this.permission.canEditDocuments;
 
   // customer id จาก query param — SOW ต้องผูกกับลูกค้าเสมอ ไม่มีแล้วเปิดหน้าไม่ได้ (เหมือน site-survey-report-page)
   customerId: string | null = null;
@@ -518,6 +521,7 @@ export class SowPageComponent implements OnInit, OnDestroy {
 
   // บันทึก SOW (สร้างใหม่หรือแก้ทับทั้งก้อน) แล้วอัปโหลดรูป EOD ที่รออยู่ — ฟอร์มถูกล็อกด้วย overlay ตลอดจนเสร็จ
   saveSow(): void {
+    if (!this.canEditDocuments()) return;
     if (this.isSaving || !this.customerId) return;
     if (this.startAfterEnd) {
       this.exportAfterSave = false;

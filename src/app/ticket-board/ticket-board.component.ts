@@ -1,4 +1,6 @@
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, EventEmitter, Input, OnDestroy, OnInit, Output, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -12,6 +14,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { TicketService } from '../services/ticket.service';
+import { BoardRefreshService } from '../services/board-refresh.service';
 import { TicketCommentsComponent } from './ticket-comments/ticket-comments.component';
 import { ATTACHMENT_ACCEPT, FilePreviewCache, mergeAttachmentFiles } from '../attachment-files.util';
 import type { Customer } from '../services/workflow.service';
@@ -49,8 +52,10 @@ interface TicketBoardView {
 const ROLE_LABELS: Record<TicketRole, string> = {
   ceo: 'CEO',
   admin: 'Admin',
+  engineer: 'Engineer',
   technician: 'Technician',
-  purchasing: 'Purchasing'
+  purchasing: 'Purchasing',
+  sales: 'Sales'
 };
 
 // สีจุดหน้า Status dropdown ตาม reference (Notion) — ชุดเดียวกับ Todo
@@ -66,13 +71,15 @@ const COLUMN_COUNT = 10;
 
 @Component({
   selector: 'app-ticket-board',
-  imports: [RouterLink, FormsModule, SelectModule, MultiSelectModule, DatePickerModule, ProgressSpinnerModule, DialogModule, ImageModule, ConfirmDialogModule, ToastModule, TicketCommentsComponent],
+  imports: [DatePipe, RouterLink, FormsModule, SelectModule, MultiSelectModule, DatePickerModule, ProgressSpinnerModule, DialogModule, ImageModule, ConfirmDialogModule, ToastModule, TicketCommentsComponent],
   templateUrl: './ticket-board.component.html',
   styleUrl: './ticket-board.component.scss',
   providers: [ConfirmationService, MessageService]
 })
 export class TicketBoardComponent implements OnInit, OnDestroy {
   private readonly ticketService = inject(TicketService);
+  private readonly boardRefresh = inject(BoardRefreshService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
 
@@ -88,6 +95,11 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
   @Input() customerId: string | null = null;
   // true = ไม่ render ตาราง/ฟอร์ม Add เหลือแค่ dialog รายละเอียด — ให้หน้าอื่น (เช่น customer detail) เปิดดู ticket ผ่าน openTaskDrawer() ได้โดยไม่ต้องวางบอร์ดเต็ม
   @Input() dialogOnly = false;
+  // false = ซ่อนฟอร์ม Add (ใช้ [hidden] ไม่ใช่ @if เพื่อไม่ให้ title/description ที่พิมพ์ค้างไว้หาย) — default true ให้ dashboard เห็นฟอร์มตลอดเหมือนเดิม
+  @Input() showAddForm = true;
+  // true = ผู้ใช้ดูได้อย่างเดียว (technician): ปิดทุกการแก้ไข แต่ยัง comment ได้ใน ticket ที่ตัวเองเป็น assignee
+  // parent ส่ง !canEditTickets() มา (fail-closed ระหว่างรอ profile) ส่วน role จาก me() เป็นชั้นสำรอง ไม่ต้องรอ parent
+  @Input() readOnly = false;
   // emit list (หลังกรอง customerId แล้ว) ทุกครั้งที่โหลดสำเร็จ รวมถึง reload หลังเพิ่ม/ลบ comment — ให้หน้าที่ฝังบอร์ดไว้เลี้ยง UI ของตัวเองโดยไม่ยิง getAll() ซ้ำ
   @Output() ticketsChange = new EventEmitter<TicketCard[]>();
   // emit เมื่อโหลด me/ticket ไม่สำเร็จ — กันหน้าที่ฝังบอร์ดค้างที่ "Loading…" เพราะไม่มี ticketsChange มาเลย
@@ -97,13 +109,32 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
 
   // ตัวเองใน allowed_users — role ตรงนี้ (ไม่ใช่ PermissionService) ใช้ตัดสินว่าเห็น filter ทีม/คนไหม
   me = signal<TicketAssignee | null>(null);
+  // ล็อก customerId (หน้า customer detail) = ทุกสถานะ เพราะ History timeline ใช้รายการนี้ | ไม่ล็อก = เฉพาะที่ยังไม่เสร็จ (is_done = false)
   tickets = signal<TicketCard[]>([]);
+  // ticket ที่เสร็จแล้ว — ดึงเมื่อกดปุ่ม "Is Done" เท่านั้น (ไม่ล็อก customerId); ล็อก customerId ไม่ใช้ เพราะ tickets() มีครบแล้ว
+  private readonly doneTickets = signal<TicketCard[]>([]);
+  // true = ตารางแสดงเฉพาะ ticket ที่เสร็จแล้ว (ปุ่ม "Is Done")
+  readonly showDone = signal(false);
+  readonly doneLoading = signal(false);
   assignees = signal<TicketAssignee[]>([]);
   isSubmitting = signal(false);
   // true จนกว่าโหลด me + รายการ ticket ครั้งแรกเสร็จ (หรือพัง) — กันตารางว่างที่ดูเหมือน "ไม่มี ticket"
   ticketsLoading = signal(true);
   // จำนวน ticket ทั้งหมด (ไม่ผ่าน filter) — ใช้แสดง badge บน tab ของ dashboard
-  readonly totalCount = computed<number>(() => this.tickets().length);
+  // นับเฉพาะที่ยังไม่เสร็จเสมอ ไม่ว่ากำลังดู Is Done อยู่หรือไม่ — badge จะได้ไม่เปลี่ยนตามมุมมอง
+  readonly totalCount = computed<number>(() => this.activeTickets().length);
+  // จำนวนที่ยังไม่เสร็จ (isDone = false) — ใช้แสดง KPI card บน dashboard
+  readonly pendingCount = computed<number>(() => this.activeTickets().length);
+  private readonly activeTickets = computed<TicketCard[]>(() =>
+    this.customerId ? this.tickets().filter(ticket => !ticket.isDone) : this.tickets()
+  );
+  private readonly completedTickets = computed<TicketCard[]>(() =>
+    this.customerId ? this.tickets().filter(ticket => ticket.isDone) : this.doneTickets()
+  );
+  // รายการตั้งต้นของตาราง (ก่อน filter ทีม/คน/ค้นหา/แบ่งหน้า) ตามมุมมองที่เลือก
+  private readonly sourceTickets = computed<TicketCard[]>(() =>
+    this.showDone() ? this.completedTickets() : this.activeTickets()
+  );
   // id ticket ที่กำลัง toggle/ลบอยู่ — กันกดซ้ำระหว่างรอ request + refetch
   private readonly pendingTicketIds = signal<ReadonlySet<string>>(new Set());
   // field ที่กำลังแก้ไขอยู่ (แยกอิสระต่อ field ไม่ใช่ทั้งแถว) — แก้ได้ทีละ field ทั้งระบบ, null = ไม่มี field ไหนกำลังแก้
@@ -122,7 +153,9 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
   readonly drawerAttachments = signal<TicketAttachment[]>([]);
   readonly drawerTicket = computed<TicketCard | null>(() => {
     const id = this.drawerTicketId();
-    return id ? (this.tickets().find(ticket => ticket.id === id) ?? null) : null;
+    if (!id) return null;
+    // หาจากทั้งสองรายการ — เปลี่ยน status เป็น/ออกจาก done ใน drawer แล้ว ticket ย้ายรายการ แต่ drawer ต้องไม่หาย
+    return this.tickets().find(ticket => ticket.id === id) ?? this.doneTickets().find(ticket => ticket.id === id) ?? null;
   });
 
   // โหมดแก้ไขของ drawer — แยกจาก activeEdit/editXxx ของตารางโดยเจตนา: ตารางอยู่หลัง modal ถ้าใช้ state ร่วมกัน
@@ -167,11 +200,11 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
 
   // ceo/admin: filter ตามทีม/คนได้ (มองเห็นทุก ticket อยู่แล้ว) | role อื่น: เห็นเฉพาะ ticket ของทีมตัวเอง (backend กรองมาแล้ว) ไม่ต้อง filter ซ้ำ
   readonly filteredTickets = computed<TicketCard[]>(() => {
-    if (!this.isManager()) return this.tickets();
+    if (!this.isManager()) return this.sourceTickets();
 
     const team = this.teamFilter();
     const person = this.personFilter();
-    return this.tickets().filter(ticket =>
+    return this.sourceTickets().filter(ticket =>
       (!team || ticket.assignees.some(assignee => assignee.role === team)) &&
       (!person || ticket.assignees.some(assignee => assignee.id === person))
     );
@@ -203,6 +236,10 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadMe();
+    // ยังไม่มี me() = loadMe() ยังวิ่งอยู่/พัง และจะโหลด list เองอยู่แล้ว ไม่ต้องยิงซ้ำ
+    this.boardRefresh.refresh$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      if (this.me()) this.loadTickets();
+    });
   }
 
   private loadMe(): void {
@@ -210,7 +247,8 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
       next: me => {
         this.me.set(me);
         this.loadTickets();
-        this.loadAssignees();
+        // technician/sales เรียก GET /tickets/assignees ไม่ได้ (403) และมอบงานไม่ได้อยู่แล้ว
+        if (me.role !== 'technician' && me.role !== 'sales') this.loadAssignees();
       },
       error: err => {
         this.notifyError('Load Failed', this.errorMessage(err, 'Unable to load your Ticket profile'));
@@ -222,13 +260,19 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
 
   // input: onSettled — เรียกเมื่อโหลดเสร็จไม่ว่าสำเร็จหรือพัง (ใช้ปลด pending ของ toggle/delete หลัง list อัปเดตแล้ว)
   private loadTickets(onSettled?: () => void): void {
-    this.ticketService.getAll(this.customerId ?? undefined).subscribe({
+    // ล็อก customerId = ไม่ส่ง isDone (ต้องการทุกสถานะให้ History) | ไม่ล็อก = เฉพาะที่ยังไม่เสร็จ
+    const request$ = this.customerId
+      ? this.ticketService.getAll({ customerId: this.customerId })
+      : this.ticketService.getAll({ isDone: false });
+    request$.subscribe({
       next: list => {
         const scoped = this.customerId ? list.filter(ticket => ticket.customerId === this.customerId) : list;
         this.tickets.set(scoped);
         this.ticketsLoading.set(false);
         this.ticketsChange.emit(scoped);
-        onSettled?.();
+        // ติ๊ก/แก้ไขอาจย้าย ticket ข้ามรายการ — ถ้าเปิด Is Done อยู่ต้องรีเฟรชรายการที่เสร็จด้วย ก่อนปลด pending
+        if (this.showDone() && !this.customerId) this.loadDoneTickets(onSettled);
+        else onSettled?.();
       },
       error: err => {
         this.notifyError('Load Failed', this.errorMessage(err, 'Unable to load tickets'));
@@ -237,6 +281,31 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
         onSettled?.();
       }
     });
+  }
+
+  // input: onSettled — เรียกเมื่อโหลดเสร็จไม่ว่าสำเร็จหรือพัง
+  private loadDoneTickets(onSettled?: () => void): void {
+    this.doneLoading.set(true);
+    this.ticketService.getAll({ isDone: true }).subscribe({
+      next: list => {
+        this.doneTickets.set(list);
+        this.doneLoading.set(false);
+        onSettled?.();
+      },
+      error: err => {
+        this.notifyError('Load Failed', this.errorMessage(err, 'Unable to load completed tickets'));
+        this.doneLoading.set(false);
+        onSettled?.();
+      }
+    });
+  }
+
+  // สลับมุมมอง active <-> Is Done — เข้า Is Done ทุกครั้งโหลดใหม่ (ไม่ cache) เพราะคนอื่นอาจปิดงานระหว่างนี้
+  toggleShowDone(): void {
+    const next = !this.showDone();
+    this.showDone.set(next);
+    this.setPage(1);
+    if (next && !this.customerId) this.loadDoneTickets();
   }
 
   isTicketPending(id: string): boolean {
@@ -423,9 +492,14 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
     return name.trim().charAt(0).toUpperCase() || '?';
   }
 
+  private isReadOnlyMode(): boolean {
+    return this.readOnly || this.me()?.role === 'technician' || this.me()?.role === 'sales';
+  }
+
   // สมาชิกทีมเห็น ticket เพื่อนร่วมทีมได้แต่แก้ไม่ได้ — backend บังคับเช่นเดียวกัน ตรงนี้แค่ซ่อนปุ่มไม่ให้กดแล้วเจอ 403
   canModify(ticket: TicketCard): boolean {
     const me = this.me();
+    if (this.isReadOnlyMode()) return false;
     return this.isManager() || (!!me && ticket.assignees.some(assignee => assignee.id === me.id));
   }
 
@@ -589,6 +663,10 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
   canComment(ticket: TicketCard): boolean {
     const me = this.me();
     if (!me) return false;
+    // sales ดู ticket ผ่าน History card ได้อย่างเดียว — backend ปฏิเสธ POST comment อยู่แล้ว (@ReadOnlyRoles('sales'))
+    if (me.role === 'sales') return false;
+    // read-only (technician) comment ได้เฉพาะ ticket ที่ตัวเองเป็น assignee — ไม่ใช้กฎ role เดียวกัน (backend assertCanView เช็ค id)
+    if (this.isReadOnlyMode()) return ticket.assignees.some(assignee => assignee.id === me.id);
     return this.isManager() || ticket.assignees.some(assignee => assignee.role === me.role);
   }
 
