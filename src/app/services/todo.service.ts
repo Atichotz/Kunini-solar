@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import type { TodoCard, TodoAssignee, CreateTodoPayload, UpdateTodoPayload, TodoComment, AddTodoCommentPayload, TodoAttachment } from '../dto/todo.dto';
@@ -11,8 +11,10 @@ export class TodoService {
 
   // output: todo ที่ user เห็นได้ (backend กรองตามสิทธิ์แล้ว) เรียงตาม is_done ASC, created_at ASC
   //   ceo/admin ได้ทุกงาน, role อื่นได้งานของทีม (role) เดียวกัน
-  getAll(): Observable<TodoCard[]> {
-    return this.http.get<TodoCard[]>(this.baseUrl);
+  // input: isDone — false = เฉพาะงานค้าง, true = เฉพาะที่เสร็จแล้ว, ไม่ส่ง = ทุกสถานะ
+  getAll(isDone?: boolean): Observable<TodoCard[]> {
+    const params = isDone === undefined ? undefined : new HttpParams().set('isDone', isDone);
+    return this.http.get<TodoCard[]>(this.baseUrl, { params });
   }
 
   // output: ตัวเองใน allowed_users (id/name/role) — role ตรงนี้ใช้ตัดสินว่าแสดง 1 หรือ 2 การ์ด

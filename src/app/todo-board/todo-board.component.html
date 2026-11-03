@@ -85,6 +85,10 @@
             (ngModelChange)="setPersonFilter($event)" appendTo="body" placeholder="All people" [filter]="true"
             filterBy="name" [showClear]="true" class="todo-filter" />
           }
+          <button type="button" class="todo-done-toggle" [class.active]="showDone()" [attr.aria-pressed]="showDone()"
+            [disabled]="doneLoading()" title="Show completed tasks" (click)="toggleShowDone()">
+            <i class="fa-solid fa-circle-check"></i>Is Done
+          </button>
         </div>
 
         @if (card.todos.length > pageSizeOptions[0]) {
@@ -299,8 +303,8 @@
               }
               } @empty {
               <tr>
-                <td class="td-cell todo-empty" [attr.colspan]="columnCount">{{ searchText()[card.key].trim() ? 'No matching tasks'
-                  : 'No tasks' }}</td>
+                <td class="td-cell todo-empty" [attr.colspan]="columnCount">{{ doneLoading() ? 'Loading completed tasks…' : searchText()[card.key].trim() ? 'No matching tasks'
+                  : showDone() ? 'No completed tasks' : 'No tasks' }}</td>
               </tr>
               }
             </tbody>

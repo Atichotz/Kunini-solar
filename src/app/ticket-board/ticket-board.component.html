@@ -83,6 +83,10 @@
           (ngModelChange)="setPersonFilter($event)" appendTo="body" placeholder="All people" [filter]="true"
           filterBy="name" [showClear]="true" class="ticket-filter" />
         }
+        <button type="button" class="ticket-done-toggle" [class.active]="showDone()" [attr.aria-pressed]="showDone()"
+          [disabled]="doneLoading()" title="Show completed tickets" (click)="toggleShowDone()">
+          <i class="fa-solid fa-circle-check"></i>Is Done
+        </button>
       </div>
 
       @if (board().tickets.length > pageSizeOptions[0]) {
@@ -297,8 +301,8 @@
             }
             } @empty {
             <tr>
-              <td class="td-cell ticket-empty" [attr.colspan]="columnCount">{{ searchText().trim() ? 'No matching tickets'
-                : 'No tickets' }}</td>
+              <td class="td-cell ticket-empty" [attr.colspan]="columnCount">{{ doneLoading() ? 'Loading completed tickets…' : searchText().trim() ? 'No matching tickets'
+                : showDone() ? 'No completed tickets' : 'No tickets' }}</td>
             </tr>
             }
           </tbody>

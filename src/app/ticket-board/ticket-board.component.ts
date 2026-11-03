@@ -109,15 +109,32 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
 
   // ตัวเองใน allowed_users — role ตรงนี้ (ไม่ใช่ PermissionService) ใช้ตัดสินว่าเห็น filter ทีม/คนไหม
   me = signal<TicketAssignee | null>(null);
+  // ล็อก customerId (หน้า customer detail) = ทุกสถานะ เพราะ History timeline ใช้รายการนี้ | ไม่ล็อก = เฉพาะที่ยังไม่เสร็จ (is_done = false)
   tickets = signal<TicketCard[]>([]);
+  // ticket ที่เสร็จแล้ว — ดึงเมื่อกดปุ่ม "Is Done" เท่านั้น (ไม่ล็อก customerId); ล็อก customerId ไม่ใช้ เพราะ tickets() มีครบแล้ว
+  private readonly doneTickets = signal<TicketCard[]>([]);
+  // true = ตารางแสดงเฉพาะ ticket ที่เสร็จแล้ว (ปุ่ม "Is Done")
+  readonly showDone = signal(false);
+  readonly doneLoading = signal(false);
   assignees = signal<TicketAssignee[]>([]);
   isSubmitting = signal(false);
   // true จนกว่าโหลด me + รายการ ticket ครั้งแรกเสร็จ (หรือพัง) — กันตารางว่างที่ดูเหมือน "ไม่มี ticket"
   ticketsLoading = signal(true);
   // จำนวน ticket ทั้งหมด (ไม่ผ่าน filter) — ใช้แสดง badge บน tab ของ dashboard
-  readonly totalCount = computed<number>(() => this.tickets().length);
-  // จำนวนที่ยังไม่เสร็จ (isDone = false) จากรายการเดียวกับ totalCount — ใช้แสดง KPI card บน dashboard
-  readonly pendingCount = computed<number>(() => this.tickets().filter(item => !item.isDone).length);
+  // นับเฉพาะที่ยังไม่เสร็จเสมอ ไม่ว่ากำลังดู Is Done อยู่หรือไม่ — badge จะได้ไม่เปลี่ยนตามมุมมอง
+  readonly totalCount = computed<number>(() => this.activeTickets().length);
+  // จำนวนที่ยังไม่เสร็จ (isDone = false) — ใช้แสดง KPI card บน dashboard
+  readonly pendingCount = computed<number>(() => this.activeTickets().length);
+  private readonly activeTickets = computed<TicketCard[]>(() =>
+    this.customerId ? this.tickets().filter(ticket => !ticket.isDone) : this.tickets()
+  );
+  private readonly completedTickets = computed<TicketCard[]>(() =>
+    this.customerId ? this.tickets().filter(ticket => ticket.isDone) : this.doneTickets()
+  );
+  // รายการตั้งต้นของตาราง (ก่อน filter ทีม/คน/ค้นหา/แบ่งหน้า) ตามมุมมองที่เลือก
+  private readonly sourceTickets = computed<TicketCard[]>(() =>
+    this.showDone() ? this.completedTickets() : this.activeTickets()
+  );
   // id ticket ที่กำลัง toggle/ลบอยู่ — กันกดซ้ำระหว่างรอ request + refetch
   private readonly pendingTicketIds = signal<ReadonlySet<string>>(new Set());
   // field ที่กำลังแก้ไขอยู่ (แยกอิสระต่อ field ไม่ใช่ทั้งแถว) — แก้ได้ทีละ field ทั้งระบบ, null = ไม่มี field ไหนกำลังแก้
@@ -136,7 +153,9 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
   readonly drawerAttachments = signal<TicketAttachment[]>([]);
   readonly drawerTicket = computed<TicketCard | null>(() => {
     const id = this.drawerTicketId();
-    return id ? (this.tickets().find(ticket => ticket.id === id) ?? null) : null;
+    if (!id) return null;
+    // หาจากทั้งสองรายการ — เปลี่ยน status เป็น/ออกจาก done ใน drawer แล้ว ticket ย้ายรายการ แต่ drawer ต้องไม่หาย
+    return this.tickets().find(ticket => ticket.id === id) ?? this.doneTickets().find(ticket => ticket.id === id) ?? null;
   });
 
   // โหมดแก้ไขของ drawer — แยกจาก activeEdit/editXxx ของตารางโดยเจตนา: ตารางอยู่หลัง modal ถ้าใช้ state ร่วมกัน
@@ -181,11 +200,11 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
 
   // ceo/admin: filter ตามทีม/คนได้ (มองเห็นทุก ticket อยู่แล้ว) | role อื่น: เห็นเฉพาะ ticket ของทีมตัวเอง (backend กรองมาแล้ว) ไม่ต้อง filter ซ้ำ
   readonly filteredTickets = computed<TicketCard[]>(() => {
-    if (!this.isManager()) return this.tickets();
+    if (!this.isManager()) return this.sourceTickets();
 
     const team = this.teamFilter();
     const person = this.personFilter();
-    return this.tickets().filter(ticket =>
+    return this.sourceTickets().filter(ticket =>
       (!team || ticket.assignees.some(assignee => assignee.role === team)) &&
       (!person || ticket.assignees.some(assignee => assignee.id === person))
     );
@@ -241,13 +260,19 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
 
   // input: onSettled — เรียกเมื่อโหลดเสร็จไม่ว่าสำเร็จหรือพัง (ใช้ปลด pending ของ toggle/delete หลัง list อัปเดตแล้ว)
   private loadTickets(onSettled?: () => void): void {
-    this.ticketService.getAll(this.customerId ?? undefined).subscribe({
+    // ล็อก customerId = ไม่ส่ง isDone (ต้องการทุกสถานะให้ History) | ไม่ล็อก = เฉพาะที่ยังไม่เสร็จ
+    const request$ = this.customerId
+      ? this.ticketService.getAll({ customerId: this.customerId })
+      : this.ticketService.getAll({ isDone: false });
+    request$.subscribe({
       next: list => {
         const scoped = this.customerId ? list.filter(ticket => ticket.customerId === this.customerId) : list;
         this.tickets.set(scoped);
         this.ticketsLoading.set(false);
         this.ticketsChange.emit(scoped);
-        onSettled?.();
+        // ติ๊ก/แก้ไขอาจย้าย ticket ข้ามรายการ — ถ้าเปิด Is Done อยู่ต้องรีเฟรชรายการที่เสร็จด้วย ก่อนปลด pending
+        if (this.showDone() && !this.customerId) this.loadDoneTickets(onSettled);
+        else onSettled?.();
       },
       error: err => {
         this.notifyError('Load Failed', this.errorMessage(err, 'Unable to load tickets'));
@@ -256,6 +281,31 @@ export class TicketBoardComponent implements OnInit, OnDestroy {
         onSettled?.();
       }
     });
+  }
+
+  // input: onSettled — เรียกเมื่อโหลดเสร็จไม่ว่าสำเร็จหรือพัง
+  private loadDoneTickets(onSettled?: () => void): void {
+    this.doneLoading.set(true);
+    this.ticketService.getAll({ isDone: true }).subscribe({
+      next: list => {
+        this.doneTickets.set(list);
+        this.doneLoading.set(false);
+        onSettled?.();
+      },
+      error: err => {
+        this.notifyError('Load Failed', this.errorMessage(err, 'Unable to load completed tickets'));
+        this.doneLoading.set(false);
+        onSettled?.();
+      }
+    });
+  }
+
+  // สลับมุมมอง active <-> Is Done — เข้า Is Done ทุกครั้งโหลดใหม่ (ไม่ cache) เพราะคนอื่นอาจปิดงานระหว่างนี้
+  toggleShowDone(): void {
+    const next = !this.showDone();
+    this.showDone.set(next);
+    this.setPage(1);
+    if (next && !this.customerId) this.loadDoneTickets();
   }
 
   isTicketPending(id: string): boolean {

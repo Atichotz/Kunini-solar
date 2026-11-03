@@ -527,6 +527,36 @@
   }
 }
 
+.ticket-done-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: 1px solid var(--k-mid-grey);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--k-mid-grey);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: var(--k-red);
+    color: var(--k-red);
+  }
+
+  &.active {
+    border-color: var(--k-red);
+    background: var(--k-red);
+    color: #fff;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+}
+
 .ticket-empty {
   padding: 16px 0;
   font-size: 13px;
