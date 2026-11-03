@@ -50,7 +50,7 @@ const IMAGE_WAIT_TIMEOUT_MS = 10_000;
  * เทียบ Angular: component ที่เป็น "view" ล้วนๆ เหมือน site-survey-pdf-preview — ดึงรายงานที่ save แล้วด้วย
  * reportId จาก query param (refresh ได้ และ signed URL ของรูปสดใหม่ทุกครั้งที่เปิด)
  *
- * ผังหน้า: หน้า 1 = S1+S2 (+รูป Pre-Work), หน้า 2 = S3+S4 (+รูป Post-Work) — กลุ่มไหนล้นจะไหลไปหน้าถัดไปเอง
+ * ผังหน้า: เริ่มที่ S1 → S2 (+รูป Pre-Work) → S3 (+รูป Post-Work) → S4 ไหลต่อเนื่อง S3 ต่อท้ายข้อ 2 ทันที ไม่ขึ้นหน้าใหม่เอง
  */
 @Component({
   selector: 'app-call-out-service-pdf-preview',
@@ -164,7 +164,7 @@ export class CallOutServicePdfPreviewComponent implements OnInit {
    * จัดหน้า: วัดความสูงจริงของทุก .pg-block แล้วจัดลงหน้า A4 แบบ greedy ให้บนจอ = ตอนพิมพ์
    * (หลักการเดียวกับ SiteSurveyPdfPreviewComponent.paginate — ดูคำอธิบายเต็มที่นั่น)
    *
-   * - .pg-new  = ขึ้นหน้าใหม่เสมอ (จุดเริ่มกลุ่ม: S1 และ S3)
+   * - .pg-new  = ขึ้นหน้าใหม่เสมอ (ใช้เฉพาะหัวเอกสาร S1)
    * - .pg-keep = หัวข้อ: ถ้าก้อนถัดไปไม่พอที่ในหน้านี้ ให้ย้ายหัวข้อไปหน้าใหม่ด้วย ไม่ปล่อยค้างท้ายหน้า
    * - ก้อนแรกของแต่ละหน้า (หน้า 2 เป็นต้นไป) ได้ class .pg-start:
    *     บนจอ → margin-top (--pg-skip) ดันลงไปอยู่ในแผ่นถัดไป / ตอนพิมพ์ → break-before: page

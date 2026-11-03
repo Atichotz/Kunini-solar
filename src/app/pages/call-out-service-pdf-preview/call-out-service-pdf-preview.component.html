@@ -44,7 +44,7 @@
 
   @if (report(); as r) {
     <!-- เนื้อหาเรียงเป็น .pg-block ต่อกันเป็นเส้นเดียว ไม่แบ่งหน้าด้วย element — ts วัดความสูงแต่ละก้อนแล้วจัดลงแผ่น A4
-         (ดู paginate()): .pg-new = ต้องขึ้นหน้าใหม่เสมอ (จุดเริ่มกลุ่ม), .pg-keep = ห้ามค้างท้ายหน้าโดยก้อนถัดไปไปอยู่หน้าอื่น -->
+         (ดู paginate()): .pg-new = ต้องขึ้นหน้าใหม่เสมอ (เฉพาะหัวเอกสาร), .pg-keep = ห้ามค้างท้ายหน้าโดยก้อนถัดไปไปอยู่หน้าอื่น -->
     <div class="callout-doc" [class.callout-doc--pending]="!isPaginated()" [style.height.mm]="docHeightMm()">
 
       <!-- ===== กลุ่ม 1: Customer & Issue (S1 + S2) ===== -->
@@ -81,8 +81,8 @@
         [ngTemplateOutletContext]="{ label: 'On-site Inspection Findings (Technician\'s Assessment)', paragraphs: inspectionFindingParagraphs(), stacked: true }" />
       <ng-container [ngTemplateOutlet]="photoGrid" [ngTemplateOutletContext]="{ $implicit: preWorkPhotoRows() }" />
 
-      <!-- ===== กลุ่ม 2: Action & Sign-Off (S3 + S4) ===== -->
-      <div class="s-title pg-block pg-new pg-keep">3. Action Taken &amp; Result</div>
+      <!-- ===== กลุ่ม 2: Action & Sign-Off (S3 + S4) — ไม่บังคับขึ้นหน้าใหม่: ต่อท้ายข้อ 2 (รวมส่วนที่ล้นไปหน้าถัดไป) ได้เลย ===== -->
+      <div class="s-title pg-block pg-keep">3. Action Taken &amp; Result</div>
       <ng-container [ngTemplateOutlet]="longText"
         [ngTemplateOutletContext]="{ label: 'Actions Taken', paragraphs: actionsTakenParagraphs(), stacked: false }" />
       <ng-container [ngTemplateOutlet]="longText"
