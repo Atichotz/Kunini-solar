@@ -13,6 +13,7 @@ import type {
   InstallationSerialGroup,
 } from '../../dto/installation-report.dto';
 import { QUOTATION_HARDCODE } from '../pdf-bos-preview/quotation-hardcode';
+import { DEFAULT_REPORT_TITLE } from '../report-page/report-title';
 import { REPORT_MAINTENANCE_HINT, REPORT_WARRANTY_TERMS } from '../report-page/report-warranty';
 
 /** รูปที่พร้อมวางใน PDF */
@@ -95,6 +96,7 @@ export class ReportPdfPreviewComponent implements OnInit {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   readonly hc = QUOTATION_HARDCODE;
+  readonly defaultReportTitle = DEFAULT_REPORT_TITLE;
   readonly warrantyTerms = REPORT_WARRANTY_TERMS;
   readonly maintenanceHint = REPORT_MAINTENANCE_HINT;
 

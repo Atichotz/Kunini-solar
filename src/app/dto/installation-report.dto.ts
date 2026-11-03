@@ -15,6 +15,8 @@ export type InstallationInstallerInputType = 'text' | 'check';
 
 // ทุก field ส่งเสมอ (ค่าว่าง = null) เพราะ PUT เป็น full replace
 export interface InstallationReportHeadPayload {
+  /** null = ใช้ default (DEFAULT_REPORT_TITLE) */
+  report_title: string | null;
   customer_name: string | null;
   address: string | null;
   /** 'YYYY-MM-DD' (วันที่ตามเวลาท้องถิ่น ไม่ผ่าน toISOString เพราะ UTC อาจเลื่อนวัน) */
@@ -148,6 +150,8 @@ export interface InstallationReportDetail {
   id: string;
   customerId: string;
 
+  /** null = ใช้ default (DEFAULT_REPORT_TITLE) */
+  reportTitle: string | null;
   customerName: string | null;
   address: string | null;
   /** 'YYYY-MM-DD' */

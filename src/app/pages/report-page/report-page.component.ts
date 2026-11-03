@@ -16,6 +16,7 @@ import { CustomerService } from '../../services/customer.service';
 import { EquipmentService, InverterItem, PanelItem } from '../../services/equipment.service';
 import { InstallationReportService } from '../../services/installation-report.service';
 import { PermissionService } from '../../services/permission.service';
+import { DEFAULT_REPORT_TITLE, REPORT_TITLE_MAX_LENGTH } from './report-title';
 import { REPORT_MAINTENANCE_HINT, REPORT_WARRANTY_TERMS } from './report-warranty';
 import {
   INSTALLATION_PHOTO_SLOTS,
@@ -292,6 +293,11 @@ export class ReportPageComponent implements OnInit, OnDestroy {
   updatedAt: string | null = null;
   updatedBy: string | null = null;
 
+  // เริ่มด้วยค่า default ทั้งรายงานใหม่และเก่าที่ยังไม่เคยตั้ง — ผู้ใช้เห็นว่า PDF จะออกเป็นชื่ออะไร
+  readonly defaultReportTitle = DEFAULT_REPORT_TITLE;
+  readonly reportTitleMaxLength = REPORT_TITLE_MAX_LENGTH;
+  reportTitle = DEFAULT_REPORT_TITLE;
+
   customerName = '';
   address = '';
   completionDate: Date | null = null;
@@ -485,6 +491,7 @@ export class ReportPageComponent implements OnInit, OnDestroy {
   // ใช้ตอนโหลดครั้งแรกและ reload เท่านั้น — ห้ามเรียกหลัง save เพราะจะทับสิ่งที่ผู้ใช้พิมพ์ต่อระหว่างอัปโหลดรูป
   private applyReportToForm(r: InstallationReportDetail): void {
     this.customerId = r.customerId;
+    this.reportTitle = r.reportTitle ?? DEFAULT_REPORT_TITLE;
     this.customerName = r.customerName ?? '';
     this.address = r.address ?? '';
     this.completionDate = parseDateOnly(r.completionDate);
@@ -931,6 +938,7 @@ export class ReportPageComponent implements OnInit, OnDestroy {
       customer_id: customerId,
       ...(this.reportId && this.savedAt ? { expected_saved_at: this.savedAt } : {}),
       head: {
+        report_title: this.reportTitleForSave(),
         customer_name: blankToNull(this.customerName),
         address: blankToNull(this.address),
         completion_date: formatDateOnly(this.completionDate),
@@ -1170,6 +1178,12 @@ export class ReportPageComponent implements OnInit, OnDestroy {
     }
     this.exportAfterSave = true;
     this.saveReport();
+  }
+
+  // output: null ถ้าว่างหรือเท่ากับ default (ให้ PDF ตามค่า default เสมอ ไม่ล็อกข้อความเก่าไว้) ไม่งั้นข้อความที่ตัดช่องว่างหัวท้ายแล้ว
+  private reportTitleForSave(): string | null {
+    const title = blankToNull(this.reportTitle);
+    return title === null || title === DEFAULT_REPORT_TITLE ? null : title;
   }
 
   private openPdfPreview(reportId: string, replaceUrl: boolean): void {

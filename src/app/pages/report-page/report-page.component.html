@@ -5,7 +5,7 @@
   <!-- Page Header -->
   <div class="flex justify-between items-start !mb-2 flex-wrap">
     <div>
-      <h1 class="k-header mb-1">Installation Report</h1>
+      <h1 class="k-header mb-1">Installation / Service Report</h1>
       @if (!loadErrorMessage && !isLoadingReport) {
       @if (reportId && createdAt) {
       <div class="item-meta">
@@ -53,11 +53,23 @@
 
   <div class="flex-col gap-6">
 
+    <!-- Report Title: หัวเอกสารบน PDF — ว่างหรือเท่ากับ default = บันทึกเป็น null ให้ PDF ใช้ค่า default -->
+    <div class="card mb-6">
+      <div class="card-header">
+        <h2>Report Title</h2>
+        <span class="text-sm report-header-hint">Shown at the top of the exported PDF</span>
+      </div>
+      <div class="input-group">
+        <label class="input-label" for="reportTitle">Title</label>
+        <input id="reportTitle" type="text" [(ngModel)]="reportTitle" [attr.maxlength]="reportTitleMaxLength"
+          [placeholder]="defaultReportTitle">
+      </div>
+    </div>
+
     <!-- 1. Client & Site Details -->
     <div class="card mb-6">
       <div class="card-header">
         <h2>1. Client &amp; Site Details</h2>
-        <span class="badge badge-final">Installation Complete</span>
       </div>
       <div class="grid grid-cols-2 gap-4">
         <div class="input-group">
