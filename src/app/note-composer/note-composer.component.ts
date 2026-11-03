@@ -101,8 +101,10 @@ export class NoteComposerComponent implements OnDestroy {
     this.taggedUsers().filter((user) => mentionPattern(user.name, 'u').test(this.text())),
   );
 
+  // โน้ตหลัก (มี title) กดได้เสมอ เพื่อให้ submit() บอกว่าลืมกรอก title แทนที่จะปล่อยปุ่ม disabled เงียบๆ
+  // comment (ไม่มี title) ต้องมีข้อความหรือไฟล์อย่างใดอย่างหนึ่ง
   protected readonly canSubmit = computed(
-    () => !this.isSaving() && (this.text().trim().length > 0 || this.files().length > 0),
+    () => !this.isSaving() && (this.showTitle() || this.text().trim().length > 0 || this.files().length > 0),
   );
 
   protected readonly displayError = computed(() => this.localError() ?? (this.errorMessage() || null));
@@ -149,6 +151,11 @@ export class NoteComposerComponent implements OnDestroy {
 
   protected submit(): void {
     if (!this.canSubmit()) return;
+    if (this.showTitle() && this.title().trim().length === 0) {
+      this.localError.set('Please enter a title');
+      this.titleRef()?.nativeElement.focus();
+      return;
+    }
     this.localError.set(null);
     this.submitted.emit({
       title: this.title().trim(),
@@ -170,6 +177,7 @@ export class NoteComposerComponent implements OnDestroy {
 
   protected onTitleInput(event: Event): void {
     this.title.set((event.target as HTMLInputElement).value);
+    this.localError.set(null);
   }
 
   protected onTitleEnter(event: Event): void {

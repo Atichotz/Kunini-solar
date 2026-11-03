@@ -2,7 +2,7 @@
     (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
 
     @if (showTitle()) {
-    <input #titleInput class="composer-title" type="text" placeholder="Title (optional)" aria-label="Title"
+    <input #titleInput class="composer-title" type="text" placeholder="Title" aria-label="Title" aria-required="true"
         [value]="title()" [attr.maxlength]="titleMaxLength" [disabled]="isSaving()" (input)="onTitleInput($event)"
         (keydown.enter)="onTitleEnter($event)" />
     }

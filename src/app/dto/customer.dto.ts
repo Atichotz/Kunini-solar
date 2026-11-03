@@ -80,7 +80,7 @@ export interface NoteDetail {
   mentions: NoteMention[];
 }
 
-// ส่งเป็น multipart/form-data — text ว่างได้ถ้ามีไฟล์แนบ (และกลับกัน)
+// ส่งเป็น multipart/form-data — title บังคับ ส่วน text/ไฟล์แนบว่างได้
 export interface CreateNotePayload {
   title: string;
   text: string;
