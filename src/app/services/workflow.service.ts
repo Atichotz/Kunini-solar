@@ -21,6 +21,7 @@ export interface Customer {
 // ตรงกับ status.id ในตาราง status ของ DB — ใช้ร่วมกันระหว่าง workflow-page และ dashboard
 export const WORKFLOW_STATUS = {
   NEED_ANALYSIS: 1,
+  PENDING_QUOTATION: 8, // id ต่อท้ายเพราะเพิ่มทีหลัง — ตำแหน่งแสดงผลดูที่ status.sort_order / COLUMN_DEFS
   PROPOSED: 2,
   ON_GOING: 3,
   ON_HOLD_REVIEW: 4,

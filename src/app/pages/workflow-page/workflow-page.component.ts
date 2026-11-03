@@ -25,6 +25,7 @@ interface WorkflowColumn {
 /** กำหนด column แต่ละขั้นตอน — เก็บแค่ layout ไม่มีข้อมูล customer */
 const COLUMN_DEFS: Omit<WorkflowColumn, 'cards'>[] = [
   { id: WORKFLOW_STATUS.NEED_ANALYSIS, name: 'Need Analysis', color: '#e8f4fd', headerColor: '#414142' },
+  { id: WORKFLOW_STATUS.PENDING_QUOTATION, name: 'Pending Quotation', color: '#ede7f6', headerColor: '#414142' },
   { id: WORKFLOW_STATUS.PROPOSED, name: 'Proposed', color: '#fef9e7', headerColor: '#414142' },
   { id: WORKFLOW_STATUS.ON_GOING, name: 'On going', color: '#f3e5f5', headerColor: '#414142' },
   { id: WORKFLOW_STATUS.ON_HOLD_REVIEW, name: 'On hold / Review', color: '#e8f5e9', headerColor: '#414142' },
